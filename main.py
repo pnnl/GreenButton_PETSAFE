@@ -1,4 +1,5 @@
-from multiprocessing import freeze_support
+import multiprocessing
+from math import floor
 import config
 from list_files import list_files_in_dir
 
@@ -10,20 +11,30 @@ from building_analysis.decryptor import Decryptor
 # Output directory for prepped data
 OUTPUT_DIR = "./output/"
 
+def process_file(file):
+    file = config.POWER_DIR + file
+    parser = md.MeterDataParser(file, building_size=8, seed=config.SEED, encrypt=config.ENCRYPT)
+    try:
+        parser.output_to_file(config.OUTPUT_DIR)
+        print(file, "done.")
+    except Exception as error:
+        print("Could not output files:", error)
+
 def main():
     if config.PREP_FILES == True:
         files = list_files_in_dir(config.POWER_DIR, False)
-        for file in files:
-            #try:
-            file = config.POWER_DIR + file
-            parser = md.MeterDataParser(file, seed=config.SEED, encrypt=config.ENCRYPT, building_size=8)
-            #except Exception as error:
-            #print("Could not parse files into buildings:", error)
-            try:
-                parser.output_to_file(config.OUTPUT_DIR)
-                print(file, "done.")
-            except Exception as error:
-                print("Could not output files:", error)
+        # Only use multiprocessing if we're not going to need multiprocessing for
+        # encryption- would use too many cores otherwise
+        if config.ENCRYPT == False:
+            processors = multiprocessing.cpu_count()
+            processors = floor(processors / 2)
+            results = []
+            with multiprocessing.Pool(processes=processors) as pool:
+                for result in pool.map(process_file, files):
+                    results.append(result)
+        else:
+            for file in files:
+                process_file(file)
 
     if config.CREATE_STATISTICS == True:
         reader = Reader(config.START_DATE, config.END_DATE)
@@ -49,7 +60,7 @@ def main():
     
 # Thanks, multiprocessing
 if __name__ == '__main__':
-    freeze_support()
+    multiprocessing.freeze_support()
     try:
         main()
     except KeyboardInterrupt:

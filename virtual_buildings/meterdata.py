@@ -50,7 +50,7 @@ class MeterDataParser:
 
         # Building size or distribution length must be larger than minimum value specified below
         self.__MIN_BUILDING_SIZE = 3
-        if distribution != None:
+        if distribution == None:
             self.__BUILDING_SIZE = building_size
         else:
             self.__distribution = distribution
