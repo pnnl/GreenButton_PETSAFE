@@ -14,9 +14,9 @@ Use config.py to configure settings for your use-case.
 To enable the use of homomorphic encryption, set ENCRYPT to True in config.py.
 
 To set the temporal resolution for building aggregation, set AGG_TEMPORAL_RESOLUTION in config.py to one of the following values:
-- "f": fifteen minutes
-- "h": hourly
-- "d": daily
+- `"f"`: every fifteen minutes
+- `"h"`: hourly
+- `"d"`: daily
 To set the number of sites per building, pass building_size=val to MeterDataParser, where val equals the site count per building.
 
 ## Read from processed files between two dates
