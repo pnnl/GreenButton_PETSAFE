@@ -9,7 +9,7 @@ from typing import Optional
 import multiprocessing
 import random as rd
 from virtual_buildings.building import Building
-from config import YEAR, AGG_TEMPORAL_RESOLUTION
+from config import AGG_TEMPORAL_RESOLUTION
 
 # Setting copy on write for PANDAS as recommended here:
 # https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy

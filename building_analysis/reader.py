@@ -79,21 +79,21 @@ class Reader:
             building_id: int # The integer ID of the building to work with
             ):
         sum = self.get_building_power_sum(building_id)
-        avg = sum / 8 # scale down to a "site" of usage -
+        avg = sum * 1/8 # scale down to a "site" of usage -
             # TODO: modify this to use BUILDING_SIZE value
             # instead of using magic number 8
         if STAT_TEMPORAL_RESOLUTION != "y":
-            avg = avg / 12 # months in a year
+            avg = avg * 1/12 # months in a year
         if STAT_TEMPORAL_RESOLUTION in ["w", "d", "h", "f"]:
-            avg = avg / 4.345 # weeks in a month on average
+            avg = avg * 1/4.345 # weeks in a month on average
             # TODO: we can do better than average, or at least get
             # a better average for the actual date range
         if STAT_TEMPORAL_RESOLUTION in ["d", "h", "f"]:
-            avg = avg / 7 # days in a week
+            avg = avg * 1/7 # days in a week
         if STAT_TEMPORAL_RESOLUTION in ["h", "f"]:
-            avg = avg / 24 # hours in a day
+            avg = avg * 1/24 # hours in a day
         if STAT_TEMPORAL_RESOLUTION == "f":
-            avg = avg / 4 # sets of 15 mins in an hour
+            avg = avg * 1/4 # sets of 15 mins in an hour
         # Keep size reasonable
         avg = round(avg, 4)
         return avg

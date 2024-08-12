@@ -16,7 +16,7 @@ def main():
         for file in files:
             #try:
             file = config.POWER_DIR + file
-            parser = md.MeterDataParser(file, seed=config.SEED, encrypt=config.ENCRYPT)
+            parser = md.MeterDataParser(file, seed=config.SEED, encrypt=config.ENCRYPT, building_size=8)
             #except Exception as error:
             #print("Could not parse files into buildings:", error)
             try:
@@ -30,7 +30,6 @@ def main():
         data = reader.get_data()
         power_sum_building_1 = reader.get_building_power_sum(1)
         power_avg_building_1 = reader.get_building_power_avg(1)
-        print("Temporal resolution:", reader.get_temporal_resolution())
         print("Total power demand of building 1 between", config.START_DATE, "and", config.END_DATE, ":", power_sum_building_1, "kW")
         print("Power demand average of building 1 for temporal resolution in config:", power_avg_building_1, "kW")
         reader.graph_building_power(1)
