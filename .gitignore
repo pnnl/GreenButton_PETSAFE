@@ -1,0 +1,7 @@
+data/*
+__pycache__/*
+virtual_buildings/__pycache__/*
+building_analysis/__pycache__/*
+output/*
+keys/*
+pickled-totals
