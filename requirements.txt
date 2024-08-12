@@ -1,5 +1,4 @@
-lightphe
-pandas
-multiprocessing
-typing
-matplotlib
+lightphe == 0.0.7
+pandas == 2.2.2
+matplotlib == 3.9.1.post1
+numpy == 2.0.1

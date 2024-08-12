@@ -61,6 +61,7 @@ class MeterDataParser:
 
         self.__readData() # Read data into memory
         self.__prepared_data = self.__extractMains() # Remove non-mains circuits
+        print("Aggregating for", self.__file)
         self.__makeBuildings() # Aggregate into buildings
         print("Building processing done for", self.__file)
 
@@ -162,7 +163,7 @@ class MeterDataParser:
                 print("Unable to construct buildings: site id randomization failed.")
                 print("Check building size parameter.")
                 exit()
-            # Make a building
+            # Make a building (as long as we have ids to give it)
             if self.__random_ids.any():
                 building = Building(self.__random_ids, self.__prepared_data, self.__decimal_places)
                 try:
@@ -188,7 +189,8 @@ class MeterDataParser:
             case "d":
                 data = building.aggregegate_daily()
             case _:
-                data = building.get_data()
+                print("Resolution not implemented.")
+                data = None
         return data
     
     # Sets up and exports encryption keys; returns
