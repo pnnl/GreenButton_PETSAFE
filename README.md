@@ -41,6 +41,27 @@ To set the date range, change `START_DATE` and `END_DATE` in config.py. Their va
 ## Graph building real power for time period to file
     reader.graph_building_power(building_id)
 
+# Module Arguments
+
+## MeterDataParser
+- `file (str)`: a path to a file to process. Required.
+- `seed (int)`: a seed to initialize prng. Optional, default randomly chosen.
+- `building_size (int > 3)`: the number of sites to aggregate into a building. Optional, default `8`. Currently takes int, but will be reworked to also accept a distribution of building sizes for aggregation that reflects real-world building size distributions.
+- `key_location (str)`: the directory to store encryption keys in. Optional, default `"./keys/"`
+- `algorithm (str)`: the algorithm to use for encryption. Any additively homomorphic algorithm offered by LightPHE may be provided. Optional, default `"EllipticCurve-ElGamal"`.
+- `key_length (int)`: the length in bits of encryption keys. Optional, default `521`. This value should be changed to match recommendations for the chosen algorithm.
+- `decimal_places (int > 0)`: the number of decimal places to keep for encrypted data; many encryption algorithms do not work with floats, so this value is used to convert to integers without undesired loss of precision. Optional, default is `5`.
+- `encrypt (boolean)`: whether to encrypt data homomorphically. Default `True`.
+
+## Reader
+- `start_date (str)`: the start date of the period to read data for. Should be formatted as `"YYYY-MM-DD"`, eg. `"2023-12-01"`.
+- `end_date (str)`: the end date of the period to read data for. Optional, default is `None`. If not provided, the entire year listed in `start_date` will be read.
+
+## Decryptor
+- `key_location (str)`: the directory to read encryption keys from. Optional, default `"./keys/"`
+- `algorithm (str)`: the algorithm to use for decryption. Any additively homomorphic algorithm offered by LightPHE may be provided. Should match the value given to MeterDataParser when processing the data. Optional, default `"EllipticCurve-ElGamal"`.
+- `decimal_places (int > 0)`: the number of decimal places to keep for encrypted data; many encryption algorithms do not work with floats, so this value is used to convert from integers back to floats. Should match the value given to MeterDataParser when processing the data. Optional, default is `5`.
+
 # Required packages
     lightphe
     pandas

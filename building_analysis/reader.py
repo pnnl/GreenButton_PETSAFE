@@ -11,11 +11,11 @@ from config import OUTPUT_DIR, STAT_TEMPORAL_RESOLUTION
 class Reader:
     def __init__(
             self,
-            start_datetime: str, # the datetime of the start of the period to read, YY-MM-DD HH-MM expected
-            end_datetime: Optional[str] = None, # the datetime of the start of the period to read, YY-MM-DD HH-MM expected
+            start_date: str, # the datetime of the start of the period to read, YY-MM-DD HH-MM expected
+            end_date: Optional[str] = None, # the datetime of the start of the period to read, YY-MM-DD HH-MM expected
     ):
-        self.__start_datetime = start_datetime
-        self.__end_datetime = end_datetime
+        self.__start_datetime = start_date
+        self.__end_datetime = end_date
         # TODO: deal with None end datetime
         self.__files = self.__get_files_for_date_range()
         self.data = self.__build_data_frame()
