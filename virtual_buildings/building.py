@@ -1,4 +1,5 @@
 import pandas
+import numpy
 from os import environ
 from typing import Optional
 
@@ -45,8 +46,9 @@ class Building:
         # Get a building to start the frame
         # Check for an empty id list
         #if len(ids) > 0:
-        if ids:
-            building = self.__clean_frame(dataframe[dataframe["ee_site_id"] == ids.pop(0)])
+        if ids.any():
+            building = self.__clean_frame(dataframe[dataframe["ee_site_id"] == ids[0]])
+            ids = numpy.delete(ids, 0)
             # Add the rest in
             for id in ids:
                 site = self.__clean_frame(dataframe[dataframe["ee_site_id"] == id])

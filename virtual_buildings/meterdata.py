@@ -7,7 +7,8 @@ from sys import exit
 from math import floor
 from typing import Optional
 import multiprocessing
-import random as rd
+#import random as rd
+import numpy
 from virtual_buildings.building import Building
 from config import AGG_TEMPORAL_RESOLUTION
 
@@ -24,7 +25,7 @@ class MeterDataParser:
             self,
             file: str = None, # the filepath to read from
             seed: Optional[int] = None, # seed for rng
-            building_size: Optional[int] = 8, # how many sites go in one building
+            building_size: Optional[int] = 8, # how many sites go in one building TODO make this a list
             key_location: Optional[str] = "./keys/", # output location for keyfiles, should have a trailing slash
             algorithm: Optional[str] = "EllipticCurve-ElGamal", # algorithm to use for encryption
             key_length: Optional[int] = 521, # key size for encryption
@@ -36,12 +37,13 @@ class MeterDataParser:
             exit()
         elif seed == None:
             print("Warning: random seed generated. Building assignment may not be repeatable!")
-            seed = rd.randint(100000000, 999999999)
+            seed = numpy.random.randint(100000000, 999999999)
             print("If you need your seed, run this object's get_seed() method.")
 
         # Initialize variables
         self.seed = seed
-        rd.seed(self.seed)
+        self.rd = numpy.random.default_rng(self.seed)
+        #rd.seed(self.seed)
         self.__file = file
         self.__decimal_places = decimal_places
         self.__encryption_enabled = encrypt
@@ -107,6 +109,7 @@ class MeterDataParser:
     # Reads a file's data into memory
     def __readData(self):
         try:
+            print("Reading", self.__file)
             with open(self.__file, "r") as csv_file:
                 self.__dataframe = pandas.read_csv(csv_file)
             return self.__dataframe
@@ -132,12 +135,12 @@ class MeterDataParser:
     def __get_random_ids(self):
         # We only need as many ids as our building size value
         if len(self.__site_ids) > self.__BUILDING_SIZE:
-            self.__building_ids = []
-            for i in range(0, self.__BUILDING_SIZE):
-                random_index = rd.randrange(0, len(self.__site_ids))
-                # TODO: does pop() affect probability significantly?
-                # if so, rework to be pop()-free.
-                self.__building_ids.append(self.__site_ids.pop(random_index))
+            self.__building_ids = self.rd.choice(self.__site_ids, self.__BUILDING_SIZE, replace=False)
+            try:
+                rm = numpy.in1d(self.__site_ids, self.__building_ids) # remove building ids from site id
+                self.__site_ids = self.__site_ids[~rm]
+            except Exception as error:
+                print(error)
         else:
             # We don't have enough sites left to fill a building-
             # chuck all remaining sites into a building together
@@ -148,7 +151,7 @@ class MeterDataParser:
     # Outputs a list of virtual buildings made from data
     def __makeBuildings(self):
         # List all sites by id number
-        self.__site_ids = pandas.unique(self.__prepared_data["ee_site_id"]).tolist()
+        self.__site_ids = pandas.unique(self.__prepared_data["ee_site_id"])
         self.__building_list = [] # will hold a list of Building objects
         # Until we run out of sites to make buildings from
         while len(self.__site_ids) >= self.__BUILDING_SIZE:
@@ -160,7 +163,7 @@ class MeterDataParser:
                 print("Check building size parameter.")
                 exit()
             # Make a building
-            if self.__random_ids:
+            if self.__random_ids.any():
                 building = Building(self.__random_ids, self.__prepared_data, self.__decimal_places)
                 try:
                     # Aggregate to temporal resolution
@@ -170,7 +173,7 @@ class MeterDataParser:
                 except Exception as error:
                     print("failed to aggregate building", building.get_id(), ":", error)
         # Deal with leftovers- when we have fewer sites left than the building size
-        if self.__site_ids:
+        if self.__site_ids.any():
             self.__spare_building = Building(self.__site_ids, self.__prepared_data, self.__decimal_places)
         return self.__building_list
     
@@ -178,12 +181,14 @@ class MeterDataParser:
         # This is currently only able to aggregate up to the daily level because we read
         # files one at a time- one day per file
         match AGG_TEMPORAL_RESOLUTION:
+            case "f":
+                data = building.get_data() # No intervention needed for f, data is already at that resolution
             case "h":
                 data  = building.aggregegate_hourly()
             case "d":
                 data = building.aggregegate_daily()
             case _:
-                data = building.get_data() # No intervention needed for f, data is already at that resolution
+                data = building.get_data()
         return data
     
     # Sets up and exports encryption keys; returns
