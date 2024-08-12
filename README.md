@@ -3,7 +3,7 @@ PETSAFE (Privacy Enhancing Testbed for Secure meter Aggregation and Energy bench
 # Contents
 - [Quick Start](#quick-start)
 - [Module Arguments](#module-arguments)
-- [Packages](#packages)
+- [Packages](#required-packages)
 
 # Quick Start
 Edit config.py to configure settings for your use-case.
