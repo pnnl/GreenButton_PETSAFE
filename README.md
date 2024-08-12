@@ -22,6 +22,7 @@ To set the number of sites per building, pass `building_size=val` to `MeterDataP
 
 ## Read from processed files between two dates
 To set the date range, change `START_DATE` and `END_DATE` in config.py. Their values should be strings in the format `"YYYY-MM-DD"`, eg. `"2020-12-01"`.
+
     from building_analysis.reader import Reader
     reader = Reader(config.START_DATE, config.END_DATE)
     data = reader.get_data()
