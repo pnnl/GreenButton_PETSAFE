@@ -25,7 +25,8 @@ class MeterDataParser:
             self,
             file: str = None, # the filepath to read from
             seed: Optional[int] = None, # seed for rng
-            building_size: Optional[int] = 8, # how many sites go in one building TODO make this a list
+            building_size: Optional[int] = 8, # how many sites go in one building; ignored if distribution is provided
+            distribution: Optional[list] = None, # If using a distribution instead of a single value, this is the distribution
             key_location: Optional[str] = "./keys/", # output location for keyfiles, should have a trailing slash
             algorithm: Optional[str] = "EllipticCurve-ElGamal", # algorithm to use for encryption
             key_length: Optional[int] = 521, # key size for encryption
@@ -48,9 +49,13 @@ class MeterDataParser:
         self.__decimal_places = decimal_places
         self.__encryption_enabled = encrypt
 
-        # Building size must be larger than minimum value specified below
-        self.__BUILDING_SIZE = building_size
+        # Building size or distribution length must be larger than minimum value specified below
         self.__MIN_BUILDING_SIZE = 3
+        if distribution != None:
+            self.__BUILDING_SIZE = building_size
+        else:
+            self.__distribution = distribution
+        # TODO: alter to check distribution does not compromise information privacy
         if self.__BUILDING_SIZE < self.__MIN_BUILDING_SIZE:
             print("Building size too small.")
             exit()
