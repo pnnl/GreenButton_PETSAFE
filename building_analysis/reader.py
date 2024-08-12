@@ -129,14 +129,14 @@ class Reader:
     # Returns a list of files for the selected date range-
     # refines from list_files_in_dir()
     def __get_files_for_date_range(self):
-        # Find where to start in first year
+        # Convert to datetimes to enable use of .year
         self.__start_date = self.convert_datestr_to_dateobj(self.__start_datetime)
-        # Find where to end in last year
         self.__end_date = self.convert_datestr_to_dateobj(self.__end_datetime)
         # Get years (used to look inside the correct folders)
         start_year = self.__start_date.year
         end_year = self.__end_date.year
         if start_year != end_year:
+            # TODO: validate that date range size does not violate privacy
             all_dates = pandas.date_range(self.__start_date, self.__end_date, freq="d")
             date_paths = []
             for date in all_dates:
@@ -165,10 +165,9 @@ class Reader:
                 case "d":
                     resolution = "-daily"
             for year in all_years:
-                # TODO: check if dir exists at correct resolution. If not, suggest making it and processing.
                 existing_files += self.__list_files_in_dir("./output/" + year + "resolution", True)
         except TypeError:
-            print("No files found in output dir.")
+            print("No files found in output dir. Has", year, "been processed at the", resolution, "resolution?")
         # Get the files that actually exist in the output dir
         # Only return ones that actually exist- we don't want to call files that aren't there
         date_set = frozenset(date_paths)
