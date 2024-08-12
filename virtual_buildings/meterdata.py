@@ -44,7 +44,6 @@ class MeterDataParser:
         # Initialize variables
         self.seed = seed
         self.rd = numpy.random.default_rng(self.seed)
-        #rd.seed(self.seed)
         self.__file = file
         self.__decimal_places = decimal_places
         self.__encryption_enabled = encrypt
@@ -73,17 +72,7 @@ class MeterDataParser:
         # Encrypt buildings
         if self.__encryption_enabled == True:
             self.__KEY_LOCATION = key_location
-            # List of algorithms that can be used
-            # (match one of these strings exactly):
-            #  "Exponential-ElGamal", "Paillier",
-            #  "Damgard-Jurik", "Okamoto-Uchiyama",
-            #  "Benaloh", "Naccache-Stern",
-            #  "EllipticCurve-ElGamal"
             self.__ALGORITHM = algorithm
-            # The size in bits of the encryption key:
-            # Recommendation of 15360 bits for long-term security in factoring modulus 
-            # or 521 bits for ECC-based cryptography ("EllipticCurve-ElGamal")
-            # ECRYPT-CSA 2018 and NIST 2020 as per https://www.keylength.com/en/3/
             self.__KEY_LENGTH = key_length
 
             self.__keys = self.__setup_encryption()
