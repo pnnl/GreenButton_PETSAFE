@@ -1,5 +1,7 @@
 import multiprocessing
 from math import floor
+from sys import exit
+
 import config
 from list_files import list_files_in_dir
 
@@ -13,7 +15,11 @@ OUTPUT_DIR = "./output/"
 
 def process_file(file):
     file = config.POWER_DIR + file
-    parser = md.MeterDataParser(file, building_size=8, seed=config.SEED, encrypt=config.ENCRYPT)
+    try:
+        parser = md.MeterDataParser(file, building_size=8, seed=config.SEED, encrypt=config.ENCRYPT)
+    except KeyboardInterrupt:
+        print("Stopping.")
+        exit()
     try:
         parser.output_to_file(config.OUTPUT_DIR)
         print(file, "done.")
