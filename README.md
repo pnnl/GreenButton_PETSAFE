@@ -2,10 +2,10 @@ PETSAFE (Privacy Enhancing Testbed for Secure meter Aggregation and Energy bench
 
 # Contents
 - [Quick Start](#quick-start)
-- [Module Arguments](#arguments)
+- [Module Arguments](#module-arguments)
 - [Packages](#packages)
 
-# Quick Start {#quick-start}
+# Quick Start
 Edit config.py to configure settings for your use-case.
 
 ## List files
@@ -48,7 +48,7 @@ To set the date range, change `START_DATE` and `END_DATE` in config.py. Their va
 
 ---
 
-# Module Arguments {#arguments}
+# Module Arguments
 
 ## MeterDataParser
 - `file (str)`: a path to a file to process. Required.
@@ -71,7 +71,7 @@ To set the date range, change `START_DATE` and `END_DATE` in config.py. Their va
 
 ---
 
-# Required packages {#packages}
+# Required packages
     lightphe
     pandas
     multiprocessing
