@@ -17,6 +17,7 @@ To set the temporal resolution for building aggregation, set `AGG_TEMPORAL_RESOL
 - `"f"`: every fifteen minutes
 - `"h"`: hourly
 - `"d"`: daily
+
 To set the number of sites per building, pass `building_size=val` to `MeterDataParser`, where `val` equals the site count per building.
 
 ## Read from processed files between two dates
