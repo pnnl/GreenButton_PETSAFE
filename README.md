@@ -1,6 +1,11 @@
 PETSAFE (Privacy Enhancing Testbed for Secure meter Aggregation and Energy benchmarking)
 
-# Quick Start
+# Contents
+- [Quick Start](#quick-start)
+- [Module Arguments](#arguments)
+- [Packages](#packages)
+
+# Quick Start {#quick-start}
 Edit config.py to configure settings for your use-case.
 
 ## List files
@@ -41,7 +46,9 @@ To set the date range, change `START_DATE` and `END_DATE` in config.py. Their va
 ## Graph building real power for time period to file
     reader.graph_building_power(building_id)
 
-# Module Arguments
+---
+
+# Module Arguments {#arguments}
 
 ## MeterDataParser
 - `file (str)`: a path to a file to process. Required.
@@ -62,7 +69,9 @@ To set the date range, change `START_DATE` and `END_DATE` in config.py. Their va
 - `algorithm (str)`: the algorithm to use for decryption. Any additively homomorphic algorithm offered by LightPHE may be provided. Should match the value given to MeterDataParser when processing the data. Optional, default `"EllipticCurve-ElGamal"`.
 - `decimal_places (int > 0)`: the number of decimal places to keep for encrypted data; many encryption algorithms do not work with floats, so this value is used to convert from integers back to floats. Should match the value given to MeterDataParser when processing the data. Optional, default is `5`.
 
-# Required packages
+---
+
+# Required packages {#packages}
     lightphe
     pandas
     multiprocessing
