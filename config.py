@@ -10,6 +10,9 @@ ENCRYPT = False
 DECRYPT = False
 # Set to True if you'd prefer to save as pickle files, False for csv
 SAVE_AS_PICKLE = True
+# Fraction of CPU power to dedicate to processing, at most.
+# If you have 4 cores and set this to 0.5, then 2 cores will be used.
+PORTION_OF_CPU = 0.5
 
 # ----- TEMPORAL RESOLUTION -----
 

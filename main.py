@@ -59,7 +59,7 @@ def main():
         # encryption- would use too many cores otherwise
         if config.ENCRYPT == False:
             processors = multiprocessing.cpu_count()
-            processors = floor(processors / 2)
+            processors = floor(processors * config.PORTION_OF_CPU)
             results = []
             try:
                 with multiprocessing.Pool(processes=processors) as pool:

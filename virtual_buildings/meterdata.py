@@ -94,7 +94,7 @@ class MeterDataParser:
                 # Nothing is written to file or alters a global, so there should
                 # be no race condition
                 processors = multiprocessing.cpu_count()
-                processors = floor(processors / 2)
+                processors = floor(processors * PORTION_OF_CPU)
                 results = []
                 with multiprocessing.Pool(processes=processors) as pool:
                     for result in pool.map(self.encrypt_frames, self.__building_list):
@@ -207,9 +207,9 @@ class MeterDataParser:
             case "f":
                 data = building.get_data() # No intervention needed for f, data is already at that resolution
             case "h":
-                data  = building.aggregegate_hourly()
+                data  = building.aggregate_hourly()
             case "d":
-                data = building.aggregegate_daily()
+                data = building.aggregate_daily()
             case _:
                 print("Resolution not implemented.")
                 data = None
