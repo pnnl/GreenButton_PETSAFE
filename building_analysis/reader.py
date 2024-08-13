@@ -109,6 +109,22 @@ class Reader:
         data = self.get_data()
         data = data[data["ee_site_id"] == building_id]
         # encryption sanity check
+        if DECRYPT == False:
+            return data.max()
+        else:
+            print("Cannot calculate max on homomorphically encrypted data.")
+
+    def get_min(
+            self, 
+            building_id: int # The integer ID of the building to work with
+            ):
+        data = self.get_data()
+        data = data[data["ee_site_id"] == building_id]
+        # encryption sanity check
+        if DECRYPT == False:
+            return data.min()
+        else:
+            print("Cannot calculate min on homomorphically encrypted data.")
 
     # Converts a datetime string to an object
     def convert_datestr_to_dateobj(self, target):

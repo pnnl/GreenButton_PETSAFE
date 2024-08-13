@@ -23,9 +23,9 @@ def process_file(file):
         print("Stopping.")
         exit()
     except:
-        pass # if parser does not parse, the file usually exists and was skipped.
+        parser = None
     try:
-        if parser.status != "File exists.":
+        if parser.status != "File exists." and parser != None:
             parser.output_to_file(config.OUTPUT_DIR)
             print(file, "done.")
             return parser.get_data()
@@ -65,7 +65,8 @@ def main():
                         if result.any():
                             frame = pandas.concat(frame, result)
                         results.append(result)
-                pickle_data(frame)
+                if config.SAVE_AS_PICKLE == True:
+                    pickle_data(frame)
                 print(config.YEAR, "done.")
             except KeyboardInterrupt:
                 print("Stopping.")
