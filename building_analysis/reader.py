@@ -1,5 +1,6 @@
 import pandas
 import matplotlib as plt
+import plotly.express as px
 import datetime as dt
 from os import listdir
 import os.path
@@ -65,9 +66,12 @@ class Reader:
         except KeyError as error:
             print("Key does not exist:", error)
             return None
-        ax = building.plot()
+        title = "Real Power for Building " + building_id
+        fig = px.line(building, x="power", y="min_t", title=title)
+        fig.show()
+        #ax = building.plot()
         # TODO: add date range to name for clarity
-        plt.savefig("./output/building_" + building_id + "_avg" + ".png")
+        #plt.savefig("./output/building_" + building_id + "_avg" + ".png")
     
     # Gets average power usage for the selected time resolution
     # e.g. a resolution of 1 month returns average total usage for a month of time
