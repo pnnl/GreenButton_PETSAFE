@@ -18,12 +18,16 @@ class Reader:
         self.__start_datetime = start_date
         self.__end_datetime = end_date
         # TODO: deal with None end datetime
+        self.validate_date_range()
         self.__files = self.__get_files_for_date_range()
         self.data = self.__build_data_frame()
 
     # TODO:
-    # def validate_date_range(self):
-    #    check that date range makes sense and does not violate aggregation resolution
+    def validate_date_range(self):
+        if self.__start_datetime > self.__end_datetime:
+            print("Start date must be after end date.")
+            raise SystemExit
+        # check that date range makes sense and does not violate aggregation resolution
 
     # Compiles all days within the date range into a single frame for processing
     def __build_data_frame(self):
@@ -51,6 +55,7 @@ class Reader:
             ):
         try:
             building = self.data[self.data["ee_site_id"] == building_id]
+            print(self.data)
         except KeyError as error:
             print("Key does not exist:", error)
             return None
@@ -163,17 +168,30 @@ class Reader:
         # Get years (used to look inside the correct folders)
         start_year = self.__start_date.year
         end_year = self.__end_date.year
+        # Deal with different resolution effects on directory name
+        match STAT_TEMPORAL_RESOLUTION:
+            case "f":
+                resolution = "-15mins"
+            case "h":
+                resolution = "-hourly"
+            case "d":
+                resolution = "-daily"
+        # Deal with encryption's effects on directory name
+        if DECRYPT == True:
+            append = "-encrypted"
+        else:
+            append = ""
+        # TODO: validate that date range size does not violate privacy
+        all_dates = pandas.date_range(self.__start_date, self.__end_date, freq="d")
+        date_paths = []
+        for date in all_dates:
+            # In case date was passed as a datetime object
+            if not isinstance(date, str):
+                date = date.strftime('%Y-%m-%d')
+            # Format date into the path to its corresponding file
+            # /output/yyyy/yyyy-mm-dd.csv
+                date_paths.append(OUTPUT_DIR + date[:4] + resolution + append + "/" + date + ".csv")
         if start_year != end_year:
-            # TODO: validate that date range size does not violate privacy
-            all_dates = pandas.date_range(self.__start_date, self.__end_date, freq="d")
-            date_paths = []
-            for date in all_dates:
-                # In case date was passed as a datetime object
-                if not isinstance(date, str):
-                    date = date.strftime('%Y-%m-%d')
-                # Format date into the path to its corresponding file
-                # /output/yyyy/yyyy-mm-dd.csv
-                    date_paths.append(OUTPUT_DIR + date[:4] + "/" + date + ".csv")
         # Get a list of files that actually exist
         # Files are sorted by year, so we need to get the years to compile
         # Pandas has us covered for creating a range of dates, but it outputs the full datetime
@@ -182,24 +200,13 @@ class Reader:
             all_years = [] # Holds just the years
             for year in all_years_raw:
                 all_years.append(year.strftime('%Y'))
+        else: # Start and end year are the same
+            all_years = [start_year]
         # List files for all years being queried
         existing_files = []
         try:
-            # Deal with different resolution effects on directory name
-            match STAT_TEMPORAL_RESOLUTION:
-                case "f":
-                    resolution = "-15mins"
-                case "h":
-                    resolution = "-hourly"
-                case "d":
-                    resolution = "-daily"
-            # Deal with encryption's effects on directory name
-            if DECRYPT == True:
-                append = "-encrypted"
-            else:
-                append = ""
             for year in all_years:
-                existing_files += self.__list_files_in_dir("./output/" + year + resolution + append, True)
+                existing_files += self.__list_files_in_dir("./output/" + str(year) + resolution + append, True)
         except TypeError:
             print("No files found in output dir. Has", year, "been processed at the", resolution, "resolution?")
         # Get the files that actually exist in the output dir

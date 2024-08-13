@@ -67,18 +67,22 @@ def main():
                         if result is not None:
                             frame = pandas.concat([frame, result])
                         results.append(result)
-                if config.SAVE_AS_PICKLE == True:
-                    pickle_data(frame)
-                print(config.YEAR, "done.")
             except KeyboardInterrupt:
                 print("Stopping.")
                 exit()
+        # Data is getting encrypted; do not use multiprocessing since encryption
+        # also uses multiprocessing and doing both would eat all available cores
         else:
-            # TODO: save as pickle
+            frame = process_file(files.pop(0))
             for file in files:
-                process_file(file)
+                result = process_file(file)
+                frame = pandas.concat([frame, result])
+        if config.SAVE_AS_PICKLE == True:
+            pickle_data(frame)
+        print(config.YEAR, "done.")
 
     if config.CREATE_STATISTICS == True:
+        # TODO: read from pickle if available
         reader = Reader(config.START_DATE, config.END_DATE)
         data = reader.get_data()
         power_sum_building_1 = reader.get_building_power_sum(1)
