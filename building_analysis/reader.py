@@ -5,7 +5,7 @@ import datetime as dt
 from os import listdir
 import os.path
 from typing import Optional
-from config import OUTPUT_DIR, STAT_TEMPORAL_RESOLUTION
+from config import OUTPUT_DIR, STAT_TEMPORAL_RESOLUTION, DECRYPT
 
 # Time periods should be in the form yyyy-mm-dd HH:mm
 # HH:mm may be missing if time is midnight
@@ -101,6 +101,14 @@ class Reader:
         # Keep size reasonable
         avg = round(avg, 4)
         return avg
+    
+    def get_max(
+            self, 
+            building_id: int # The integer ID of the building to work with
+            ):
+        data = self.get_data()
+        data = data[data["ee_site_id"] == building_id]
+        # encryption sanity check
 
     # Converts a datetime string to an object
     def convert_datestr_to_dateobj(self, target):
@@ -161,6 +169,7 @@ class Reader:
         # List files for all years being queried
         existing_files = []
         try:
+            # Deal with different resolution effects on directory name
             match STAT_TEMPORAL_RESOLUTION:
                 case "f":
                     resolution = "-15mins"
@@ -168,8 +177,13 @@ class Reader:
                     resolution = "-hourly"
                 case "d":
                     resolution = "-daily"
+            # Deal with encryption's effects on directory name
+            if DECRYPT == True:
+                append = "-encrypted"
+            else:
+                append = ""
             for year in all_years:
-                existing_files += self.__list_files_in_dir("./output/" + year + "resolution", True)
+                existing_files += self.__list_files_in_dir("./output/" + year + resolution + append, True)
         except TypeError:
             print("No files found in output dir. Has", year, "been processed at the", resolution, "resolution?")
         # Get the files that actually exist in the output dir

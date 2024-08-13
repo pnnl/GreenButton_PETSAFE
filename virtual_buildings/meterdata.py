@@ -132,7 +132,7 @@ class MeterDataParser:
             exit()
 
     def createDistribution(self):
-        # Parameters and distriburion obtained in ../tools/fit-curve.py
+        # Parameters and distribution obtained in ../tools/fit-curve.py
         # {'loglaplace': {'c': 0.3923899300763164, 'loc': 0.9999999999999999, 'scale': 2.8406122167267887}}
         c = 0.3923899300763164
         loc = 0.9999999999999999

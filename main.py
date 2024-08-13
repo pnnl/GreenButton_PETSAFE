@@ -62,7 +62,7 @@ def main():
             try:
                 with multiprocessing.Pool(processes=processors) as pool:
                     for result in pool.map(process_file, files):
-                        if result:
+                        if result.any():
                             frame = pandas.concat(frame, result)
                         results.append(result)
                 pickle_data(frame)
