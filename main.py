@@ -36,7 +36,7 @@ def pickle_data(data):
     if config.OUTPUT_DIR[-1] != "/":
         config.OUTPUT_DIR += "/"
     filename = config.OUTPUT_DIR + config.YEAR + "-" + config.AGG_TEMPORAL_RESOLUTION
-    with open(filename, "wb") as file:
+    with open(filename, "ab") as file:
         pickle.dump(data, file)
     print("Pickled to file.")
 
