@@ -1,4 +1,6 @@
 import multiprocessing
+import pickle
+import pandas
 from math import floor
 from sys import exit
 
@@ -20,15 +22,37 @@ def process_file(file):
     except KeyboardInterrupt:
         print("Stopping.")
         exit()
+    except:
+        pass # if parser does not parse, the file usually exists and was skipped.
     try:
-        parser.output_to_file(config.OUTPUT_DIR)
-        print(file, "done.")
+        if parser.status != "File exists.":
+            parser.output_to_file(config.OUTPUT_DIR)
+            print(file, "done.")
+            return parser.get_data()
     except Exception as error:
         print("Could not output files:", error)
+
+def pickle_data(data):
+    if config.OUTPUT_DIR[-1] != "/":
+        config.OUTPUT_DIR += "/"
+    filename = config.OUTPUT_DIR + config.YEAR + "-" + config.AGG_TEMPORAL_RESOLUTION
+    with open(filename, "wb") as file:
+        pickle.dump(data, file)
+    print("Pickled to file.")
+
+def unpickle_data():
+    if config.OUTPUT_DIR[-1] != "/":
+        config.OUTPUT_DIR += "/"
+    filename = config.OUTPUT_DIR + config.YEAR + "-" + config.STAT_TEMPORAL_RESOLUTION
+    with open(filename, "wb") as file:
+        return pickle.load(file)
 
 def main():
     if config.PREP_FILES == True:
         files = list_files_in_dir(config.POWER_DIR, False)
+        # Establish a processed frame to append everything to so it can be pickled to one file
+        frame = files.pop(0)
+        frame = process_file(frame)
         # Only use multiprocessing if we're not going to need multiprocessing for
         # encryption- would use too many cores otherwise
         if config.ENCRYPT == False:
@@ -38,11 +62,16 @@ def main():
             try:
                 with multiprocessing.Pool(processes=processors) as pool:
                     for result in pool.map(process_file, files):
+                        if result:
+                            frame = pandas.concat(frame, result)
                         results.append(result)
+                pickle_data(frame)
+                print(config.YEAR, "done.")
             except KeyboardInterrupt:
                 print("Stopping.")
                 exit()
         else:
+            # TODO: save as pickle
             for file in files:
                 process_file(file)
 

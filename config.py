@@ -8,6 +8,8 @@ CREATE_STATISTICS = False
 ENCRYPT = False
 # Set to True if processing encrypted data
 DECRYPT = False
+# Set to True if you'd prefer to save as pickle files, False for csv
+SAVE_AS_PICKLE = True
 
 # ----- TEMPORAL RESOLUTION -----
 
