@@ -37,6 +37,7 @@ class Reader:
             try:
                 with open(file, "r") as csv_file:
                     data = pandas.read_csv(csv_file)
+                data = data.set_index(["min_t"])
             except:
                 print("Reader: File not found.")
                 data = pandas.DataFrame()
@@ -55,7 +56,6 @@ class Reader:
             ):
         try:
             building = self.data[self.data["ee_site_id"] == building_id]
-            print(self.data)
         except KeyError as error:
             print("Key does not exist:", error)
             return None
@@ -67,12 +67,12 @@ class Reader:
     ):
         try:
             building = self.data[self.data["ee_site_id"] == building_id]
-            building = building["power"]
         except KeyError as error:
             print("Key does not exist:", error)
             return None
-        title = "Real Power for Building " + building_id
-        fig = px.line(building, x="power", y="min_t", title=title)
+        title = "Real Power for Building " + str(building_id)
+        print(building)
+        fig = px.line(building, y="power", title=title)
         fig.show()
         #ax = building.plot()
         # TODO: add date range to name for clarity
