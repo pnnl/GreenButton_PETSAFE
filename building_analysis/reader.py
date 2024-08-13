@@ -65,6 +65,7 @@ class Reader:
             self,
             building_id: int # The integer ID of the building to work with
     ):
+        # TODO: Check that data is decrypted; graphing encrypted data makes no sense
         try:
             building = self.data[self.data["ee_site_id"] == building_id]
         except KeyError as error:

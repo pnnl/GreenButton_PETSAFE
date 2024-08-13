@@ -251,9 +251,9 @@ class MeterDataParser:
             frame["ee_site_id"] = i
             # Handle all other frames
             for building in self.__building_list[1:]:
-                building["ee_site_id"] = i
                 # TODO: robust checking to make sure the id doesn't exist yet
                 i += 1
+                building["ee_site_id"] = i
                 concat_args = (frame, building)
                 frame = pandas.concat(concat_args)
             self.concatenated_frame = frame

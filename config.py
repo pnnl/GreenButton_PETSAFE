@@ -1,8 +1,8 @@
 # ----- GENERAL -----
 
 # Actions to perform
-PREP_FILES = False
-CREATE_STATISTICS = True
+PREP_FILES = True
+CREATE_STATISTICS = False
 
 # Set to true if you want to encrypt data before saving to file
 ENCRYPT = False
