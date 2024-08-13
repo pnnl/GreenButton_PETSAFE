@@ -35,9 +35,13 @@ def main():
             processors = multiprocessing.cpu_count()
             processors = floor(processors / 2)
             results = []
-            with multiprocessing.Pool(processes=processors) as pool:
-                for result in pool.map(process_file, files):
-                    results.append(result)
+            try:
+                with multiprocessing.Pool(processes=processors) as pool:
+                    for result in pool.map(process_file, files):
+                        results.append(result)
+            except KeyboardInterrupt:
+                print("Stopping.")
+                exit()
         else:
             for file in files:
                 process_file(file)

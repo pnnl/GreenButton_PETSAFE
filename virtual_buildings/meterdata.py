@@ -1,4 +1,5 @@
 import pandas
+from scipy.stats import loglaplace
 from lightphe import LightPHE
 from os.path import exists
 from os import makedirs
@@ -112,6 +113,15 @@ class MeterDataParser:
             print("Unable to read file. Aborting.") 
             print("Reason:", error)
             exit()
+
+    def createDistribution(self):
+        # Parameters and distriburion obtained in ../tools/fit-curve.py
+        # {'loglaplace': {'c': 0.3923899300763164, 'loc': 0.9999999999999999, 'scale': 2.8406122167267887}}
+        c = 0.3923899300763164
+        loc = 0.9999999999999999
+        scale = 2.8406122167267887
+        dist = loglaplace(c)
+        return dist
 
     # Reduces data to only Mains circuits
     def __extractMains(self):
