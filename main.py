@@ -29,6 +29,8 @@ def process_file(file):
             parser.output_to_file(config.OUTPUT_DIR)
             print(file, "done.")
             return parser.get_data()
+        else:
+            return None
     except Exception as error:
         print("Could not output files:", error)
 
@@ -62,8 +64,8 @@ def main():
             try:
                 with multiprocessing.Pool(processes=processors) as pool:
                     for result in pool.map(process_file, files):
-                        if result.any():
-                            frame = pandas.concat(frame, result)
+                        if result is not None:
+                            frame = pandas.concat([frame, result])
                         results.append(result)
                 if config.SAVE_AS_PICKLE == True:
                     pickle_data(frame)

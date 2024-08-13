@@ -34,10 +34,10 @@ class MeterDataParser:
             decimal_places: Optional[int] = 5, # decimal places to keep for encryption
             encrypt: Optional[bool] = True # whether or not to encrypt
     ):
-        if file == None:
+        if file is None:
             print("File not provided. Expected relative or absolute filepath.")
             exit()
-        elif seed == None:
+        elif seed is None:
             print("Warning: random seed generated. Building assignment may not be repeatable!")
             seed = numpy.random.randint(100000000, 999999999)
             print("If you need your seed, run this object's get_seed() method.")
