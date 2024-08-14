@@ -5,3 +5,4 @@ building_analysis/__pycache__/*
 output/*
 keys/*
 pickled-totals
+tools/building-size-distribution.csv
