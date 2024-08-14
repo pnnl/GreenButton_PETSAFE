@@ -89,20 +89,20 @@ class Reader:
             resolution = str # the resolution to resample to
     ):
         resolution = self.check_resolution(resolution)
-        if resolution is not None:
-            # SANITY CHECK: if encrypted w/partial HE, reject this
+        if resolution is not None and DECRYPT == False:
+            # TODO SANITY CHECK: if encrypted w/partial HE, reject this
             data = data.resample(resolution).sum()
             data["pf"] = data["power"] / data["apparent_power"]
             return data
         else:
-            return "New resolution invalid."
+            print("Unable to change resolution: resolution not implemented or data encrypted.")
+            return data
 
     def graph_building_power(
             self,
             building_id: int, # The integer ID of the building to work with
             resolution: str # the resolution to graph at.
     ):
-
         # TODO: Check that data is decrypted; graphing encrypted data makes no sense
         try:
             building = self.data[self.data["ee_site_id"] == building_id]

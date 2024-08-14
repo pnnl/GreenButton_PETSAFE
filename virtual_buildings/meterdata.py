@@ -1,5 +1,5 @@
 import pandas
-from scipy.stats import loglaplace
+from scipy.stats import expon
 from lightphe import LightPHE
 from os.path import exists
 from os import makedirs
@@ -133,11 +133,9 @@ class MeterDataParser:
 
     def createDistribution(self):
         # Parameters and distribution obtained in ../tools/fit-curve.py
-        # {'loglaplace': {'c': 0.3923899300763164, 'loc': 0.9999999999999999, 'scale': 2.8406122167267887}}
-        c = 0.3923899300763164
-        loc = 0.9999999999999999
-        scale = 2.8406122167267887
-        dist = loglaplace(c)
+        loc = 1
+        scale = 51.551886792452834
+        dist = expon()
         return dist
 
     # Reduces data to only Mains circuits

@@ -4,6 +4,7 @@ from pandas import read_csv
 
 with open("./building-size-distribution.csv", "r") as file:
     data = read_csv(file)
+"""
 fitter = Fitter(data, timeout=60)
 # TODO: exponential fails instantly. It might be a good fit- why?
 fitter.distributions = ["exponential", "loglaplace", "burr12", "ncf", "halfgennorm", "alpha"]
@@ -12,6 +13,12 @@ summary = fitter.summary()
 print("-------")
 print(summary)
 print(fitter.get_best())
+"""
+
+print("Exponential fit:")
+loc, scale = scipy.stats.expon.fit(data)
+print("loc:", loc)
+print("scale:", scale)
 
 #dist = scipy.stats.expon()
 #exponfit = scipy.stats.fit(dist, data)
@@ -27,3 +34,19 @@ print(fitter.get_best())
 
 # loglaplace params:
 # {'loglaplace': {'c': 0.3923899300763164, 'loc': 0.9999999999999999, 'scale': 2.8406122167267887}}
+
+# Exponential params:
+# Exponential fit:
+# loc: 1.0
+# scale: 51.551886792452834
+
+"""
+ Generate random numbers:
+    >>> r = expon.rvs(size=1000)
+
+rv = expon()
+    >>> ax.plot(x, rv.pdf(x), 'k-', lw=2, label='frozen pdf')
+
+ax.plot(x, expon.pdf(x),
+    ...        'r-', lw=5, alpha=0.6, label='expon pdf')
+"""
