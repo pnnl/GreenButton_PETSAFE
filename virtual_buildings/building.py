@@ -44,6 +44,7 @@ class Building:
     def __define_building(self):
         dataframe = self.__data
         ids = self.__ids
+        size = len(ids)
         # Get a building to start the frame
         # Check for an empty id list
         #if len(ids) > 0:

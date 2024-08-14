@@ -174,15 +174,11 @@ class MeterDataParser:
     
     def generate_building_size(
             self,
-            recursion_count = int # how many times this was called recursively; used to stop it if things go wrong
+            min_size = int > 0 # smallest allowable building size
             ):
-        count = floor(loglaplace.rvs(self.__dist_c, loc=self.__dist_loc, scale=self.__dist_scale, size=1, random_state=self.rd))
-        if count == 1:
-            count = 2 # we have to aggregate SOMETHING
-        # If the generated size is larger than the number of sites available, then generate a new number
-        elif count > self.__site_count and recursion_count < 5:
-            count = self.generate_building_size(recursion_count + 1)
-        print("Count:", count)
+        count = 0 # buildings can't have no sites
+        while count <= min_size or count > self.__site_count: # Exclude values that are too small or too large
+            count = floor(loglaplace.rvs(self.__dist_c, loc=self.__dist_loc, scale=self.__dist_scale, size=1, random_state=self.rd))
         return count
 
     # Outputs a list of virtual buildings made from data
@@ -196,7 +192,7 @@ class MeterDataParser:
             # Get a random set of site ids for a building
             try:
                 if self.__dist:
-                    count = self.generate_building_size(0) # 0: not being called recursively
+                    count = self.generate_building_size(2) # min size of 2; we need 2+ sites to aggregate them
                 else:
                     count = self.__BUILDING_SIZE
                 self.__random_ids = self.__get_random_ids(count)
