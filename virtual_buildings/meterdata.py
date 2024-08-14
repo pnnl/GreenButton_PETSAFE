@@ -1,5 +1,5 @@
 import pandas
-from scipy.stats import expon
+from scipy.stats import expon, loglaplace
 from lightphe import LightPHE
 from os.path import exists
 from os import makedirs
@@ -53,7 +53,9 @@ class MeterDataParser:
                     name += "-hourly"
                 case "d":
                     name += "-daily"
-        name = OUTPUT_DIR + name + "/" + date[:4] + "-" + date[4:6] + "-" + date[6:]
+        # Check whether the file already exists (eg. data already processed)
+        # if it doesn't exist, then continue.
+        name = OUTPUT_DIR + name + "/" + date[:4] + "-" + date[4:6] + "-" + date[6:] # the output filename
         if not exists(name):
             # Initialize variables
             self.seed = seed
@@ -64,24 +66,23 @@ class MeterDataParser:
 
             # Building size or distribution length must be larger than minimum value specified below
             self.__MIN_BUILDING_SIZE = 3
-            if distribution == False:
-                self.__BUILDING_SIZE = building_size
-            else:
-                self.__distribution = self.createDistribution()
-            # TODO: alter to check distribution does not compromise information privacy
+            self.__BUILDING_SIZE = building_size
             if self.__BUILDING_SIZE < self.__MIN_BUILDING_SIZE:
                 print("Building size too small.")
                 exit()
+            if distribution == True:
+                self.__distribution = self.createDistribution()
+            # TODO: alter to check distribution does not compromise information privacy
 
             # Path should have a trailing slash
             if key_location[-1] != "/":
                 key_location += "/"
 
             self.__readData() # Read data into memory
-            self.__dist = self.createDistribution
+            self.__dist = self.createDistribution()
             self.__prepared_data = self.__extractMains() # Remove non-mains circuits
             print("Aggregating for", self.__file)
-            self.__makeBuildings(self.__dist) # Aggregate into buildings
+            self.__makeBuildings() # Aggregate into buildings
             print("Building processing done for", self.__file)
 
             # Encrypt buildings
@@ -143,9 +144,11 @@ class MeterDataParser:
 
     def createDistribution(self):
         # Parameters and distribution obtained in ../tools/fit-curve.py
+        # {'loglaplace': {'c': 0.3923899300763164, 'loc': 0.9999999999999999, 'scale': 2.8406122167267887}}
         self.__dist_loc = 1
-        self.__dist_scale = 51.551886792452834
-        self.__dist = expon()
+        self.__dist_scale = 2.8406122167267887
+        self.__dist_c = 0.3923899300763164
+        self.__dist = loglaplace(self.__dist_c)
         return True
 
     # Gets a list of random ids, with len(list) = BUILDING_SIZE
@@ -165,8 +168,8 @@ class MeterDataParser:
         else:
             # We don't have enough sites left to fill a building-
             # chuck all remaining sites into a building together
-            self.__building_ids = self.__site_ids
-            self.__site_ids = [] # Cleared so this doesn't get run again
+            self.__building_ids = numpy.array(self.__site_ids)
+            self.__site_ids = numpy.array([]) # Cleared so this doesn't get run again
         return self.__building_ids
 
     # Outputs a list of virtual buildings made from data
@@ -174,16 +177,14 @@ class MeterDataParser:
         # List all sites by id number
         self.__site_ids = pandas.unique(self.__prepared_data["ee_site_id"])
         self.__building_list = [] # will hold a list of Building objects
-        if self.__distribution:
-            self.__dist_loc = 1
-            self.__dist_scale = 51.551886792452834
-            dist = expon()
         # Until we run out of sites to make buildings from
         while len(self.__site_ids) >= self.__BUILDING_SIZE:
             # Get a random set of site ids for a building
             try:
                 if self.__dist:
-                    count = expon.rvs(loc=self.__dist_loc, scale=self.__dist_scale, size=1)
+                    count = floor(loglaplace.rvs(self.__dist_c, loc=self.__dist_loc, scale=self.__dist_scale, size=1, random_state=self.rd))
+                    if count == 1:
+                        count = 2 # we have to aggregate SOMETHING
                     print("Count:", count)
                 else:
                     count = self.__BUILDING_SIZE
