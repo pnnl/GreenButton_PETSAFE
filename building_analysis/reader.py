@@ -66,17 +66,17 @@ class Reader:
             resolution = str # the resolution string
     ):
         resolution = resolution.lower().alpha().replace(" ", "") # remove spacing/case differences; alpha removes numbers (1hr -> hr)
-        if resolution.lower().replace(" ", "") in ["minutes", "min", "f"]:
+        if resolution in ["minutes", "min", "f"]:
             return "f"
-        elif resolution.lower() in ["hourly", "hour", "hr","h"]:
+        elif resolution in ["hourly", "hour", "hr","h"]:
             return "h"
-        elif resolution.lower() in ["daily", "day", "d"]:
+        elif resolution in ["daily", "day", "d"]:
             return "d"
-        elif resolution.lower() in ["weekly", "week", "w"]:
+        elif resolution in ["weekly", "week", "w"]:
             return "w"
-        elif resolution.lower() in ["monthly", "month", "m"]:
+        elif resolution in ["monthly", "month", "m"]:
             return "m"
-        elif resolution.lower() in ["yearly", "year", "y"]:
+        elif resolution in ["yearly", "year", "y"]:
             return "y"
         else:
             return None # Resolution not implemented
