@@ -1,8 +1,8 @@
 # ----- GENERAL -----
 
 # Actions to perform
-PREP_FILES = True
-CREATE_STATISTICS = False
+PREP_FILES = False
+CREATE_STATISTICS = True
 
 # Set to true if you want to encrypt data before saving to file
 ENCRYPT = False
@@ -33,8 +33,8 @@ STAT_TEMPORAL_RESOLUTION = "f"
 AGG_TEMPORAL_RESOLUTION = "f"
 
 # What date range to retrieve statistics for
-START_DATE = "2023-07-05"
-END_DATE = "2023-08-30"
+START_DATE = "2023-01-01"
+END_DATE = "2023-12-31"
 
 # ----- FILE TARGETS FOR PROCESSING -----
 

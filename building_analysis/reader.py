@@ -61,9 +61,30 @@ class Reader:
             return None
         return building["power"].sum()
     
+    def check_resolution(
+            self,
+            resolution = str # the resolution string
+    ):
+        resolution = resolution.lower().alpha().replace(" ", "") # remove spacing/case differences; alpha removes numbers (1hr -> hr)
+        if resolution.lower().replace(" ", "") in ["minutes", "min", "f"]:
+            return "f"
+        elif resolution.lower() in ["hourly", "hour", "hr","h"]:
+            return "h"
+        elif resolution.lower() in ["daily", "day", "d"]:
+            return "d"
+        elif resolution.lower() in ["weekly", "week", "w"]:
+            return "w"
+        elif resolution.lower() in ["monthly", "month", "m"]:
+            return "m"
+        elif resolution.lower() in ["yearly", "year", "y"]:
+            return "y"
+        else:
+            return None # Resolution not implemented
+
     def graph_building_power(
             self,
-            building_id: int # The integer ID of the building to work with
+            building_id: int, # The integer ID of the building to work with
+            resolution: str # the resolution to graph at.
     ):
         # TODO: Check that data is decrypted; graphing encrypted data makes no sense
         try:
