@@ -174,9 +174,11 @@ class MeterDataParser:
     
     def generate_building_size(
             self,
-            min_size = int > 0 # smallest allowable building size
+            min_size = int # smallest allowable building size
             ):
-        count = 0 # buildings can't have no sites
+        if min_size < 1: # sanity check; buildings must have at least one site
+            min_size = 1
+        count = 0 # placeholder; buildings can't have no sites
         while count <= min_size or count > self.__site_count: # Exclude values that are too small or too large
             count = floor(loglaplace.rvs(self.__dist_c, loc=self.__dist_loc, scale=self.__dist_scale, size=1, random_state=self.rd))
         return count
