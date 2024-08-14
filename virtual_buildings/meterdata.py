@@ -207,7 +207,10 @@ class MeterDataParser:
                 building = Building(self.__random_ids, self.__prepared_data, self.__decimal_places)
                 try:
                     # Aggregate to temporal resolution
+                    bsize = building.get_size() # grab site count before agg to avoid summing it
                     building = self.aggregate_to_resolution(building)
+                    # Append the site count of the building
+                    building["site_count"] = bsize
                     # Add the building to the list of buildings
                     self.__building_list.append(building)
                 except Exception as error:
