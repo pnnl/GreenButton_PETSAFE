@@ -11,7 +11,7 @@ import multiprocessing
 #import random as rd
 import numpy
 from virtual_buildings.building import Building
-from config import AGG_TEMPORAL_RESOLUTION, OUTPUT_DIR
+from config import AGG_TEMPORAL_RESOLUTION, OUTPUT_DIR, PORTION_OF_CPU
 
 # Setting copy on write for PANDAS as recommended here:
 # https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy

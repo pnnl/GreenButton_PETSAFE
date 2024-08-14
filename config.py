@@ -39,7 +39,7 @@ END_DATE = "2023-08-30"
 # ----- FILE TARGETS FOR PROCESSING -----
 
 # Which year of data to process. Should match a year in the data directory
-YEAR = "2023"
+YEAR = "2022"
 
 # Output directory for prepped data
 OUTPUT_DIR = "./output/"

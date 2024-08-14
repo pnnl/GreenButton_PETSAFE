@@ -25,13 +25,14 @@ def process_file(file):
     except:
         parser = None
     try:
-        if parser.status != "File exists." and parser != None:
+        if parser != None and parser.status != "File exists.":
             parser.output_to_file(config.OUTPUT_DIR)
             print(file, "done.")
             return parser.get_data()
         else:
             return None
     except Exception as error:
+        # Error to fix: Could not output files: 'NoneType' object has no attribute 'status'
         print("Could not output files:", error)
 
 def pickle_data(data):
@@ -46,7 +47,7 @@ def unpickle_data():
     if config.OUTPUT_DIR[-1] != "/":
         config.OUTPUT_DIR += "/"
     filename = config.OUTPUT_DIR + config.YEAR + "-" + config.STAT_TEMPORAL_RESOLUTION
-    with open(filename, "wb") as file:
+    with open(filename, "rb") as file:
         return pickle.load(file)
 
 def main():
@@ -55,21 +56,23 @@ def main():
         # Establish a processed frame to append everything to so it can be pickled to one file
         frame = files.pop(0)
         frame = process_file(frame)
+        try:
         # Only use multiprocessing if we're not going to need multiprocessing for
         # encryption- would use too many cores otherwise
-        if config.ENCRYPT == False:
-            processors = multiprocessing.cpu_count()
-            processors = floor(processors * config.PORTION_OF_CPU)
-            results = []
-            try:
+            if config.ENCRYPT == False:
+                processors = multiprocessing.cpu_count()
+                processors = floor(processors * config.PORTION_OF_CPU)
+                results = []
                 with multiprocessing.Pool(processes=processors) as pool:
                     for result in pool.map(process_file, files):
                         if result is not None:
                             frame = pandas.concat([frame, result])
                         results.append(result)
-            except KeyboardInterrupt:
-                print("Stopping.")
-                exit()
+        except KeyboardInterrupt:
+            print("Stopping.")
+            if config.SAVE_AS_PICKLE == True:
+                pickle_data(frame)
+            exit()
         # Data is getting encrypted; do not use multiprocessing since encryption
         # also uses multiprocessing and doing both would eat all available cores
         else:
