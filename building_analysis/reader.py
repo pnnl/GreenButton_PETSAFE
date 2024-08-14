@@ -22,12 +22,11 @@ class Reader:
         self.__files = self.__get_files_for_date_range(STAT_TEMPORAL_RESOLUTION)
         self.data = self.__build_data_frame()
 
-    # TODO:
+    # TODO: add more checks for privacy concerns
     def validate_date_range(self):
         if self.__start_datetime > self.__end_datetime:
             print("Start date must be after end date.")
             raise SystemExit
-        # check that date range makes sense and does not violate aggregation resolution
 
     # Compiles all days within the date range into a single frame for processing
     def __build_data_frame(self):
@@ -37,6 +36,7 @@ class Reader:
             try:
                 with open(file, "r") as csv_file:
                     data = pandas.read_csv(csv_file)
+                data["min_t"] = pandas.to_datetime(data["min_t"])
                 data = data.set_index(["min_t"])
             except:
                 print("Reader: File not found.")
@@ -68,7 +68,6 @@ class Reader:
     ):
         resolution = resolution.lower().replace(" ", "") # remove spacing/case differences
         resolution = ''.join(ch for ch in resolution if ch.isalpha()) # isalpha() removes numbers for consistency (1hr -> hr)
-        print(resolution)
         if resolution in ["minutes", "min", "f"]:
             return "15min"
         elif resolution in ["hourly", "hour", "hr","h"]:
@@ -92,11 +91,11 @@ class Reader:
         resolution = self.check_resolution(resolution)
         if resolution is not None:
             # SANITY CHECK: if encrypted w/partial HE, reject this
-            data = data.resample(resolution)
+            data = data.resample(resolution).sum()
             data["pf"] = data["power"] / data["apparent_power"]
             return data
         else:
-            return "Resolution invalid."
+            return "New resolution invalid."
 
     def graph_building_power(
             self,
@@ -268,7 +267,7 @@ class Reader:
             print("Trying to find files at 15min resolution (will be used to reproduce preferred resolution).")
             available_file_paths = self.__get_files_for_date_range("15min", True)
             if recurse == True:
-                print("Files not found. Process files for entire date range and try again.")
+                print("Files not found in output directory. Process files for entire date range and try again.")
                 raise SystemExit
         return available_file_paths
     
