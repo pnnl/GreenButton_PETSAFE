@@ -18,11 +18,14 @@ OUTPUT_DIR = "./output/"
 def process_file(file):
     file = config.POWER_DIR + file
     try:
-        parser = md.MeterDataParser(file, building_size=8, seed=config.SEED, encrypt=config.ENCRYPT)
+        # parser = md.MeterDataParser(file, building_size=8, seed=config.SEED, encrypt=config.ENCRYPT)
+        parser = md.MeterDataParser(file, distribution=True, seed=config.SEED, encrypt=config.ENCRYPT)
     except KeyboardInterrupt:
         print("Stopping.")
         exit()
-    except:
+    except Exception as error:
+        print("Could not create buildings for", file)
+        print(error)
         parser = None
     try:
         if parser != None and parser.status != "File exists.":
@@ -68,21 +71,22 @@ def main():
                         if result is not None:
                             frame = pandas.concat([frame, result])
                         results.append(result)
+            # Data is getting encrypted; do not use multiprocessing since encryption
+            # also uses multiprocessing and doing both would eat all available cores
+            else:
+                frame = process_file(files.pop(0))
+                for file in files:
+                    result = process_file(file)
+                    if result is not None:
+                        frame = pandas.concat([frame, result])
+            if config.SAVE_AS_PICKLE == True:
+                pickle_data(frame)
+            print(config.YEAR, "done.")
         except KeyboardInterrupt:
             print("Stopping.")
             if config.SAVE_AS_PICKLE == True:
                 pickle_data(frame)
             exit()
-        # Data is getting encrypted; do not use multiprocessing since encryption
-        # also uses multiprocessing and doing both would eat all available cores
-        else:
-            frame = process_file(files.pop(0))
-            for file in files:
-                result = process_file(file)
-                frame = pandas.concat([frame, result])
-        if config.SAVE_AS_PICKLE == True:
-            pickle_data(frame)
-        print(config.YEAR, "done.")
 
     if config.CREATE_STATISTICS == True:
         # TODO: read from pickle if available

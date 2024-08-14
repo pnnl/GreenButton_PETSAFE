@@ -27,7 +27,7 @@ class MeterDataParser:
             file: str = None, # the filepath to read from
             seed: Optional[int] = None, # seed for rng
             building_size: Optional[int] = 8, # how many sites go in one building; ignored if distribution is provided
-            distribution: Optional[list] = None, # If using a distribution instead of a single value, this is the distribution
+            distribution: Optional[bool] = False, # If using a distribution instead of a single value, set True
             key_location: Optional[str] = "./keys/", # output location for keyfiles, should have a trailing slash
             algorithm: Optional[str] = "EllipticCurve-ElGamal", # algorithm to use for encryption
             key_length: Optional[int] = 521, # key size for encryption
@@ -64,10 +64,10 @@ class MeterDataParser:
 
             # Building size or distribution length must be larger than minimum value specified below
             self.__MIN_BUILDING_SIZE = 3
-            if distribution == None:
+            if distribution == False:
                 self.__BUILDING_SIZE = building_size
             else:
-                self.__distribution = distribution
+                self.__distribution = self.createDistribution()
             # TODO: alter to check distribution does not compromise information privacy
             if self.__BUILDING_SIZE < self.__MIN_BUILDING_SIZE:
                 print("Building size too small.")
@@ -78,9 +78,10 @@ class MeterDataParser:
                 key_location += "/"
 
             self.__readData() # Read data into memory
+            self.__dist = self.createDistribution
             self.__prepared_data = self.__extractMains() # Remove non-mains circuits
             print("Aggregating for", self.__file)
-            self.__makeBuildings() # Aggregate into buildings
+            self.__makeBuildings(self.__dist) # Aggregate into buildings
             print("Building processing done for", self.__file)
 
             # Encrypt buildings
@@ -131,13 +132,6 @@ class MeterDataParser:
             print("Reason:", error)
             exit()
 
-    def createDistribution(self):
-        # Parameters and distribution obtained in ../tools/fit-curve.py
-        loc = 1
-        scale = 51.551886792452834
-        dist = expon()
-        return dist
-
     # Reduces data to only Mains circuits
     def __extractMains(self):
         # TODO: edit this to "contains Mains" since there are edge cases
@@ -147,15 +141,22 @@ class MeterDataParser:
         except KeyError:
             print("File does not contain Mains. Check filepath.")
 
+    def createDistribution(self):
+        # Parameters and distribution obtained in ../tools/fit-curve.py
+        self.__dist_loc = 1
+        self.__dist_scale = 51.551886792452834
+        self.__dist = expon()
+        return True
+
     # Gets a list of random ids, with len(list) = BUILDING_SIZE
     # TODO: refactor so id selection isn't altered by missing sites for a day-
     # including the first day. Current approach can handle it, but the sites
     # will be sorted differently and that could be a problem for analysis
     # depending on how this is used.
-    def __get_random_ids(self):
-        # We only need as many ids as our building size value
-        if len(self.__site_ids) > self.__BUILDING_SIZE:
-            self.__building_ids = self.rd.choice(self.__site_ids, self.__BUILDING_SIZE, replace=False)
+    def __get_random_ids(self, count):
+            # We only need as many ids as our building size value
+        if len(self.__site_ids) > count:
+            self.__building_ids = self.rd.choice(self.__site_ids, count, replace=False)
             try:
                 rm = numpy.in1d(self.__site_ids, self.__building_ids) # remove building ids from site id
                 self.__site_ids = self.__site_ids[~rm]
@@ -173,11 +174,20 @@ class MeterDataParser:
         # List all sites by id number
         self.__site_ids = pandas.unique(self.__prepared_data["ee_site_id"])
         self.__building_list = [] # will hold a list of Building objects
+        if self.__distribution:
+            self.__dist_loc = 1
+            self.__dist_scale = 51.551886792452834
+            dist = expon()
         # Until we run out of sites to make buildings from
         while len(self.__site_ids) >= self.__BUILDING_SIZE:
             # Get a random set of site ids for a building
             try:
-                self.__random_ids = self.__get_random_ids()
+                if self.__dist:
+                    count = expon.rvs(loc=self.__dist_loc, scale=self.__dist_scale, size=1)
+                    print("Count:", count)
+                else:
+                    count = self.__BUILDING_SIZE
+                self.__random_ids = self.__get_random_ids(count)
             except:
                 print("Unable to construct buildings: site id randomization failed.")
                 print("Check building size parameter.")
