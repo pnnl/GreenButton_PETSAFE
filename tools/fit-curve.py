@@ -7,12 +7,13 @@ from pandas import read_csv
 
 with open("./building-size-distribution.csv", "r") as file:
     data = read_csv(file)
-data.set_index(["BuildingSize"])
+data = data.set_index(["BuildingSize"])
 """
 fitter = Fitter(data, timeout=60)
 # TODO: exponential fails instantly. It might be a good fit- why?
-# Alpha is great fit in sumsquare, not so much on other metrics. Excluded.
-fitter.distributions = ["exponential", "loglaplace", "burr12", "ncf", "halfgennorm", "recipinvgauss"]
+# Alpha is great fit in sumsquare, not so much on other metrics.
+# {'alpha': {'a': 3.395468413172602e-08, 'loc': 0.0008169558296610755, 'scale': 1.7034041729353762}}
+fitter.distributions = ["exponential", "loglaplace", "burr12", "ncf", "halfgennorm", "recipinvgauss", "alpha"]
 fitter.fit()
 summary = fitter.summary()
 print("-------")
@@ -36,50 +37,79 @@ known_params = {"c": dist_c, "loc": dist_loc, "scale": dist_scale}
 #fit = scipy.stats.goodness_of_fit(dist, data["Count"], known_params=known_params)
 #fit = scipy.stats.goodness_of_fit(dist, data["Count"])
 #print(fit)
-
-from fitter import HistFit
-from matplotlib import pyplot
-import scipy.stats
-#Y, X, _ = hist(data, bins=107)
-
-hf = HistFit(X=data.index, Y=data["Count"])
-hf.fit(error_rate=0.03, Nfit=20)
-print(hf.fitted_param['expon'])
-print(hf.mu, hf.sigma, hf.amplitude)
 """
+import pandas as pd
 
+# Get the data in original form for fitting- duplicate values and all.
+actual_data = pd.Series()
+indices = pd.unique(data.index)
+data = data.reset_index()
+for index in indices:
+    try:
+        countframe = data[data["BuildingSize"] == index]
+        count = countframe["Count"].iloc[0]
+        listnum = [int(index)]
+        expanded = listnum * count
+        expanded = pd.Series(expanded)
+        actual_data = pd.concat([actual_data, expanded])
+    except Exception as error:
+        print("No index:", index)
+        print(error)
+# Using fitter library instead
+fitter = Fitter(actual_data, timeout=30)
+#fitter.distributions = ["exponential", "loglaplace", "burr12", "ncf", "halfgennorm", "recipinvgauss", "alpha"]
+fitter.fit()
+summary = fitter.summary()
+print("-------")
+print(summary)
+print(fitter.get_best())
+# Suggests lowmax: {'lomax': {'c': 0.5335113173075132, 'loc': 1.999999999569653, 'scale': 2.16217857286271}}
+
+"""
 # Test fit of data visually
 import plotly.express as px
 import pandas as pd
 import math
-nums = []
-dist_loc = 1
+
+dist_loc = 0.9999999999999999
 dist_scale = 2.8406122167267887
 dist_c = 0.3923899300763164
-dist = scipy.stats.expon
-for i in range(0, 341):
-    num = 0
-    while num < 2 or num > 323:
-        num = floor(scipy.stats.loglaplace.rvs(dist_c, loc=dist_loc, scale=dist_scale, size=1))
-    nums.append(num)
 
-numseries = pd.Series(nums)
+def get_nums():
+    nums = []
+    for i in range(0, 341):
+        num = 0
+        while num < 2 or num > 480:
+            #num = floor(scipy.stats.loglaplace.rvs(dist_c, loc=dist_loc, scale=dist_scale, size=1))
+            #num = floor(scipy.stats.alpha.rvs(dist_a, loc=dist_loc, scale=dist_scale, size=1))
+            num = int(floor(scipy.stats.expon.rvs(loc=dist_loc, scale=dist_scale, size=1)))
+        nums.append(num)
+    return nums
+
+# Get initial frame
+numseries = pd.Series(get_nums())
 countSeries = numseries.value_counts(dropna=False)
 countSeries = countSeries.fillna(0)
-countFrame = pd.DataFrame(data=countSeries)
+countFrame = data
+countFrame["0"] = countSeries
+
+# More copies to see range
+for i in range(1,1):
+    numseries = pd.Series(get_nums())
+    countFrame[str(i)] = numseries
+    # Compare against actual
 countFrame["actual"] = data["Count"]
-print("Actual count:", data["Count"].sum())
+countFrame.sort_index(inplace=True)
+print("Actual count:", data["Count"].sum()) # For sampling reference
 print(countFrame)
-
-bin_width= 1
-nbins = math.ceil((countFrame["count"].max() - countFrame["count"].min()) / bin_width)
-
-fig = px.histogram(countFrame, nbins=nbins)
-
-fig.update_layout(barmode='overlay')
+# Graph it
+bin_width= 2
+#nbins = math.ceil((countFrame["count"].max() - countFrame["count"].min()) / bin_width)
+fig = px.bar(countFrame)
+fig.update_layout(barmode='group')
 fig.update_traces(opacity=0.75)
 fig.show()
-
+"""
 
 # Promising:
 # Distribution  sumsquare_error    aic          bic             kl_div      ks_statistic    ks_pvalue
@@ -97,6 +127,7 @@ fig.show()
 # loc: 1.0
 # scale: 51.551886792452834
 # Separately, with goodness of fit: loc=1.0, scale=2.2169811320754715
+# And separately again: loc=1.000 scale=2.217
 # Also separately: 52.69840754201713 14.097465343710727 0.3087576385840719
 
 """
