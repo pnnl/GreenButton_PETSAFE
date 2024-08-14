@@ -1,4 +1,9 @@
-from multiprocessing import freeze_support
+import multiprocessing
+import pickle
+import pandas
+from math import floor
+from sys import exit
+
 import config
 from list_files import list_files_in_dir
 
@@ -10,29 +15,84 @@ from building_analysis.decryptor import Decryptor
 # Output directory for prepped data
 OUTPUT_DIR = "./output/"
 
+def process_file(file):
+    file = config.POWER_DIR + file
+    try:
+        parser = md.MeterDataParser(file, building_size=8, seed=config.SEED, encrypt=config.ENCRYPT)
+    except KeyboardInterrupt:
+        print("Stopping.")
+        exit()
+    except:
+        parser = None
+    try:
+        if parser != None and parser.status != "File exists.":
+            parser.output_to_file(config.OUTPUT_DIR)
+            print(file, "done.")
+            return parser.get_data()
+        else:
+            return None
+    except Exception as error:
+        # Error to fix: Could not output files: 'NoneType' object has no attribute 'status'
+        print("Could not output files:", error)
+
+def pickle_data(data):
+    if config.OUTPUT_DIR[-1] != "/":
+        config.OUTPUT_DIR += "/"
+    filename = config.OUTPUT_DIR + config.YEAR + "-" + config.AGG_TEMPORAL_RESOLUTION
+    with open(filename, "ab") as file:
+        pickle.dump(data, file)
+    print("Pickled to file.")
+
+def unpickle_data():
+    if config.OUTPUT_DIR[-1] != "/":
+        config.OUTPUT_DIR += "/"
+    filename = config.OUTPUT_DIR + config.YEAR + "-" + config.STAT_TEMPORAL_RESOLUTION
+    with open(filename, "rb") as file:
+        return pickle.load(file)
+
 def main():
     if config.PREP_FILES == True:
         files = list_files_in_dir(config.POWER_DIR, False)
-        for file in files:
-            #try:
-            file = config.POWER_DIR + file
-            parser = md.MeterDataParser(file, seed=config.SEED, encrypt=config.ENCRYPT, building_size=8)
-            #except Exception as error:
-            #print("Could not parse files into buildings:", error)
-            try:
-                parser.output_to_file(config.OUTPUT_DIR)
-                print(file, "done.")
-            except Exception as error:
-                print("Could not output files:", error)
+        # Establish a processed frame to append everything to so it can be pickled to one file
+        frame = files.pop(0)
+        frame = process_file(frame)
+        try:
+        # Only use multiprocessing if we're not going to need multiprocessing for
+        # encryption- would use too many cores otherwise
+            if config.ENCRYPT == False:
+                processors = multiprocessing.cpu_count()
+                processors = floor(processors * config.PORTION_OF_CPU)
+                results = []
+                with multiprocessing.Pool(processes=processors) as pool:
+                    for result in pool.map(process_file, files):
+                        if result is not None:
+                            frame = pandas.concat([frame, result])
+                        results.append(result)
+        except KeyboardInterrupt:
+            print("Stopping.")
+            if config.SAVE_AS_PICKLE == True:
+                pickle_data(frame)
+            exit()
+        # Data is getting encrypted; do not use multiprocessing since encryption
+        # also uses multiprocessing and doing both would eat all available cores
+        else:
+            frame = process_file(files.pop(0))
+            for file in files:
+                result = process_file(file)
+                frame = pandas.concat([frame, result])
+        if config.SAVE_AS_PICKLE == True:
+            pickle_data(frame)
+        print(config.YEAR, "done.")
 
     if config.CREATE_STATISTICS == True:
+        # TODO: read from pickle if available
         reader = Reader(config.START_DATE, config.END_DATE)
         data = reader.get_data()
         power_sum_building_1 = reader.get_building_power_sum(1)
-        power_avg_building_1 = reader.get_building_power_avg(1)
+        #power_avg_building_1 = reader.get_building_power_avg(1)
         print("Total power demand of building 1 between", config.START_DATE, "and", config.END_DATE, ":", power_sum_building_1, "kW")
-        print("Power demand average of building 1 for temporal resolution in config:", power_avg_building_1, "kW")
-        reader.graph_building_power(1)
+        #print("Power demand average of building 1 for temporal resolution in config:", power_avg_building_1, "kW")
+        reader.graph_building_power(1, config.STAT_TEMPORAL_RESOLUTION)
         print("Graph output.")
 
         # Decryption testing
@@ -49,7 +109,7 @@ def main():
     
 # Thanks, multiprocessing
 if __name__ == '__main__':
-    freeze_support()
+    multiprocessing.freeze_support()
     try:
         main()
     except KeyboardInterrupt:

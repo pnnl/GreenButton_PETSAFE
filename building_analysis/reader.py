@@ -1,10 +1,11 @@
 import pandas
 import matplotlib as plt
+import plotly.express as px
 import datetime as dt
 from os import listdir
 import os.path
 from typing import Optional
-from config import OUTPUT_DIR, STAT_TEMPORAL_RESOLUTION
+from config import OUTPUT_DIR, STAT_TEMPORAL_RESOLUTION, DECRYPT
 
 # Time periods should be in the form yyyy-mm-dd HH:mm
 # HH:mm may be missing if time is midnight
@@ -17,12 +18,15 @@ class Reader:
         self.__start_datetime = start_date
         self.__end_datetime = end_date
         # TODO: deal with None end datetime
-        self.__files = self.__get_files_for_date_range()
+        self.validate_date_range()
+        self.__files = self.__get_files_for_date_range(STAT_TEMPORAL_RESOLUTION)
         self.data = self.__build_data_frame()
 
-    # TODO:
-    # def validate_date_range(self):
-    #    check that date range makes sense and does not violate aggregation resolution
+    # TODO: add more checks for privacy concerns
+    def validate_date_range(self):
+        if self.__start_datetime > self.__end_datetime:
+            print("Start date must be after end date.")
+            raise SystemExit
 
     # Compiles all days within the date range into a single frame for processing
     def __build_data_frame(self):
@@ -32,6 +36,8 @@ class Reader:
             try:
                 with open(file, "r") as csv_file:
                     data = pandas.read_csv(csv_file)
+                data["min_t"] = pandas.to_datetime(data["min_t"])
+                data = data.set_index(["min_t"])
             except:
                 print("Reader: File not found.")
                 data = pandas.DataFrame()
@@ -55,25 +61,69 @@ class Reader:
             return None
         return building["power"].sum()
     
+    # Change input resolution string into a consistent format for use in resampling
+    def check_resolution(
+            self,
+            resolution = str # the resolution string
+    ):
+        resolution = resolution.lower().replace(" ", "") # remove spacing/case differences
+        resolution = ''.join(ch for ch in resolution if ch.isalpha()) # isalpha() removes numbers for consistency (1hr -> hr)
+        if resolution in ["minutes", "min", "f"]:
+            return "15min"
+        elif resolution in ["hourly", "hour", "hr","h"]:
+            return "60min"
+        elif resolution in ["daily", "day", "d"]:
+            return "D"
+        elif resolution in ["weekly", "week", "w"]:
+            return "W"
+        elif resolution in ["monthly", "month", "m"]:
+            return "M"
+        elif resolution in ["yearly", "year", "y"]:
+            return "Y"
+        else:
+            return None # Resolution not implemented
+        
+    def change_time_resolution(
+            self,
+            data, # the dataframe to resample
+            resolution = str # the resolution to resample to
+    ):
+        resolution = self.check_resolution(resolution)
+        if resolution is not None and DECRYPT == False:
+            # TODO SANITY CHECK: if encrypted w/partial HE, reject this
+            data = data.resample(resolution).sum()
+            data["pf"] = data["power"] / data["apparent_power"]
+            return data
+        else:
+            print("Unable to change resolution: resolution not implemented or data encrypted.")
+            return data
+
     def graph_building_power(
             self,
-            building_id: int # The integer ID of the building to work with
+            building_id: int, # The integer ID of the building to work with
+            resolution: str # the resolution to graph at.
     ):
+        # TODO: Check that data is decrypted; graphing encrypted data makes no sense
         try:
             building = self.data[self.data["ee_site_id"] == building_id]
-            building = building["power"]
         except KeyError as error:
             print("Key does not exist:", error)
             return None
-        ax = building.plot()
-        # TODO: add date range to name for clarity
-        plt.savefig("./output/building_" + building_id + "_avg" + ".png")
+        building = self.change_time_resolution(building, resolution)
+        title = "Real Power for Building " + str(building_id)
+
+        print(building)
+
+        fig = px.line(building, y="power", title=title)
+        fig.show()
+        return fig
     
     # Gets average power usage for the selected time resolution
     # e.g. a resolution of 1 month returns average total usage for a month of time
     # TODO: This assumes that data was stored in 15-minute
     # intervals. Check that (timestamps or folder name) and adjust
     # accordingly now that it can be stored at broader intervals as well.
+    # Do with resample?
     def get_building_power_avg(
             self, 
             building_id: int # The integer ID of the building to work with
@@ -97,6 +147,30 @@ class Reader:
         # Keep size reasonable
         avg = round(avg, 4)
         return avg
+    
+    def get_max(
+            self, 
+            building_id: int # The integer ID of the building to work with
+            ):
+        data = self.get_data()
+        data = data[data["ee_site_id"] == building_id]
+        # encryption sanity check
+        if DECRYPT == False:
+            return data.max()
+        else:
+            print("Cannot calculate max on homomorphically encrypted data.")
+
+    def get_min(
+            self, 
+            building_id: int # The integer ID of the building to work with
+            ):
+        data = self.get_data()
+        data = data[data["ee_site_id"] == building_id]
+        # encryption sanity check
+        if DECRYPT == False:
+            return data.min()
+        else:
+            print("Cannot calculate min on homomorphically encrypted data.")
 
     # Converts a datetime string to an object
     def convert_datestr_to_dateobj(self, target):
@@ -128,24 +202,45 @@ class Reader:
 
     # Returns a list of files for the selected date range-
     # refines from list_files_in_dir()
-    def __get_files_for_date_range(self):
+    def __get_files_for_date_range(
+            self,
+            resolution = str, # resolution is used to find processed file directories
+            recurse: Optional[bool] = False # Whether function is being called recursively
+            ):
         # Convert to datetimes to enable use of .year
         self.__start_date = self.convert_datestr_to_dateobj(self.__start_datetime)
         self.__end_date = self.convert_datestr_to_dateobj(self.__end_datetime)
         # Get years (used to look inside the correct folders)
         start_year = self.__start_date.year
         end_year = self.__end_date.year
+        # Deal with different resolution effects on directory name
+        resolution = self.check_resolution(resolution)
+        match resolution: # Only check for those implemented
+            case "15min":
+                resolution = "-15mins"
+            case "60min":
+                resolution = "-hourly"
+            case "D":
+                resolution = "-daily"
+            case __:
+                print("Aggregation resolution not implemented. Using daily default.")
+                resolution = "-daily"
+        # Deal with encryption's effects on directory name
+        if DECRYPT == True:
+            append = "-encrypted"
+        else:
+            append = ""
+        # TODO: validate that date range size does not violate privacy
+        all_dates = pandas.date_range(self.__start_date, self.__end_date, freq="d")
+        date_paths = []
+        for date in all_dates:
+            # In case date was passed as a datetime object
+            if not isinstance(date, str):
+                date = date.strftime('%Y-%m-%d')
+            # Format date into the path to its corresponding file
+            # /output/yyyy/yyyy-mm-dd.csv
+                date_paths.append(OUTPUT_DIR + date[:4] + resolution + append + "/" + date + ".csv")
         if start_year != end_year:
-            # TODO: validate that date range size does not violate privacy
-            all_dates = pandas.date_range(self.__start_date, self.__end_date, freq="d")
-            date_paths = []
-            for date in all_dates:
-                # In case date was passed as a datetime object
-                if not isinstance(date, str):
-                    date = date.strftime('%Y-%m-%d')
-                # Format date into the path to its corresponding file
-                # /output/yyyy/yyyy-mm-dd.csv
-                    date_paths.append(OUTPUT_DIR + date[:4] + "/" + date + ".csv")
         # Get a list of files that actually exist
         # Files are sorted by year, so we need to get the years to compile
         # Pandas has us covered for creating a range of dates, but it outputs the full datetime
@@ -154,26 +249,27 @@ class Reader:
             all_years = [] # Holds just the years
             for year in all_years_raw:
                 all_years.append(year.strftime('%Y'))
+        else: # Start and end year are the same
+            all_years = [start_year]
         # List files for all years being queried
         existing_files = []
         try:
-            match STAT_TEMPORAL_RESOLUTION:
-                case "f":
-                    resolution = "-15mins"
-                case "h":
-                    resolution = "-hourly"
-                case "d":
-                    resolution = "-daily"
             for year in all_years:
-                existing_files += self.__list_files_in_dir("./output/" + year + "resolution", True)
+                existing_files += self.__list_files_in_dir("./output/" + str(year) + resolution + append, True)
+            # Get the files that actually exist in the output dir
+            # Only return ones that actually exist- we don't want to call files that aren't there
+            date_set = frozenset(date_paths)
+            available_file_paths = [path for path in date_set if path in existing_files]
+            available_file_paths = sorted(available_file_paths) # makes it easier to debug
+            self.days = len(available_file_paths) # used for average calculation
         except TypeError:
             print("No files found in output dir. Has", year, "been processed at the", resolution, "resolution?")
-        # Get the files that actually exist in the output dir
-        # Only return ones that actually exist- we don't want to call files that aren't there
-        date_set = frozenset(date_paths)
-        available_file_paths = [path for path in date_set if path in existing_files]
-        self.days = len(available_file_paths) # used for average calculation
-        return sorted(available_file_paths)
+            print("Trying to find files at 15min resolution (will be used to reproduce preferred resolution).")
+            available_file_paths = self.__get_files_for_date_range("15min", True)
+            if recurse == True:
+                print("Files not found in output directory. Process files for entire date range and try again.")
+                raise SystemExit
+        return available_file_paths
     
     # TODO: time parsing within a range, eg. select records between 3am and 7pm
     #def select_time_period(self, start, end):

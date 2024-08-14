@@ -53,7 +53,8 @@ To set the date range, change `START_DATE` and `END_DATE` in config.py. Their va
 ## MeterDataParser
 - `file (str)`: a path to a file to process. Required.
 - `seed (int)`: a seed to initialize prng. Optional, default randomly chosen.
-- `building_size (int > 3)`: the number of sites to aggregate into a building. Optional, default `8`. Currently takes int, but will be reworked to also accept a distribution of building sizes for aggregation that reflects real-world building size distributions.
+- `building_size (int > 3)`: the number of sites to aggregate into a building. Optional, default `8`. Ignored if `distribution` is provided.
+- `distribution`: A probability distribution for building sizes. Optional, default None.
 - `key_location (str)`: the directory to store encryption keys in. Optional, default `"./keys/"`
 - `algorithm (str)`: the algorithm to use for encryption. Any additively homomorphic algorithm offered by LightPHE may be provided. Optional, default `"EllipticCurve-ElGamal"`.
 - `key_length (int)`: the length in bits of encryption keys. Optional, default `521`. This value should be changed to match recommendations for the chosen algorithm.

@@ -1,13 +1,18 @@
 # ----- GENERAL -----
 
 # Actions to perform
-PREP_FILES = True
-CREATE_STATISTICS = False
+PREP_FILES = False
+CREATE_STATISTICS = True
 
 # Set to true if you want to encrypt data before saving to file
 ENCRYPT = False
 # Set to True if processing encrypted data
 DECRYPT = False
+# Set to True if you'd prefer to save as pickle files, False for csv
+SAVE_AS_PICKLE = True
+# Fraction of CPU power to dedicate to processing, at most.
+# If you have 4 cores and set this to 0.5, then 2 cores will be used.
+PORTION_OF_CPU = 0.5
 
 # ----- TEMPORAL RESOLUTION -----
 
@@ -19,7 +24,8 @@ DECRYPT = False
 # "m": month
 # "y": year
 # 2024-08-05: implemented only for averages
-STAT_TEMPORAL_RESOLUTION = "f"
+# 2024-08-14: implemented for graphing
+STAT_TEMPORAL_RESOLUTION = "d"
 
 # What resolution to save buildings to file at
 # "f": 15 minutes
@@ -28,13 +34,13 @@ STAT_TEMPORAL_RESOLUTION = "f"
 AGG_TEMPORAL_RESOLUTION = "f"
 
 # What date range to retrieve statistics for
-START_DATE = "2022-07-05"
-END_DATE = "2023-06-30"
+START_DATE = "2023-01-01"
+END_DATE = "2023-12-31"
 
 # ----- FILE TARGETS FOR PROCESSING -----
 
 # Which year of data to process. Should match a year in the data directory
-YEAR = "2023"
+YEAR = "2022"
 
 # Output directory for prepped data
 OUTPUT_DIR = "./output/"

@@ -1,6 +1,8 @@
 import pandas
+import numpy
 from os import environ
 from typing import Optional
+from config import PORTION_OF_CPU
 
 # Setting copy on write for PANDAS as recommended here:
 # https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
@@ -45,8 +47,9 @@ class Building:
         # Get a building to start the frame
         # Check for an empty id list
         #if len(ids) > 0:
-        if ids:
-            building = self.__clean_frame(dataframe[dataframe["ee_site_id"] == ids.pop(0)])
+        if ids.any():
+            building = self.__clean_frame(dataframe[dataframe["ee_site_id"] == ids[0]])
+            ids = numpy.delete(ids, 0)
             # Add the rest in
             for id in ids:
                 site = self.__clean_frame(dataframe[dataframe["ee_site_id"] == id])
@@ -66,11 +69,11 @@ class Building:
         self.__data = self.__correct_power_factor(self.__data)
         self.resolution = resolution
     
-    def aggregegate_hourly(self):
+    def aggregate_hourly(self):
         self.__resample_data('60min', 'hourly')
         return self.__data
 
-    def aggregegate_daily(self):
+    def aggregate_daily(self):
         self.__resample_data('1440min', 'daily')
         return self.__data
     
