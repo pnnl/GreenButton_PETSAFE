@@ -4,7 +4,6 @@ from pandas import read_csv
 
 with open("./building-size-distribution.csv", "r") as file:
     data = read_csv(file)
-"""
 fitter = Fitter(data, timeout=60)
 # TODO: exponential fails instantly. It might be a good fit- why?
 fitter.distributions = ["exponential", "loglaplace", "burr12", "ncf", "halfgennorm", "alpha"]
@@ -13,7 +12,6 @@ summary = fitter.summary()
 print("-------")
 print(summary)
 print(fitter.get_best())
-"""
 
 print("Exponential fit:")
 loc, scale = scipy.stats.expon.fit(data)

@@ -171,21 +171,32 @@ class MeterDataParser:
             self.__building_ids = numpy.array(self.__site_ids)
             self.__site_ids = numpy.array([]) # Cleared so this doesn't get run again
         return self.__building_ids
+    
+    def generate_building_size(
+            self,
+            recursion_count = int # how many times this was called recursively; used to stop it if things go wrong
+            ):
+        count = floor(loglaplace.rvs(self.__dist_c, loc=self.__dist_loc, scale=self.__dist_scale, size=1, random_state=self.rd))
+        if count == 1:
+            count = 2 # we have to aggregate SOMETHING
+        # If the generated size is larger than the number of sites available, then generate a new number
+        elif count > self.__site_count and recursion_count < 5:
+            count = self.generate_building_size(recursion_count + 1)
+        print("Count:", count)
+        return count
 
     # Outputs a list of virtual buildings made from data
     def __makeBuildings(self):
         # List all sites by id number
         self.__site_ids = pandas.unique(self.__prepared_data["ee_site_id"])
+        self.__site_count = self.__site_ids.size
         self.__building_list = [] # will hold a list of Building objects
         # Until we run out of sites to make buildings from
         while len(self.__site_ids) >= self.__BUILDING_SIZE:
             # Get a random set of site ids for a building
             try:
                 if self.__dist:
-                    count = floor(loglaplace.rvs(self.__dist_c, loc=self.__dist_loc, scale=self.__dist_scale, size=1, random_state=self.rd))
-                    if count == 1:
-                        count = 2 # we have to aggregate SOMETHING
-                    print("Count:", count)
+                    count = self.generate_building_size(0) # 0: not being called recursively
                 else:
                     count = self.__BUILDING_SIZE
                 self.__random_ids = self.__get_random_ids(count)
