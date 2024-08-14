@@ -24,7 +24,8 @@ PORTION_OF_CPU = 0.5
 # "m": month
 # "y": year
 # 2024-08-05: implemented only for averages
-STAT_TEMPORAL_RESOLUTION = "f"
+# 2024-08-14: implemented for graphing
+STAT_TEMPORAL_RESOLUTION = "d"
 
 # What resolution to save buildings to file at
 # "f": 15 minutes

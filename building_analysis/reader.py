@@ -19,7 +19,7 @@ class Reader:
         self.__end_datetime = end_date
         # TODO: deal with None end datetime
         self.validate_date_range()
-        self.__files = self.__get_files_for_date_range()
+        self.__files = self.__get_files_for_date_range(STAT_TEMPORAL_RESOLUTION)
         self.data = self.__build_data_frame()
 
     # TODO:
@@ -61,50 +61,70 @@ class Reader:
             return None
         return building["power"].sum()
     
+    # Change input resolution string into a consistent format for use in resampling
     def check_resolution(
             self,
             resolution = str # the resolution string
     ):
-        resolution = resolution.lower().alpha().replace(" ", "") # remove spacing/case differences; alpha removes numbers (1hr -> hr)
+        resolution = resolution.lower().replace(" ", "") # remove spacing/case differences
+        resolution = ''.join(ch for ch in resolution if ch.isalpha()) # isalpha() removes numbers for consistency (1hr -> hr)
+        print(resolution)
         if resolution in ["minutes", "min", "f"]:
-            return "f"
+            return "15min"
         elif resolution in ["hourly", "hour", "hr","h"]:
-            return "h"
+            return "60min"
         elif resolution in ["daily", "day", "d"]:
-            return "d"
+            return "D"
         elif resolution in ["weekly", "week", "w"]:
-            return "w"
+            return "W"
         elif resolution in ["monthly", "month", "m"]:
-            return "m"
+            return "M"
         elif resolution in ["yearly", "year", "y"]:
-            return "y"
+            return "Y"
         else:
             return None # Resolution not implemented
+        
+    def change_time_resolution(
+            self,
+            data, # the dataframe to resample
+            resolution = str # the resolution to resample to
+    ):
+        resolution = self.check_resolution(resolution)
+        if resolution is not None:
+            # SANITY CHECK: if encrypted w/partial HE, reject this
+            data = data.resample(resolution)
+            data["pf"] = data["power"] / data["apparent_power"]
+            return data
+        else:
+            return "Resolution invalid."
 
     def graph_building_power(
             self,
             building_id: int, # The integer ID of the building to work with
             resolution: str # the resolution to graph at.
     ):
+
         # TODO: Check that data is decrypted; graphing encrypted data makes no sense
         try:
             building = self.data[self.data["ee_site_id"] == building_id]
         except KeyError as error:
             print("Key does not exist:", error)
             return None
+        building = self.change_time_resolution(building, resolution)
         title = "Real Power for Building " + str(building_id)
+
         print(building)
+
         fig = px.line(building, y="power", title=title)
         fig.show()
-        #ax = building.plot()
-        # TODO: add date range to name for clarity
-        #plt.savefig("./output/building_" + building_id + "_avg" + ".png")
+        return fig
     
     # Gets average power usage for the selected time resolution
     # e.g. a resolution of 1 month returns average total usage for a month of time
     # TODO: This assumes that data was stored in 15-minute
     # intervals. Check that (timestamps or folder name) and adjust
     # accordingly now that it can be stored at broader intervals as well.
+    # Do with resample?
     def get_building_power_avg(
             self, 
             building_id: int # The integer ID of the building to work with
@@ -183,7 +203,11 @@ class Reader:
 
     # Returns a list of files for the selected date range-
     # refines from list_files_in_dir()
-    def __get_files_for_date_range(self):
+    def __get_files_for_date_range(
+            self,
+            resolution = str, # resolution is used to find processed file directories
+            recurse: Optional[bool] = False # Whether function is being called recursively
+            ):
         # Convert to datetimes to enable use of .year
         self.__start_date = self.convert_datestr_to_dateobj(self.__start_datetime)
         self.__end_date = self.convert_datestr_to_dateobj(self.__end_datetime)
@@ -191,12 +215,16 @@ class Reader:
         start_year = self.__start_date.year
         end_year = self.__end_date.year
         # Deal with different resolution effects on directory name
-        match STAT_TEMPORAL_RESOLUTION:
-            case "f":
+        resolution = self.check_resolution(resolution)
+        match resolution: # Only check for those implemented
+            case "15min":
                 resolution = "-15mins"
-            case "h":
+            case "60min":
                 resolution = "-hourly"
-            case "d":
+            case "D":
+                resolution = "-daily"
+            case __:
+                print("Aggregation resolution not implemented. Using daily default.")
                 resolution = "-daily"
         # Deal with encryption's effects on directory name
         if DECRYPT == True:
@@ -229,14 +257,20 @@ class Reader:
         try:
             for year in all_years:
                 existing_files += self.__list_files_in_dir("./output/" + str(year) + resolution + append, True)
+            # Get the files that actually exist in the output dir
+            # Only return ones that actually exist- we don't want to call files that aren't there
+            date_set = frozenset(date_paths)
+            available_file_paths = [path for path in date_set if path in existing_files]
+            available_file_paths = sorted(available_file_paths) # makes it easier to debug
+            self.days = len(available_file_paths) # used for average calculation
         except TypeError:
             print("No files found in output dir. Has", year, "been processed at the", resolution, "resolution?")
-        # Get the files that actually exist in the output dir
-        # Only return ones that actually exist- we don't want to call files that aren't there
-        date_set = frozenset(date_paths)
-        available_file_paths = [path for path in date_set if path in existing_files]
-        self.days = len(available_file_paths) # used for average calculation
-        return sorted(available_file_paths)
+            print("Trying to find files at 15min resolution (will be used to reproduce preferred resolution).")
+            available_file_paths = self.__get_files_for_date_range("15min", True)
+            if recurse == True:
+                print("Files not found. Process files for entire date range and try again.")
+                raise SystemExit
+        return available_file_paths
     
     # TODO: time parsing within a range, eg. select records between 3am and 7pm
     #def select_time_period(self, start, end):
