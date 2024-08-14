@@ -157,7 +157,8 @@ class MeterDataParser:
     # will be sorted differently and that could be a problem for analysis
     # depending on how this is used.
     def __get_random_ids(self, count):
-            # We only need as many ids as our building size value
+        # We only need as many ids as our building size value
+        print("Count:", count)
         if len(self.__site_ids) > count:
             self.__building_ids = self.rd.choice(self.__site_ids, count, replace=False)
             try:
@@ -181,6 +182,7 @@ class MeterDataParser:
         count = 0 # placeholder; buildings can't have no sites
         while count <= min_size or count > self.__site_count: # Exclude values that are too small or too large
             count = floor(loglaplace.rvs(self.__dist_c, loc=self.__dist_loc, scale=self.__dist_scale, size=1, random_state=self.rd))
+        print("GenCount:", count)
         return count
 
     # Outputs a list of virtual buildings made from data
