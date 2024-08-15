@@ -83,6 +83,13 @@ class Reader:
         elif resolution in ["yearly", "year", "y"]:
             return "Y"
         else:
+            print("Resolution not implemented. Options:")
+            print("- 15min")
+            print("- hourly")
+            print("- daily")
+            print("- weekly")
+            print("- monthly")
+            print("- yearly")
             return None # Resolution not implemented
         
     def change_time_resolution(

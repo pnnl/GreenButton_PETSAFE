@@ -71,7 +71,7 @@ class MeterDataParser:
                 raise SystemExit
             if distribution == True:
                 self.__distribution = self.createDistribution()
-            # TODO: alter to check distribution does not compromise information privacy
+            # TODO: alter for customizable distribution
 
             # Path should have a trailing slash
             if key_location[-1] != "/":
