@@ -35,7 +35,7 @@ AGG_TEMPORAL_RESOLUTION = "f"
 
 # What date range to retrieve statistics for
 START_DATE = "2022-01-01"
-END_DATE = "2022-12-31"
+END_DATE = "2022-01-01"
 
 # ----- PROCESSING -----
 
@@ -57,6 +57,6 @@ POWER_DIR = ROOT_DATA_DIR + "power/"
 # ----- ENCRYPTION AND RANDOMIZATION -----
 
 # Which columns to decrypt
-DECRYPT = ["power", "apparent_power", "pf"]
+#DECRYPT_COLS = ["power", "apparent_power", "pf"]
 # Seed to use for building site randomization
 SEED = 176575734

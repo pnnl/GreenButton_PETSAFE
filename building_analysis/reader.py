@@ -52,20 +52,6 @@ class Reader:
     def get_data(self):
         return self.data
     
-    # Returns the sum of power for a building with ee_site_id of building_id
-    def get_building_power_sum(
-            self, 
-            building_id: int # The integer ID of the building to work with
-            ):
-        try:
-            building = self.data[self.data["ee_site_id"] == building_id]
-        except KeyError as error:
-            print("Key does not exist:", error)
-            return None
-        # TODO: per time period instead of whole day
-        # TODO: week, month, and year
-        return building["power"].sum()
-    
     # Change input resolution string into a consistent format for use in resampling
     def check_resolution(
             self,
@@ -101,14 +87,26 @@ class Reader:
             resolution: str # the resolution to resample to
     ):
         resolution = self.check_resolution(resolution)
-        if resolution is not None and DECRYPT == False:
+        if (resolution is not None) and (DECRYPT == False):
             # TODO SANITY CHECK: if encrypted w/partial HE, reject this
-            data = data.resample(resolution).sum()
-            data["pf"] = data["power"] / data["apparent_power"]
-            return data
+            try:
+                frame = pandas.DataFrame()
+                # Work in chunks to preserve site IDs
+                for site in pandas.unique(data["ee_site_id"]):
+                    chunk = data[data["ee_site_id"] == site]
+                    chunk_id = chunk["ee_site_id"].iloc[0]
+                    chunk = chunk.resample(resolution).sum()
+                    chunk["ee_site_id"] = chunk_id
+                    frame = pandas.concat([frame, chunk])
+                data = frame
+                data["pf"] = data["power"] / data["apparent_power"]
+            except Exception as error:
+                print("Could not change resolution:", error)
+        elif DECRYPT == False:
+            print("Resolution not implemented.")
         else:
-            print("Unable to change resolution: resolution not implemented or data encrypted.")
-            return data
+            print("Resolution not implemented or data encrypted.")
+        return data
 
     def graph_building_power(
             self,
@@ -116,6 +114,7 @@ class Reader:
             resolution: str # the resolution to graph at.
     ):
         # TODO: Check that data is decrypted; graphing encrypted data makes no sense
+        # TODO: if resolution = supplied data, graphing won't work as expected
         try:
             building = self.data[self.data["ee_site_id"] == building_id]
         except KeyError as error:
@@ -123,12 +122,22 @@ class Reader:
             return None
         building = self.change_time_resolution(building, resolution)
         title = "Real Power for Building " + str(building_id)
-
-        print(building)
-
         fig = px.line(building, y="power", title=title)
         fig.show()
         return fig
+    
+    # Returns the sum of power for a building with ee_site_id of building_id
+    def get_building_power_sum(
+            self, 
+            building_id: int # The integer ID of the building to work with
+            ):
+        try:
+            building = self.data[self.data["ee_site_id"] == building_id]
+        except KeyError as error:
+            print("Key does not exist:", error)
+            return None
+        # TODO: per time period instead of whole provided period
+        return building["power"].sum()
     
     # Gets average power usage for the selected time resolution
     # e.g. a resolution of 1 month returns average total usage for a month of time
@@ -141,13 +150,11 @@ class Reader:
             building_id: int # The integer ID of the building to work with
             ):
         sum = self.get_building_power_sum(building_id)
-        site_count = self.data[self.data["ee_site_id"] == building_id]["site_count"]
+        site_count = self.data[self.data["ee_site_id"] == building_id]["site_count"].iloc[0]
         # Done with multiplication to allow it to be done homomorphically- plaintext scalars
         # are okay for multiplication, not division.
         avg = sum * 1/site_count # scale down to a "site" of usage
-        # Keep size reasonable for output
-        avg = sum * 1/site_count # scale down to a "site" of usage
-        avg = round(avg, 4)
+        avg = round(avg, 4) # Keep size reasonable for output
         return avg
     
     def get_max(
