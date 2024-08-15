@@ -14,6 +14,7 @@ class Reader:
             self,
             start_date: str, # the datetime of the start of the period to read, YY-MM-DD HH-MM expected
             end_date: Optional[str] = None, # the datetime of the start of the period to read, YY-MM-DD HH-MM expected
+            resolution: Optional[str] = "15mins" # the resolution to return data at
     ):
         self.__start_datetime = start_date
         self.__end_datetime = end_date
@@ -21,6 +22,7 @@ class Reader:
         self.validate_date_range()
         self.__files = self.__get_files_for_date_range(STAT_TEMPORAL_RESOLUTION)
         self.data = self.__build_data_frame()
+        self.data = self.change_time_resolution(resolution)
 
     # TODO: add more checks for privacy concerns
     def validate_date_range(self):
@@ -129,22 +131,12 @@ class Reader:
             building_id: int # The integer ID of the building to work with
             ):
         sum = self.get_building_power_sum(building_id)
-        avg = sum * 1/8 # scale down to a "site" of usage -
-            # TODO: modify this to use BUILDING_SIZE value
-            # instead of using magic number 8
-        if STAT_TEMPORAL_RESOLUTION != "y":
-            avg = avg * 1/12 # months in a year
-        if STAT_TEMPORAL_RESOLUTION in ["w", "d", "h", "f"]:
-            avg = avg * 1/4.345 # weeks in a month on average
-            # TODO: we can do better than average, or at least get
-            # a better average for the actual date range
-        if STAT_TEMPORAL_RESOLUTION in ["d", "h", "f"]:
-            avg = avg * 1/7 # days in a week
-        if STAT_TEMPORAL_RESOLUTION in ["h", "f"]:
-            avg = avg * 1/24 # hours in a day
-        if STAT_TEMPORAL_RESOLUTION == "f":
-            avg = avg * 1/4 # sets of 15 mins in an hour
-        # Keep size reasonable
+        site_count = self.data[self.data["ee_site_id"] == building_id]["site_count"]
+        # Done with multiplication to allow it to be done homomorphically- plaintext scalars
+        # are okay for multiplication, not division.
+        avg = sum * 1/site_count # scale down to a "site" of usage
+        # Keep size reasonable for output
+        avg = sum * 1/site_count # scale down to a "site" of usage
         avg = round(avg, 4)
         return avg
     

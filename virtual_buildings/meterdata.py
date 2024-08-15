@@ -1,15 +1,12 @@
 import pandas
-from scipy.stats import lomax, pareto
+import multiprocessing
+import numpy
+from scipy.stats import pareto
 from lightphe import LightPHE
 from os.path import exists
-from os import makedirs
-from os import environ
-from sys import exit
+from os import makedirs, environ
 from math import floor
 from typing import Optional
-import multiprocessing
-#import random as rd
-import numpy
 from virtual_buildings.building import Building
 from config import AGG_TEMPORAL_RESOLUTION, OUTPUT_DIR, PORTION_OF_CPU
 
@@ -37,7 +34,7 @@ class MeterDataParser:
     ):
         if file is None:
             print("File not provided. Expected relative or absolute filepath.")
-            exit()
+            raise SystemExit
         elif seed is None:
             print("Warning: random seed generated. Building assignment may not be repeatable!")
             seed = numpy.random.randint(100000000, 999999999)
@@ -71,7 +68,7 @@ class MeterDataParser:
             self.__BUILDING_SIZE = building_size
             if self.__BUILDING_SIZE < self.__MIN_BUILDING_SIZE:
                 print("Building size too small.")
-                exit()
+                raise SystemExit
             if distribution == True:
                 self.__distribution = self.createDistribution()
             # TODO: alter to check distribution does not compromise information privacy
@@ -133,7 +130,7 @@ class MeterDataParser:
         except Exception as error:
             print("Unable to read file. Aborting.") 
             print("Reason:", error)
-            exit()
+            raise SystemExit
 
     # Reduces data to only Mains circuits
     def __extractMains(self):
@@ -216,7 +213,7 @@ class MeterDataParser:
             except:
                 print("Unable to construct buildings: site id randomization failed.")
                 print("Check building size parameter.")
-                exit()
+                raise SystemExit
             # Make a building (as long as we have ids to give it)
             if self.__random_ids.any():
                 building = Building(self.__random_ids, self.__prepared_data, self.__decimal_places)
@@ -279,10 +276,10 @@ class MeterDataParser:
                 return privkey
             else:
                 print("Encryption setup failed.")
-                exit()
+                raise SystemExit
         except:
             print("Key generation failure. Aborting.")
-            exit()
+            raise SystemExit
 
     # Puts individual building frames together to output as one frame
     # containing all buildings
@@ -343,7 +340,7 @@ class MeterDataParser:
                     makedirs(target_folder)
             except:
                 print("Unable to create folder.")
-                exit()
+                raise SystemExit
             # TODO: Also make this check earlier in the process and skip processing
             # for existing files. Save time.
             if not exists(filename):
