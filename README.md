@@ -11,12 +11,14 @@ Edit config.py to configure settings for your use-case.
 ## List files
     files = list_files_in_dir([directory path: str], [whether to append path to resulting files: bool])
 
-## Process files in list into buildings
+## Process files in list into uniformly-sized buildings
     from virtual_buildings import meterdata as md
     import config
-    parser = md.MeterDataParser(file, seed=config.SEED, encrypt=config.ENCRYPT)
+    parser = md.MeterDataParser(file, seed=config.SEED, encrypt=config.ENCRYPT, building_size=value)
 
 To enable the use of homomorphic encryption, set `ENCRYPT` to `True` in config.py.
+
+To set the number of buildings generated, set `BUILDING_COUNT` in config.py. Set `BUILDING_COUNT` to `-1` if you would prefer for the program to create as many buildings as possible without reusing sites.
 
 To set the temporal resolution for building aggregation, set `AGG_TEMPORAL_RESOLUTION` in config.py to one of the following values:
 - `"f"`: every fifteen minutes
@@ -24,6 +26,20 @@ To set the temporal resolution for building aggregation, set `AGG_TEMPORAL_RESOL
 - `"d"`: daily
 
 To set the number of sites per building, pass `building_size=val` to `MeterDataParser`, where `val` equals the site count per building.
+
+## Process files in list into variably-sized buildings
+    from virtual_buildings import meterdata as md
+    import config
+    parser = md.MeterDataParser(file, seed=config.SEED, encrypt=config.ENCRYPT, distribution=True)
+
+Setting `distribution` to `True` will override any values set for `building_size`.
+
+To set the number of buildings generated, set `BUILDING_COUNT` in config.py. Set `BUILDING_COUNT` to `-1` if you would prefer for the program to create as many buildings as possible without reusing sites.
+
+To set the temporal resolution for building aggregation, set `AGG_TEMPORAL_RESOLUTION` in config.py to one of the following values:
+- `"f"`: every fifteen minutes
+- `"h"`: hourly
+- `"d"`: daily
 
 ## Read from processed files between two dates
 To set the date range, change `START_DATE` and `END_DATE` in config.py. Their values should be strings in the format `"YYYY-MM-DD"`, eg. `"2020-12-01"`.

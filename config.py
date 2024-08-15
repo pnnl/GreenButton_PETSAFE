@@ -42,7 +42,11 @@ END_DATE = "2022-01-01"
 # Which year of data to process. Should match a year in the data directory
 YEAR = "2022"
 
-# How many buildings to make per day. Set to -1 for "as many as possible without duplicating sites"
+# Size of buildings if buildings are being made at uniform size
+BUILDING_SIZE = 8
+
+# How many buildings to make per day if processing via distribution. 
+# # Set to -1 for "as many as possible without duplicating sites"
 # If processing multiple years for analysis, it's recommended to keep this value the same between years
 BUILDING_COUNT = 20
 

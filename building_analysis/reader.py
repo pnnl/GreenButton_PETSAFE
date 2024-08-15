@@ -141,10 +141,7 @@ class Reader:
     
     # Gets average power usage for the selected time resolution
     # e.g. a resolution of 1 month returns average total usage for a month of time
-    # TODO: This assumes that data was stored in 15-minute
-    # intervals. Check that (timestamps or folder name) and adjust
-    # accordingly now that it can be stored at broader intervals as well.
-    # Do with resample?
+    # TODO: Check this works as expected with larger time resolutions
     def get_building_power_avg(
             self, 
             building_id: int # The integer ID of the building to work with
