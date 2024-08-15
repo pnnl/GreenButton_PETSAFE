@@ -37,10 +37,14 @@ AGG_TEMPORAL_RESOLUTION = "f"
 START_DATE = "2023-01-01"
 END_DATE = "2023-12-31"
 
-# ----- FILE TARGETS FOR PROCESSING -----
+# ----- PROCESSING -----
 
 # Which year of data to process. Should match a year in the data directory
 YEAR = "2022"
+
+# How many buildings to make per day. Set to -1 for "as many as possible without duplicating sites"
+# If processing multiple years for analysis, it's recommended to keep this value the same between years
+BUILDING_COUNT = 20
 
 # Output directory for prepped data
 OUTPUT_DIR = "./output/"
@@ -55,4 +59,4 @@ POWER_DIR = ROOT_DATA_DIR + "power/"
 # Which columns to decrypt
 DECRYPT = ["power", "apparent_power", "pf"]
 # Seed to use for building site randomization
-SEED = 482249327
+SEED = 176575734

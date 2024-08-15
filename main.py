@@ -19,7 +19,7 @@ def process_file(file):
     file = config.POWER_DIR + file
     try:
         # parser = md.MeterDataParser(file, building_size=8, seed=config.SEED, encrypt=config.ENCRYPT)
-        parser = md.MeterDataParser(file, distribution=True, seed=config.SEED, encrypt=config.ENCRYPT)
+        parser = md.MeterDataParser(file, distribution=True, seed=config.SEED, encrypt=config.ENCRYPT, building_count=config.BUILDING_COUNT)
     except KeyboardInterrupt:
         print("Stopping.")
         exit()
