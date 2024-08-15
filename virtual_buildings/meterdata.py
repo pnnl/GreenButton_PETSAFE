@@ -189,8 +189,9 @@ class MeterDataParser:
             ):
         if min_size < 1: # sanity check; buildings must have at least one site
             min_size = 1
+        max_size = self.__site_count # TODO: should this be limited to something smaller to ensure more than one building is made?
         count = 0 # placeholder; buildings can't have no sites
-        while count < min_size or count > self.__site_count: # Exclude values that are too small or too large
+        while count < min_size or count > max_size: # Exclude values that are too small or too large
             count = int(floor(pareto.rvs(self.__dist_c, loc=self.__dist_loc, scale=self.__dist_scale, size=1, random_state=self.rd)))
         print("GenCount:", count)
         return count
