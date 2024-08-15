@@ -3,6 +3,7 @@ import scipy
 from math import floor
 import plotly.express as px
 import numpy
+import pandas as pd
 from pandas import read_csv
 
 with open("./building-size-distribution.csv", "r") as file:
@@ -23,19 +24,17 @@ known_params = {"c": dist_c, "loc": dist_loc, "scale": dist_scale}
 """
 import pandas as pd
 
-dist_loc = 1.999999999569653
-dist_scale = 2.16217857286271
-dist_c = 0.5335113173075132
+# pareto: (0.5335371308758773, -0.16241563710448093, 2.1624156371044805)
+dist_c = 0.5335371308758773
+dist_loc = -0.16241563710448093
+dist_scale = 2.1624156371044805
 
 def get_nums():
     nums = []
-    for i in range(0, 341):
-        num = 0
-        while num < 2 or num > 480:
-            #num = floor(scipy.stats.loglaplace.rvs(dist_c, loc=dist_loc, scale=dist_scale, size=1))
-            #num = floor(scipy.stats.alpha.rvs(dist_a, loc=dist_loc, scale=dist_scale, size=1))
-            #num = int(floor(scipy.stats.expon.rvs(loc=dist_loc, scale=dist_scale, size=1)))
-            num = int(floor(scipy.stats.lomax.rvs(dist_c, loc=dist_loc, scale=dist_scale, size=1)))
+    for i in range(0, 341): # number of measurements in original dataset
+        num = 500
+        while num > 480:
+            num = int(floor(scipy.stats.pareto.rvs(dist_c, loc=dist_loc, scale=dist_scale, size=1)))
         nums.append(num)
     nums = pd.array(nums)
     numcounts = nums.value_counts()
@@ -94,37 +93,28 @@ def goodness_fit_test():
 
 def test_visually():
     # Test fit of data visually
-    import plotly.express as px
-    import pandas as pd
-    import math
-
-    # lomax
-    dist_loc = 1.999999999569653
-    dist_scale = 2.16217857286271
-    dist_c = 0.5335113173075132
     # Get initial frame
-    numseries = pd.Series(get_nums())
-    countSeries = numseries.value_counts(dropna=False)
-    countSeries = countSeries.fillna(0)
+    numseries, numcounts = pd.Series(get_nums())
     countFrame = data
-    countFrame["0"] = countSeries
+    countFrame = countFrame.fillna(0)
+    countFrame = countFrame.rename(columns={"Count": "Actual"})
+    countFrame = countFrame.set_index("BuildingSize")
 
     # More copies to see range
-    for i in range(1,1):
-        numseries = pd.Series(get_nums())
-        countFrame[str(i)] = numseries
-    # Compare against actual
-    #countFrame["actual"] = actual_data
+    for i in range(1,4):
+        numseries, numcounts = pd.Series(get_nums())
+        countFrame["sist" + str(i)] = numcounts
     countFrame.sort_index(inplace=True)
+    countFrame = countFrame.fillna(0)
     print("Actual count:", data["Count"].sum()) # For sampling reference
-    #print(countFrame)
     # Graph it
-    bin_width= 2
-    #nbins = math.ceil((countFrame["count"].max() - countFrame["count"].min()) / bin_width)
-    fig = px.bar(countFrame)
-    fig.update_layout(barmode='group')
+    fig = px.line(countFrame)
+    #fig.update_layout(barmode='group')
+    fig.update_xaxes(autorangeoptions=dict(maxallowed=50))
     fig.update_traces(opacity=0.75)
     fig.show()
+
+test_visually()
 
 """
  Generate random numbers:
