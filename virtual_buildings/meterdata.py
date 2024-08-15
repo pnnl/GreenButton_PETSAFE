@@ -99,7 +99,10 @@ class MeterDataParser:
                 results = []
                 with multiprocessing.Pool(processes=processors) as pool:
                     for result in pool.map(self.encrypt_frames, self.__building_list):
-                        results.append(result)
+                        try:
+                            results.append(result)
+                        except KeyboardInterrupt:
+                            pool.terminate()
                 for i in range(0, len(self.__building_list)):
                     self.__building_list[i] = results[i]
         else:

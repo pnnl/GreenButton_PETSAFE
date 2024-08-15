@@ -1,8 +1,8 @@
 # ----- GENERAL -----
 
 # Actions to perform
-PREP_FILES = True
-CREATE_STATISTICS = False
+PREP_FILES = False
+CREATE_STATISTICS = True
 
 # Set to true if you want to encrypt data before saving to file
 ENCRYPT = False
@@ -25,7 +25,7 @@ PORTION_OF_CPU = 0.5
 # "y": year
 # 2024-08-05: implemented only for averages
 # 2024-08-14: implemented for graphing
-STAT_TEMPORAL_RESOLUTION = "d"
+STAT_TEMPORAL_RESOLUTION = "f"
 
 # What resolution to save buildings to file at
 # "f": 15 minutes
@@ -34,8 +34,8 @@ STAT_TEMPORAL_RESOLUTION = "d"
 AGG_TEMPORAL_RESOLUTION = "f"
 
 # What date range to retrieve statistics for
-START_DATE = "2023-01-01"
-END_DATE = "2023-12-31"
+START_DATE = "2022-01-01"
+END_DATE = "2022-12-31"
 
 # ----- PROCESSING -----
 

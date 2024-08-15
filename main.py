@@ -90,12 +90,12 @@ def main():
 
     if config.CREATE_STATISTICS == True:
         # TODO: read from pickle if available
-        reader = Reader(config.START_DATE, config.END_DATE)
+        reader = Reader(config.START_DATE, config.END_DATE, resolution=config.STAT_TEMPORAL_RESOLUTION)
         data = reader.get_data()
         power_sum_building_1 = reader.get_building_power_sum(1)
-        #power_avg_building_1 = reader.get_building_power_avg(1)
+        power_avg_building_1 = reader.get_building_power_avg(1)
         print("Total power demand of building 1 between", config.START_DATE, "and", config.END_DATE, ":", power_sum_building_1, "kW")
-        #print("Power demand average of building 1 for temporal resolution in config:", power_avg_building_1, "kW")
+        print("Power demand average of building 1 for temporal resolution in config:", power_avg_building_1, "kW")
         reader.graph_building_power(1, config.STAT_TEMPORAL_RESOLUTION)
         print("Graph output.")
 

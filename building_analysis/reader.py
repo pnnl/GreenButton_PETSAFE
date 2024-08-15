@@ -18,11 +18,12 @@ class Reader:
     ):
         self.__start_datetime = start_date
         self.__end_datetime = end_date
+        self.__resolution = resolution
         # TODO: deal with None end datetime
         self.validate_date_range()
         self.__files = self.__get_files_for_date_range(STAT_TEMPORAL_RESOLUTION)
         self.data = self.__build_data_frame()
-        self.data = self.change_time_resolution(resolution)
+        self.data = self.change_time_resolution(self.__resolution)
 
     # TODO: add more checks for privacy concerns
     def validate_date_range(self):
@@ -61,14 +62,17 @@ class Reader:
         except KeyError as error:
             print("Key does not exist:", error)
             return None
+        # TODO: per time period instead of whole day
+        # TODO: week, month, and year
         return building["power"].sum()
     
     # Change input resolution string into a consistent format for use in resampling
     def check_resolution(
             self,
-            resolution = str # the resolution string
+            resolution: str # the resolution string
     ):
-        resolution = resolution.lower().replace(" ", "") # remove spacing/case differences
+        resolution = resolution.lower() # remove spacing/case differences
+        resolution = resolution.replace(" ", "")
         resolution = ''.join(ch for ch in resolution if ch.isalpha()) # isalpha() removes numbers for consistency (1hr -> hr)
         if resolution in ["minutes", "min", "f"]:
             return "15min"
@@ -95,7 +99,7 @@ class Reader:
     def change_time_resolution(
             self,
             data, # the dataframe to resample
-            resolution = str # the resolution to resample to
+            resolution: str # the resolution to resample to
     ):
         resolution = self.check_resolution(resolution)
         if resolution is not None and DECRYPT == False:
@@ -203,7 +207,7 @@ class Reader:
     # refines from list_files_in_dir()
     def __get_files_for_date_range(
             self,
-            resolution = str, # resolution is used to find processed file directories
+            resolution: str, # resolution is used to find processed file directories
             recurse: Optional[bool] = False # Whether function is being called recursively
             ):
         # Convert to datetimes to enable use of .year
