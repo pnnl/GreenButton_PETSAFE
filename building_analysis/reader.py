@@ -23,7 +23,7 @@ class Reader:
         self.validate_date_range()
         self.__files = self.__get_files_for_date_range(STAT_TEMPORAL_RESOLUTION)
         self.data = self.__build_data_frame()
-        self.data = self.change_time_resolution(self.__resolution)
+        self.data = self.change_time_resolution(self.data, self.__resolution)
 
     # TODO: add more checks for privacy concerns
     def validate_date_range(self):
@@ -71,8 +71,7 @@ class Reader:
             self,
             resolution: str # the resolution string
     ):
-        resolution = resolution.lower() # remove spacing/case differences
-        resolution = resolution.replace(" ", "")
+        resolution = resolution.replace(" ", "").lower() # remove spacing/case differences
         resolution = ''.join(ch for ch in resolution if ch.isalpha()) # isalpha() removes numbers for consistency (1hr -> hr)
         if resolution in ["minutes", "min", "f"]:
             return "15min"
