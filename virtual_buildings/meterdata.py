@@ -193,7 +193,7 @@ class MeterDataParser:
         count = 0 # placeholder; buildings can't have no sites
         while count < min_size or count > max_size: # Exclude values that are too small or too large
             count = int(floor(pareto.rvs(self.__dist_c, loc=self.__dist_loc, scale=self.__dist_scale, size=1, random_state=self.rd)))
-        print("GenCount:", count)
+        #print("GenCount:", count) # for debugging of building sizes
         return count
 
     # Outputs a list of virtual buildings made from data
