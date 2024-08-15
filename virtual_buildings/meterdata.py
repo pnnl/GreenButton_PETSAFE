@@ -1,5 +1,5 @@
 import pandas
-from scipy.stats import expon, loglaplace
+from scipy.stats import lomax
 from lightphe import LightPHE
 from os.path import exists
 from os import makedirs
@@ -145,10 +145,10 @@ class MeterDataParser:
     def createDistribution(self):
         # Parameters and distribution obtained in ../tools/fit-curve.py
         # {'loglaplace': {'c': 0.3923899300763164, 'loc': 0.9999999999999999, 'scale': 2.8406122167267887}}
-        self.__dist_loc = 1
-        self.__dist_scale = 2.8406122167267887
-        self.__dist_c = 0.3923899300763164
-        self.__dist = loglaplace(self.__dist_c)
+        self.__dist_loc = 1.999999999569653
+        self.__dist_scale = 2.16217857286271
+        self.__dist_c = 0.5335113173075132
+        self.__dist = lomax(self.__dist_c)
         return True
 
     # Gets a list of random ids, with len(list) = BUILDING_SIZE
@@ -181,7 +181,7 @@ class MeterDataParser:
             min_size = 1
         count = 0 # placeholder; buildings can't have no sites
         while count <= min_size or count > self.__site_count: # Exclude values that are too small or too large
-            count = floor(loglaplace.rvs(self.__dist_c, loc=self.__dist_loc, scale=self.__dist_scale, size=1, random_state=self.rd))
+            count = floor(lomax.rvs(self.__dist_c, loc=self.__dist_loc, scale=self.__dist_scale, size=1, random_state=self.rd))
         print("GenCount:", count)
         return count
 

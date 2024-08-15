@@ -55,6 +55,7 @@ for index in indices:
     except Exception as error:
         print("No index:", index)
         print(error)
+"""
 # Using fitter library instead
 fitter = Fitter(actual_data, timeout=30)
 #fitter.distributions = ["exponential", "loglaplace", "burr12", "ncf", "halfgennorm", "recipinvgauss", "alpha"]
@@ -64,8 +65,8 @@ print("-------")
 print(summary)
 print(fitter.get_best())
 # Suggests lowmax: {'lomax': {'c': 0.5335113173075132, 'loc': 1.999999999569653, 'scale': 2.16217857286271}}
-
 """
+
 # Test fit of data visually
 import plotly.express as px
 import pandas as pd
@@ -75,6 +76,11 @@ dist_loc = 0.9999999999999999
 dist_scale = 2.8406122167267887
 dist_c = 0.3923899300763164
 
+# lomax
+dist_loc = 1.999999999569653
+dist_scale = 2.16217857286271
+dist_c = 0.5335113173075132
+
 def get_nums():
     nums = []
     for i in range(0, 341):
@@ -82,8 +88,10 @@ def get_nums():
         while num < 2 or num > 480:
             #num = floor(scipy.stats.loglaplace.rvs(dist_c, loc=dist_loc, scale=dist_scale, size=1))
             #num = floor(scipy.stats.alpha.rvs(dist_a, loc=dist_loc, scale=dist_scale, size=1))
-            num = int(floor(scipy.stats.expon.rvs(loc=dist_loc, scale=dist_scale, size=1)))
+            #num = int(floor(scipy.stats.expon.rvs(loc=dist_loc, scale=dist_scale, size=1)))
+            num = int(floor(scipy.stats.lomax.rvs(dist_c, loc=dist_loc, scale=dist_scale, size=1)))
         nums.append(num)
+    print(nums)
     return nums
 
 # Get initial frame
@@ -98,10 +106,10 @@ for i in range(1,1):
     numseries = pd.Series(get_nums())
     countFrame[str(i)] = numseries
     # Compare against actual
-countFrame["actual"] = data["Count"]
+#countFrame["actual"] = actual_data
 countFrame.sort_index(inplace=True)
 print("Actual count:", data["Count"].sum()) # For sampling reference
-print(countFrame)
+#print(countFrame)
 # Graph it
 bin_width= 2
 #nbins = math.ceil((countFrame["count"].max() - countFrame["count"].min()) / bin_width)
@@ -109,7 +117,7 @@ fig = px.bar(countFrame)
 fig.update_layout(barmode='group')
 fig.update_traces(opacity=0.75)
 fig.show()
-"""
+
 
 # Promising:
 # Distribution  sumsquare_error    aic          bic             kl_div      ks_statistic    ks_pvalue
