@@ -133,9 +133,14 @@ class Reader:
             ):
         try:
             building = self.data[self.data["ee_site_id"] == building_id]
+            if building.empty:
+                print("Cannot sum: building", building_id, "does not exist.")
+                return None
         except KeyError as error:
             print("Key does not exist:", error)
             return None
+        except Exception as error:
+            print(error)
         # TODO: per time period instead of whole provided period
         return building["power"].sum()
     
@@ -146,13 +151,17 @@ class Reader:
             self, 
             building_id: int # The integer ID of the building to work with
             ):
-        sum = self.get_building_power_sum(building_id)
-        site_count = self.data[self.data["ee_site_id"] == building_id]["site_count"].iloc[0]
-        # Done with multiplication to allow it to be done homomorphically- plaintext scalars
-        # are okay for multiplication, not division.
-        avg = sum * 1/site_count # scale down to a "site" of usage
-        avg = round(avg, 4) # Keep size reasonable for output
-        return avg
+        try:
+            sum = self.get_building_power_sum(building_id)
+            site_count = self.data[self.data["ee_site_id"] == building_id]["site_count"].iloc[0]
+            # Done with multiplication to allow it to be done homomorphically- plaintext scalars
+            # are okay for multiplication, not division.
+            avg = sum * 1/site_count # scale down to a "site" of usage
+            avg = round(avg, 4) # Keep size reasonable for output
+            return avg
+        except IndexError:
+            print("Cannot average: building", building_id, "does not exist.")
+            return None
     
     def get_max(
             self, 

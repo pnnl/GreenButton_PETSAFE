@@ -18,7 +18,7 @@ OUTPUT_DIR = "./output/"
 def process_file(file):
     file = config.POWER_DIR + file
     try:
-        # parser = md.MeterDataParser(file, building_size=8, seed=config.SEED, encrypt=config.ENCRYPT)
+        # Set distribution to False for uniform building size as per building_count
         parser = md.MeterDataParser(file, distribution=True, seed=config.SEED, encrypt=config.ENCRYPT, building_count=config.BUILDING_COUNT)
     except KeyboardInterrupt:
         print("Stopping.")
@@ -92,11 +92,12 @@ def main():
         # TODO: read from pickle if available
         reader = Reader(config.START_DATE, config.END_DATE, resolution=config.STAT_TEMPORAL_RESOLUTION)
         data = reader.get_data()
-        power_sum_building_1 = reader.get_building_power_sum(1)
-        power_avg_building_1 = reader.get_building_power_avg(1)
+        building_id = 2
+        power_sum_building_1 = reader.get_building_power_sum(building_id)
+        power_avg_building_1 = reader.get_building_power_avg(building_id)
         print("Total power demand of building 1 between", config.START_DATE, "and", config.END_DATE, ":", power_sum_building_1, "kW")
         print("Power demand average of building 1  between", config.START_DATE, "and", config.END_DATE, ":", power_avg_building_1, "kW")
-        #reader.graph_building_power(1, config.STAT_TEMPORAL_RESOLUTION)
+        reader.graph_building_power(building_id, config.STAT_TEMPORAL_RESOLUTION) # TODO: looks weird if resolution = time range provided
         print("Graph output.")
 
         # Decryption testing
