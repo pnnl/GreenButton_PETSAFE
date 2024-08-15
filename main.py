@@ -110,8 +110,6 @@ def main():
                 decryptor = Decryptor()
                 test_value = decryptor.decrypt_target(test_value)
                 print("Decrypted first value:", test_value)
-            else:
-                print("First value:", test_value)
         except Exception as error:
             print("Unable to retrieve values:", error)
     
@@ -121,4 +119,4 @@ if __name__ == '__main__':
     try:
         main()
     except KeyboardInterrupt:
-        print("Stopped.")
+        print("Stopping.")

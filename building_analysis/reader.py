@@ -147,7 +147,7 @@ class Reader:
         except Exception as error:
             print(error)
         # TODO: per time period instead of whole provided period
-        return building["power"].sum()
+        return round(building["power"].sum(), 4)
     
     # Gets average power usage for the selected time resolution
     # e.g. a resolution of 1 month returns average total usage for a month of time
