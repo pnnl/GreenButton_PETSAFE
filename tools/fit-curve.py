@@ -8,23 +8,6 @@ from pandas import read_csv
 with open("./building-size-distribution.csv", "r") as file:
     data = read_csv(file)
 data = data.set_index(["BuildingSize"])
-"""
-fitter = Fitter(data, timeout=60)
-# TODO: exponential fails instantly. It might be a good fit- why?
-# Alpha is great fit in sumsquare, not so much on other metrics.
-# {'alpha': {'a': 3.395468413172602e-08, 'loc': 0.0008169558296610755, 'scale': 1.7034041729353762}}
-fitter.distributions = ["exponential", "loglaplace", "burr12", "ncf", "halfgennorm", "recipinvgauss", "alpha"]
-fitter.fit()
-summary = fitter.summary()
-print("-------")
-print(summary)
-print(fitter.get_best())
-
-print("Exponential fit:")
-loc, scale = scipy.stats.expon.fit(data)
-print("loc:", loc)
-print("scale:", scale)
-"""
 
 """
 seed = numpy.random.randint(100000000, 999999999)
@@ -55,8 +38,8 @@ for index in indices:
     except Exception as error:
         print("No index:", index)
         print(error)
-"""
-# Using fitter library instead
+
+# Using fitter library to find best fit with params
 fitter = Fitter(actual_data, timeout=30)
 #fitter.distributions = ["exponential", "loglaplace", "burr12", "ncf", "halfgennorm", "recipinvgauss", "alpha"]
 fitter.fit()
@@ -64,17 +47,22 @@ summary = fitter.summary()
 print("-------")
 print(summary)
 print(fitter.get_best())
-# Suggests lowmax: {'lomax': {'c': 0.5335113173075132, 'loc': 1.999999999569653, 'scale': 2.16217857286271}}
+# Results:
+#             sumsquare_error          aic          bic  kl_div  ks_statistic     ks_pvalue
+# lomax             0.000146  1644.025381  1655.521029     inf      0.155425  1.165421e-07
+# genpareto         0.000146  1644.025778  1655.521426     inf      0.155425  1.165421e-07
+# pareto            0.000146  1644.027669  1655.523316     inf      0.155425  1.165421e-07
+# levy              0.000148  1650.078976  1657.742741     inf      0.144518  1.116687e-06
+# nct               0.000150  1647.454892  1662.782422     inf      0.124782  4.363519e-05
+# Recommended params for best fit:
+# {'lomax': {'c': 0.5335113173075132, 'loc': 1.999999999569653, 'scale': 2.16217857286271}}
+
 """
 
 # Test fit of data visually
 import plotly.express as px
 import pandas as pd
 import math
-
-dist_loc = 0.9999999999999999
-dist_scale = 2.8406122167267887
-dist_c = 0.3923899300763164
 
 # lomax
 dist_loc = 1.999999999569653
@@ -93,6 +81,7 @@ def get_nums():
         nums.append(num)
     print(nums)
     return nums
+
 
 # Get initial frame
 numseries = pd.Series(get_nums())
@@ -118,27 +107,6 @@ fig.update_layout(barmode='group')
 fig.update_traces(opacity=0.75)
 fig.show()
 
-
-# Promising:
-# Distribution  sumsquare_error    aic          bic             kl_div      ks_statistic    ks_pvalue
-# alpha         0.000329           2020.178582  2030.248341     inf         0.371846        8.135829e-27
-# loglaplace    0.000757           1691.233285  1701.303044     inf         0.316038        2.532737e-19
-# burr12        0.000943           1658.304865  1671.731210     inf         0.299309        2.446751e-17
-# ncf           0.001475           1646.532360  1663.315291     inf         0.193550        1.972215e-07
-# halfgennorm   0.001778           1810.145085  1820.214844     inf         0.316038        2.532607e-19
-
-# loglaplace params:
-# {'loglaplace': {'c': 0.3923899300763164, 'loc': 0.9999999999999999, 'scale': 2.8406122167267887}}
-
-# Exponential params:
-# Exponential fit:
-# loc: 1.0
-# scale: 51.551886792452834
-# Separately, with goodness of fit: loc=1.0, scale=2.2169811320754715
-# And separately again: loc=1.000 scale=2.217
-# Also separately: 52.69840754201713 14.097465343710727 0.3087576385840719
-
-"""
  Generate random numbers:
     >>> r = expon.rvs(size=1000)
 

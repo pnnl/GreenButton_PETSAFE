@@ -143,8 +143,15 @@ class MeterDataParser:
             print("File does not contain Mains. Check filepath.")
 
     def createDistribution(self):
-        # Parameters and distribution obtained in ../tools/fit-curve.py
-        # {'loglaplace': {'c': 0.3923899300763164, 'loc': 0.9999999999999999, 'scale': 2.8406122167267887}}
+        # Parameters and distribution obtained in ../tools/fit-curve.py with fitter library
+        #             sumsquare_error          aic          bic  kl_div  ks_statistic     ks_pvalue
+        # lomax             0.000146  1644.025381  1655.521029     inf      0.155425  1.165421e-07
+        # genpareto         0.000146  1644.025778  1655.521426     inf      0.155425  1.165421e-07
+        # pareto            0.000146  1644.027669  1655.523316     inf      0.155425  1.165421e-07
+        # levy              0.000148  1650.078976  1657.742741     inf      0.144518  1.116687e-06
+        # nct               0.000150  1647.454892  1662.782422     inf      0.124782  4.363519e-05
+        # Recommended distribution and params for best fit:
+        # {'lomax': {'c': 0.5335113173075132, 'loc': 1.999999999569653, 'scale': 2.16217857286271}}
         self.__dist_loc = 1.999999999569653
         self.__dist_scale = 2.16217857286271
         self.__dist_c = 0.5335113173075132
