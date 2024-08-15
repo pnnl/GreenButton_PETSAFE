@@ -92,13 +92,16 @@ def main():
         # TODO: read from pickle if available
         reader = Reader(config.START_DATE, config.END_DATE, resolution=config.STAT_TEMPORAL_RESOLUTION)
         data = reader.get_data()
-        building_id = 2
-        power_sum_building_1 = reader.get_building_power_sum(building_id)
-        power_avg_building_1 = reader.get_building_power_avg(building_id)
-        print("Total power demand of building 1 between", config.START_DATE, "and", config.END_DATE, ":", power_sum_building_1, "kW")
-        print("Power demand average of building 1  between", config.START_DATE, "and", config.END_DATE, ":", power_avg_building_1, "kW")
-        reader.graph_building_power(building_id, config.STAT_TEMPORAL_RESOLUTION) # TODO: looks weird if resolution = time range provided
-        print("Graph output.")
+        ids = reader.get_ids()
+        #building_id = 2
+        for building_id in ids:
+            power_sum_building = reader.get_building_power_sum(building_id)
+            power_avg_building = reader.get_building_power_avg(building_id)
+            print("__________")
+            print("Total power demand of building", building_id, "between", config.START_DATE, "and", config.END_DATE, ":", power_sum_building, "kW")
+            print("Power demand average of building", building_id, "between", config.START_DATE, "and", config.END_DATE, ":", power_avg_building, "kW")
+            # TODO: graph looks weird if resolution = time range provided (eg. day resolution and single day for date range)
+            fig = reader.graph_building_power(building_id, config.STAT_TEMPORAL_RESOLUTION, show_graph=False)
 
         # Decryption testing
         try:

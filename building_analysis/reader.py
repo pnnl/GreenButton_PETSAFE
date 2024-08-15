@@ -52,6 +52,9 @@ class Reader:
     def get_data(self):
         return self.data
     
+    def get_ids(self):
+        return pandas.unique(self.data["ee_site_id"])
+    
     # Change input resolution string into a consistent format for use in resampling
     def check_resolution(
             self,
@@ -111,7 +114,8 @@ class Reader:
     def graph_building_power(
             self,
             building_id: int, # The integer ID of the building to work with
-            resolution: str # the resolution to graph at.
+            resolution: str, # the resolution to graph at.
+            show_graph: Optional[bool] = True # whether to show the graph
     ):
         # TODO: Check that data is decrypted; graphing encrypted data makes no sense
         # TODO: if resolution = supplied data, graphing won't work as expected
@@ -123,7 +127,8 @@ class Reader:
         building = self.change_time_resolution(building, resolution)
         title = "Real Power for Building " + str(building_id)
         fig = px.line(building, y="power", title=title)
-        fig.show()
+        if show_graph == True:
+            fig.show()
         return fig
     
     # Returns the sum of power for a building with ee_site_id of building_id
