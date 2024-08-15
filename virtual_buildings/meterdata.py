@@ -1,5 +1,5 @@
 import pandas
-from scipy.stats import lomax
+from scipy.stats import lomax, pareto
 from lightphe import LightPHE
 from os.path import exists
 from os import makedirs
@@ -27,6 +27,7 @@ class MeterDataParser:
             file: str = None, # the filepath to read from
             seed: Optional[int] = None, # seed for rng
             building_size: Optional[int] = 8, # how many sites go in one building; ignored if distribution is provided
+            building_count: Optional[int] = -1, # how many buildings to generate. Warning: setting this may mean that sites are reused
             distribution: Optional[bool] = False, # If using a distribution instead of a single value, set True
             key_location: Optional[str] = "./keys/", # output location for keyfiles, should have a trailing slash
             algorithm: Optional[str] = "EllipticCurve-ElGamal", # algorithm to use for encryption
@@ -63,6 +64,7 @@ class MeterDataParser:
             self.__file = file
             self.__decimal_places = decimal_places
             self.__encryption_enabled = encrypt
+            self.__building_count = building_count
 
             # Building size or distribution length must be larger than minimum value specified below
             self.__MIN_BUILDING_SIZE = 3
@@ -152,10 +154,12 @@ class MeterDataParser:
         # nct               0.000150  1647.454892  1662.782422     inf      0.124782  4.363519e-05
         # Recommended distribution and params for best fit:
         # {'lomax': {'c': 0.5335113173075132, 'loc': 1.999999999569653, 'scale': 2.16217857286271}}
-        self.__dist_loc = 1.999999999569653
-        self.__dist_scale = 2.16217857286271
-        self.__dist_c = 0.5335113173075132
-        self.__dist = lomax(self.__dist_c)
+        # pareto: (c: 0.5335371308758773, loc: -0.16241563710448093, scale: 2.1624156371044805)
+        # However, we need the distribution to start at 2, so we need to add 1 to the loc to shift it right
+        self.__dist_c = 0.5335371308758773
+        self.__dist_loc = -0.16241563710448093
+        self.__dist_scale = 2.1624156371044805
+        #self.__dist = pareto(self.__dist_c); see actual function in generate_building_size()
         return True
 
     # Gets a list of random ids, with len(list) = BUILDING_SIZE
@@ -165,16 +169,15 @@ class MeterDataParser:
     # depending on how this is used.
     def __get_random_ids(self, count):
         # We only need as many ids as our building size value
-        print("Count:", count)
-        if len(self.__site_ids) > count:
+        if len(self.__site_ids) > count: # We have enough sites to make a building
             self.__building_ids = self.rd.choice(self.__site_ids, count, replace=False)
             try:
-                rm = numpy.in1d(self.__site_ids, self.__building_ids) # remove building ids from site id
-                self.__site_ids = self.__site_ids[~rm]
+                if self.__building_count == -1: # if we just want to make as many buildings as the set allows
+                    rm = numpy.in1d(self.__site_ids, self.__building_ids) # remove building ids from site id
+                    self.__site_ids = self.__site_ids[~rm]
             except Exception as error:
                 print(error)
-        else:
-            # We don't have enough sites left to fill a building-
+        else: # We don't have enough sites left to fill a building-
             # chuck all remaining sites into a building together
             self.__building_ids = numpy.array(self.__site_ids)
             self.__site_ids = numpy.array([]) # Cleared so this doesn't get run again
@@ -187,8 +190,8 @@ class MeterDataParser:
         if min_size < 1: # sanity check; buildings must have at least one site
             min_size = 1
         count = 0 # placeholder; buildings can't have no sites
-        while count <= min_size or count > self.__site_count: # Exclude values that are too small or too large
-            count = floor(lomax.rvs(self.__dist_c, loc=self.__dist_loc, scale=self.__dist_scale, size=1, random_state=self.rd))
+        while count < min_size or count > self.__site_count: # Exclude values that are too small or too large
+            count = int(floor(pareto.rvs(self.__dist_c, loc=self.__dist_loc, scale=self.__dist_scale, size=1, random_state=self.rd)))
         print("GenCount:", count)
         return count
 
@@ -198,8 +201,10 @@ class MeterDataParser:
         self.__site_ids = pandas.unique(self.__prepared_data["ee_site_id"])
         self.__site_count = self.__site_ids.size
         self.__building_list = [] # will hold a list of Building objects
-        # Until we run out of sites to make buildings from
-        while len(self.__site_ids) >= self.__BUILDING_SIZE:
+        # Decide when to stop; set True at end of loop if stop conditions triggered
+        stop = False
+        # Make buildings until stop condition triggered
+        while stop == False:
             # Get a random set of site ids for a building
             try:
                 if self.__dist:
@@ -222,10 +227,16 @@ class MeterDataParser:
                     building["site_count"] = bsize
                     # Add the building to the list of buildings
                     self.__building_list.append(building)
+                    self.__building_count -= 1 if self.__building_count > 0 else 0
                 except Exception as error:
-                    print("failed to aggregate building", building.get_id(), ":", error)
+                    print("failed to aggregate building:", error)
+            # Decide whether to stop
+            if self.__building_count < 0: # if we're making as many sites as the set allows
+                stop = True if len(self.__site_ids) < self.__BUILDING_SIZE else False
+            elif self.__building_count >= 0: # if we want a specific number of buildings, possibly w/ duplicate sites in buildings
+                stop = True if self.__building_count <= 0 else False
         # Deal with leftovers- when we have fewer sites left than the building size
-        if self.__site_ids.any():
+        if self.__site_ids.any() and self.__building_count is None:
             self.__spare_building = Building(self.__site_ids, self.__prepared_data, self.__decimal_places)
         self.status = "Buildings made."
         return self.__building_list
