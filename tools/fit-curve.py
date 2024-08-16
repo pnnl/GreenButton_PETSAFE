@@ -31,10 +31,12 @@ dist_scale = 2.1624156371044805
 
 def get_nums():
     nums = []
-    for i in range(0, 341): # number of measurements in original dataset
-        num = 500
-        while num > 480:
-            num = int(floor(scipy.stats.pareto.rvs(dist_c, loc=dist_loc, scale=dist_scale, size=1)))
+    number_of_measurements = 1000 #2000000 # 341
+    for i in range(0, number_of_measurements): # number of measurements in original dataset
+        num = -9999 # Intentionally invalid starting value for while loop
+        max_size_limit = 5000 # 480
+        while num < 0 or num > max_size_limit:
+            num = int(floor(scipy.stats.pareto.rvs(dist_c, loc=dist_loc, scale=dist_scale, size=1)[0]))
         nums.append(num)
     nums = pd.array(nums)
     numcounts = nums.value_counts()
@@ -96,21 +98,23 @@ def test_visually():
     # Get initial frame
     numseries, numcounts = pd.Series(get_nums())
     countFrame = data
-    countFrame = countFrame.fillna(0)
+    #countFrame = countFrame.fillna(0)
+    # It's giving me NA for large numbers! Fill NA is filling with 0s
     countFrame = countFrame.rename(columns={"Count": "Actual"})
     countFrame = countFrame.set_index("BuildingSize")
 
     # More copies to see range
-    for i in range(1,4):
+    line_count = 30 # 4
+    for i in range(1,line_count):
         numseries, numcounts = pd.Series(get_nums())
-        countFrame["sist" + str(i)] = numcounts
+        countFrame["Simulated " + str(i)] = numcounts
     countFrame.sort_index(inplace=True)
-    countFrame = countFrame.fillna(0)
+    #countFrame = countFrame.fillna(0)
     print("Actual count:", data["Count"].sum()) # For sampling reference
     # Graph it
     fig = px.line(countFrame)
     #fig.update_layout(barmode='group')
-    fig.update_xaxes(autorangeoptions=dict(maxallowed=50))
+    #fig.update_xaxes(autorangeoptions=dict(maxallowed=50))
     fig.update_traces(opacity=0.75)
     fig.show()
 
