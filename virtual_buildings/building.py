@@ -141,9 +141,10 @@ class Building:
             frame = frame.infer_objects(copy=False)
             # TODO: what if the first value is NA?
             try:
-                # TODO: limit ffill to 2-3 entries forwards, no more
-                # TODO: log use of ffill for time periods
-                frame = frame.ffill()
+                # TODO: log use of fill for time periods
+                frame = frame.ffill(limit=3) # if more than 3 values are missing, it might be an outage
+                frame = frame.bfill(limit=3) # if more than 3 values are missing, it might be an outage
+                # TODO: fill with historical data from year (such as "last Monday")
             except Exception as error:
                 print("Could not forward fill:", error)
                 print("Filling with zeroes instead.")
