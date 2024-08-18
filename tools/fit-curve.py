@@ -29,18 +29,26 @@ dist_c = 0.5335371308758773
 dist_loc = -0.16241563710448093
 dist_scale = 2.1624156371044805
 
-def get_nums():
+def get_nums_wrapper(scale: bool = True):
     nums = []
-    number_of_measurements = 1000 #2000000 # 341
+    actual_data_size = 480
+    number_of_measurements = 1000000 #2000000 # 341
+    max_size_limit = 5000
+    min_size_limit = 2
+    scalar = actual_data_size / number_of_measurements
     for i in range(0, number_of_measurements): # number of measurements in original dataset
-        num = -9999 # Intentionally invalid starting value for while loop
-        max_size_limit = 5000 # 480
-        while num < 0 or num > max_size_limit:
-            num = int(floor(scipy.stats.pareto.rvs(dist_c, loc=dist_loc, scale=dist_scale, size=1)[0]))
-        nums.append(num)
+        nums.append(get_num(min_size_limit, max_size_limit))
     nums = pd.array(nums)
     numcounts = nums.value_counts()
+    if scale == True:
+        numcounts = (numcounts * scalar).astype(int) # scale to match actual data
     return nums, numcounts
+
+def get_num(min, max):
+    num = -9999 # Intentionally invalid starting value for while loop
+    while num < min or num > max:
+        num = int(scipy.stats.pareto.rvs(dist_c, loc=dist_loc, scale=dist_scale, size=1)[0])
+    return num
 
 # Get the data in original form for fitting- duplicate values and all.
 actual_data = pd.Series()
@@ -59,8 +67,8 @@ for index in indices:
         print(error)
 
 # Test for obviously inaccurate results
-nums, numcounts = get_nums()
-print(numcounts.sort_index())
+#nums, numcounts = get_nums_wrapper(scale=True)
+#print(numcounts.sort_index())
 
 
 def fit_with_fitter():
@@ -96,25 +104,26 @@ def goodness_fit_test():
 def test_visually():
     # Test fit of data visually
     # Get initial frame
-    numseries, numcounts = pd.Series(get_nums())
+    scale_simulated_data = True
+    numseries, numcounts = pd.Series(get_nums_wrapper(scale=scale_simulated_data))
     countFrame = data
-    #countFrame = countFrame.fillna(0)
-    # It's giving me NA for large numbers! Fill NA is filling with 0s
+    countFrame = countFrame.fillna(0)
     countFrame = countFrame.rename(columns={"Count": "Actual"})
     countFrame = countFrame.set_index("BuildingSize")
 
     # More copies to see range
     line_count = 30 # 4
-    for i in range(1,line_count):
-        numseries, numcounts = pd.Series(get_nums())
+    for i in range(1, line_count + 1):
+        numseries, numcounts = pd.Series(get_nums_wrapper(scale=scale_simulated_data))
         countFrame["Simulated " + str(i)] = numcounts
+        print("Simulated curve", i, "done.")
     countFrame.sort_index(inplace=True)
-    #countFrame = countFrame.fillna(0)
+    countFrame = countFrame.fillna(0)
     print("Actual count:", data["Count"].sum()) # For sampling reference
     # Graph it
     fig = px.line(countFrame)
-    #fig.update_layout(barmode='group')
-    #fig.update_xaxes(autorangeoptions=dict(maxallowed=50))
+    max_x_axis_width = 50
+    #fig.update_xaxes(autorangeoptions=dict(maxallowed=max_x_axis_width))
     fig.update_traces(opacity=0.75)
     fig.show()
 

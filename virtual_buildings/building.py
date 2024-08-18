@@ -2,7 +2,7 @@ import pandas
 import numpy
 from os import environ
 from typing import Optional
-from config import PORTION_OF_CPU
+from config import PORTION_OF_CPU, ENCRYPT_COLS
 
 # Setting copy on write for PANDAS as recommended here:
 # https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
@@ -62,12 +62,19 @@ class Building:
             print("No building ids supplied.")
             return None
         building = self.__correct_power_factor(building)
+        building["sites"] = [str(id) + "," for id in ids]
         # Returns empty frame if none of the supplied ids match the data supplied
         return building
     
     def __resample_data(self, period, resolution):
-        self.__data = self.__data.resample(period).sum()
-        self.__data = self.__correct_power_factor(self.__data)
+        siteids = self.__data["sites"]
+        self.__data = self.__data.drop("sites") # Str type doesn't work with resample
+        try:
+            self.__data = self.__data.resample(period).sum()
+            self.__data = self.__correct_power_factor(self.__data)
+        except Exception as error:
+            print("Could not resample:", error)
+        self.__data["sites"] = siteids # replace when done
         self.resolution = resolution
     
     def aggregate_hourly(self):
@@ -89,7 +96,7 @@ class Building:
     def encrypt(self, keys):
         self.__keys = keys
         for column in self.__data.columns:
-            if column in ["power", "apparent_power", "pf"]:
+            if column in ENCRYPT_COLS:
                 self.__data[column] = self.__data[column].apply(self.__encrypt_column)
 
     # Encrypts a single column of a data frame.
@@ -134,6 +141,8 @@ class Building:
             frame = frame.infer_objects(copy=False)
             # TODO: what if the first value is NA?
             try:
+                # TODO: limit ffill to 2-3 entries forwards, no more
+                # TODO: log use of ffill for time periods
                 frame = frame.ffill()
             except Exception as error:
                 print("Could not forward fill:", error)

@@ -152,10 +152,6 @@ class MeterDataParser:
         # pareto            0.000146  1644.027669  1655.523316     inf      0.155425  1.165421e-07
         # levy              0.000148  1650.078976  1657.742741     inf      0.144518  1.116687e-06
         # nct               0.000150  1647.454892  1662.782422     inf      0.124782  4.363519e-05
-        # Recommended distribution and params for best fit:
-        # {'lomax': {'c': 0.5335113173075132, 'loc': 1.999999999569653, 'scale': 2.16217857286271}}
-        # pareto: (c: 0.5335371308758773, loc: -0.16241563710448093, scale: 2.1624156371044805)
-        # However, we need the distribution to start at 2, so we need to add 1 to the loc to shift it right
         self.__dist_c = 0.5335371308758773
         self.__dist_loc = -0.16241563710448093
         self.__dist_scale = 2.1624156371044805
@@ -333,7 +329,7 @@ class MeterDataParser:
                     target_folder += "-hourly"
                 case "d":
                     target_folder += "-daily"
-            # Encrypt if needed
+            # Add encryption folder marker if needed
             if self.__encryption_enabled == True:
                 target_folder = target_folder + "-encrypted"
             filename = target_folder + "/" + filename + ".csv"

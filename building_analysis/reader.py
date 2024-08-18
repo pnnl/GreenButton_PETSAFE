@@ -131,6 +131,26 @@ class Reader:
             fig.show()
         return fig
     
+    def graph_building_power_with_sites(
+            self,
+            building_id: int, # The integer ID of the building to work with
+            resolution: str, # the resolution to graph at.
+            show_graph: Optional[bool] = True # whether to show the graph
+    ):
+        # TODO: Check that data is decrypted; graphing encrypted data makes no sense
+        # TODO: if resolution = supplied data, graphing won't work as expected
+        try:
+            building = self.data[self.data["ee_site_id"] == building_id]
+        except KeyError as error:
+            print("Key does not exist:", error)
+            return None
+        building = self.change_time_resolution(building, resolution)
+        title = "Real Power for Building " + str(building_id)
+        fig = px.line(building, y="power", title=title)
+        if show_graph == True:
+            fig.show()
+        return fig
+    
     # Returns the sum of power for a building with ee_site_id of building_id
     def get_building_power_sum(
             self, 
