@@ -75,7 +75,8 @@ class Building:
                 logger.error("Building " + self.__bid + ": No building ids supplied.")
             return None
         building = self.__correct_power_factor(building)
-        building["sites"] = str([str(id) + "," for id in ids])
+        # Save the sites that went into the building
+        building["sites"] = str([str(id) for id in ids])
         # Returns empty frame if none of the supplied ids match the data supplied
         return building
     

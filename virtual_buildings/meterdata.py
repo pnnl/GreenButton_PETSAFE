@@ -240,7 +240,7 @@ class MeterDataParser:
                     id += 1 # increment ID for logging
                 except Exception as ex:
                     with multiprocessing.Lock():
-                        logger.error("unable to aggregate building " + id - 1 + ": " + ex)
+                        logger.error("unable to aggregate building " + str(id - 1) + ": " + ex)
             # Decide whether to stop
             if self.__building_count < 0: # if we're making as many sites as the set allows
                 stop = True if len(self.__site_ids) < self.__BUILDING_SIZE else False
