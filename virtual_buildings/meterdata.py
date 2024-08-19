@@ -9,15 +9,15 @@ from os import makedirs, environ
 from math import floor
 from typing import Optional
 from virtual_buildings.building import Building
-from config import AGG_TEMPORAL_RESOLUTION, OUTPUT_DIR, PORTION_OF_CPU, LOG_FILE
+from config import AGG_TEMPORAL_RESOLUTION, OUTPUT_DIR, PORTION_OF_CPU
+from logger_config import config_logger
 
 # Setting copy on write for PANDAS as recommended here:
 # https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
 pandas.options.mode.copy_on_write = True
 
 # Set up logger
-logging.basicConfig(level=logging.DEBUG, filename=LOG_FILE, encoding='utf-8')
-logger = logging.getLogger(__name__)
+logger = config_logger()
 
 # Value obtained from print(str(logging.ERROR))
 environ['LIGHTPHE_LOG_LEVEL'] = "40" # Errors and critical only
@@ -140,18 +140,6 @@ class MeterDataParser:
             with open(self.__file, "r") as csv_file:
                 self.__dataframe = pandas.read_csv(csv_file, parse_dates=True)
             self.__dataframe = self.__extractMains() # Remove non-mains circuits
-            # Index by datetime 
-            """
-            self.__dataframe["min_t"] = self.__dataframe["min_t"].apply(pandas.to_datetime)
-            self.__dataframe = self.__dataframe.set_index(["min_t", "ee_site_id"])
-            sites = pandas.unique(self.__dataframe["ee_site_id"])
-            day = self.__dataframe.index[0].date()
-            end = day + pandas.Timedelta(1, "d") # one day ahead
-            fullIndex = pandas.date_range(start=day, end=end, freq="15min", normalize=True, inclusive="left")
-            fullIndex = pandas.Index(fullIndex, name="min_t")
-            print(fullIndex)
-            self.__dataframe = self.__dataframe.reindex(fullIndex)
-            """
             self.status = "File read."
             return self.__dataframe
         except Exception as ex:

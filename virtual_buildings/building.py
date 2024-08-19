@@ -5,15 +5,15 @@ from os import environ
 from os.path import exists
 from multiprocessing import Lock
 from typing import Optional
-from config import ENCRYPT_COLS, LOG_FILE, OUTPUT_DIR
+from config import ENCRYPT_COLS, OUTPUT_DIR
+from logger_config import config_logger
 
 # Setting copy on write for PANDAS as recommended here:
 # https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
 pandas.options.mode.copy_on_write = True
 
 # Set up logger
-logging.basicConfig(level=logging.INFO, filename=LOG_FILE, encoding='utf-8')
-logger = logging.getLogger(__name__)
+logger = config_logger()
 
 # Value obtained from print(str(logging.ERROR))
 # LightPHE needs to be reminded not to spam the terminal sometimes
@@ -132,47 +132,58 @@ class Building:
             frame = frame.drop(self.__DROP_COLUMNS, axis=1)
             # Fill missing intervals with NA using the 15-min increment list to create a complete index
             # (if 02:15-02:29 is missing, then this creates this interval with NA values in its columns)
-            start_datetime = pandas.to_datetime(frame["min_t"].iloc[0])
-            end_datetime = start_datetime + pandas.Timedelta(1, "d") # one day ahead
-            fifteen_min_increments = pandas.date_range(start=start_datetime, end=end_datetime, freq="15min", normalize=True, inclusive="left")
+            self.__start_datetime = pandas.to_datetime(frame["min_t"].iloc[0])
+            self.__end_datetime = self.__start_datetime + pandas.Timedelta(1, "d") # one day ahead
+            fifteen_min_increments = pandas.date_range(start=self.__start_datetime, end=self.__end_datetime, freq="15min", normalize=True, inclusive="left")
             new_index = pandas.Index(fifteen_min_increments, name="min_t")
             frame["min_t"] = frame["min_t"].apply(pandas.to_datetime)
             frame = frame.set_index(["min_t"]).reindex(new_index)
-            #frame = frame.reindex(new_index)
-            # TODO: what if the first value is NA?
-            try:
-                # Forward-fill any missing values (NA) with the previous existing value
-                # eg. a sequence of [4, NA, 5] becomes [4, 4, 5]
-                frame = frame.infer_objects(copy=False)
-                frame = frame.ffill(limit=3) # if more than 3 values are missing, it might be an outage
-                frame = frame.bfill(limit=3) # if more than 3 values are missing, it might be an outage
-                with Lock():
-                    # TODO: note what sites and times are missing
-                    logger.info("Building " + self.__bid + ": missing data for site " + str(frame["ee_site_id"].iloc[0]) + ". Partially imputed with forward and backward fill.")
-                # check for NA and fill with similar historical data from same year (such as "last Monday")
-                # unfinished; working on it
-                na_rows = frame.loc[pandas.isna(frame["power"]), :].index
-                if not na_rows.empty:
-                    with Lock():
-                        logger.warning("Site " + str(frame["ee_site_id"].iloc[0]) + " missing rows: " + str(na_rows[0]) + " to " + str(na_rows[-1]))
-                        # Get similar data from one week ago
-                        # TODO: expand to check other potentially similar days in the recent past- same day of week, similar temp, season, etc.
-                        week_ago = start_datetime - pandas.Timedelta(7, "d")
-                        week_ago_date = week_ago.date()
-                        week_ago_file = OUTPUT_DIR + str(week_ago_date) + ".csv"
-                        if exists(week_ago_file):
-                            print("One week ago:", week_ago_date)
-                        else:
-                            with Lock():
-                                logger.warning("Could not impute with historical data: " + str(week_ago_date) + " not processed. Filling with zeroes instead.")
-                        # Fill with prev data from year if available
-            except Exception as ex:
-                with Lock():
-                    logger.error("Building " + self.__bid + ": Could not impute: " + str(ex) + ".\nFilling with zeros instead.")
-            frame = frame.fillna(0) # Catch anything forward fill missed (e.g. first value = 0); temp measure, TODO use historical data instead
+            frame = self.__fill_missing(frame, 3) # Fill in missing data as best possible
         except KeyError:
             #print("Frame already clean.")
             pass
+        return frame
+    
+    def __fill_missing(
+            self,
+            frame, # the dataframe
+            outage_threshold: int # minimum number of missed readings to consider it an outage
+            ):
+        try:
+            # Forward-fill and back-fill any missing values (NA) with the previous existing value
+            # eg. a sequence of [4, NA, 5] becomes [4, 4, 5]; 
+            # [NA, 4, 5] becomes [4, 4, 5]
+            frame = frame.infer_objects(copy=False)
+            frame = frame.ffill(limit=outage_threshold)
+            frame = frame.bfill(limit=outage_threshold)
+            # Log the fills
+            with Lock():
+                # TODO: note what sites and times are missing
+                logger.info("Building " + self.__bid + ": missing data for site " + str(frame["ee_site_id"].iloc[0]) + \
+                            ". Partially imputed with forward and backward fill.")
+            # check for NA and fill with similar historical data from same year (such as "last Monday")
+            # unfinished; working on it
+            na_rows = frame.loc[pandas.isna(frame["power"]), :].index
+            if not na_rows.empty:
+                with Lock():
+                    logger.warning("Site " + str(frame["ee_site_id"].iloc[0]) + " missing rows: " + \
+                                   str(na_rows[0]) + " to " + str(na_rows[-1]))
+                    # Get similar data from one week ago
+                    # TODO: expand to check other potentially similar days in the recent past- same day of week, similar temp, season, etc.
+                    week_ago_date = (self.__start_datetime - pandas.Timedelta(7, "d")).date()
+                    week_ago_file = OUTPUT_DIR + str(week_ago_date) + ".csv"
+                    # Fill with prev data from year if available
+                    # TODO
+                    if exists(week_ago_file):
+                        print("One week ago:", week_ago_date)
+                        # TODO: historical fill goes here
+                    else:
+                        with Lock():
+                            logger.warning("Could not impute with historical data: " + str(week_ago_date) + " not processed. Filling with zeroes instead.")
+        except Exception as ex:
+            with Lock():
+                logger.error("Building " + self.__bid + ": Could not impute: " + str(ex) + ".\nFilling with zeros instead.")
+        frame = frame.fillna(0) # Catch anything the fill methods missed
         return frame
     
     def __correct_power_factor(self, building):
