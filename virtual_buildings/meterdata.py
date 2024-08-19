@@ -136,7 +136,7 @@ class MeterDataParser:
         try:
             print("Reading", self.__file)
             with open(self.__file, "r") as csv_file:
-                self.__dataframe = pandas.read_csv(csv_file)
+                self.__dataframe = pandas.read_csv(csv_file, parse_dates=True)
             self.status = "File read."
             return self.__dataframe
         except Exception as ex:

@@ -2,9 +2,10 @@ import pandas
 import numpy
 import logging
 from os import environ
+from os.path import exists
 from multiprocessing import Lock
 from typing import Optional
-from config import ENCRYPT_COLS, LOG_FILE
+from config import ENCRYPT_COLS, LOG_FILE, OUTPUT_DIR
 
 # Setting copy on write for PANDAS as recommended here:
 # https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
@@ -136,7 +137,7 @@ class Building:
             # The building object should only ever receive one day of data at a time, so snagging the date
             # from the first datetime is acceptable
             day = frame["min_t"].iloc[0]
-            day = day[:11]
+            day = pandas.to_datetime(day[:11])
             for time in list_min_t_times:
                 this_datetime = str(day) + " " + str(time)
                 list_min_t_times[list_min_t_times.index(time)] = this_datetime
@@ -152,20 +153,37 @@ class Building:
             frame["min_t"] = frame["min_t"].apply(pandas.to_datetime)
             frame = frame.set_index(["min_t"])
             frame = frame.reindex(new_index)
-            # Forward-fill any missing values (NA) with the previous existing value
-            # eg. a sequence of [4, NA, 5] becomes [4, 4, 5]
-            frame = frame.infer_objects(copy=False)
             # TODO: what if the first value is NA?
             try:
-                # TODO: log use of fill for time periods
+                # Forward-fill any missing values (NA) with the previous existing value
+                # eg. a sequence of [4, NA, 5] becomes [4, 4, 5]
+                frame = frame.infer_objects(copy=False)
                 frame = frame.ffill(limit=3) # if more than 3 values are missing, it might be an outage
                 frame = frame.bfill(limit=3) # if more than 3 values are missing, it might be an outage
-                # TODO: check for NA and fill with historical data from year (such as "last Monday")
+                with Lock():
+                    # TODO: note what sites and times are missing
+                    logger.info("Building " + self.__bid + ": missing data for site " + str(frame["ee_site_id"].iloc[0]) + ". Partially imputed with forward and backward fill.")
+                # check for NA and fill with similar historical data from same year (such as "last Monday")
+                # unfinished; working on it
                 na_rows = frame.loc[pandas.isna(frame["power"]), :].index
+                if not na_rows.empty:
+                    with Lock():
+                        logger.warning("Site " + str(frame["ee_site_id"].iloc[0]) + " missing rows: " + str(na_rows[0]) + " to " + str(na_rows[-1]))
+                        # Get similar data from one week ago
+                        # TODO: expand to check other potentially similar days in the recent past- same day of week, similar temp, season, etc.
+                        week_ago = day - pandas.Timedelta(7, "d")
+                        week_ago_date = week_ago.date()
+                        week_ago_file = OUTPUT_DIR + str(week_ago_date) + ".csv"
+                        if exists(week_ago_file):
+                            print("One week ago:", week_ago_date)
+                        else:
+                            with Lock():
+                                logger.warning("Could not impute with historical data: " + str(week_ago_date) + " not processed. Filling with zeroes instead.")
+                        # Fill with prev data from year if available
             except Exception as ex:
                 with Lock():
-                    logger.error("Building " + self.__bid + ": Could not impute: " + ex + ".\nFilling with zeros instead.")
-            frame = frame.fillna(0) # Catch anything forward fill missed (e.g. first value = 0)
+                    logger.error("Building " + self.__bid + ": Could not impute: " + str(ex) + ".\nFilling with zeros instead.")
+            frame = frame.fillna(0) # Catch anything forward fill missed (e.g. first value = 0); temp measure, TODO use historical data instead
         except KeyError:
             #print("Frame already clean.")
             pass

@@ -40,7 +40,7 @@ END_DATE = "2022-01-01"
 # ----- PROCESSING -----
 
 # Which year of data to process. Should match a year in the data directory
-YEAR = "2021"
+YEAR = "2047"
 
 # Size of buildings if buildings are being made at uniform size
 BUILDING_SIZE = 8
