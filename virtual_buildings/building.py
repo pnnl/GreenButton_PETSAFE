@@ -11,15 +11,18 @@ from config import ENCRYPT_COLS, LOG_FILE
 pandas.options.mode.copy_on_write = True
 
 # Set up logger
-logging.basicConfig(level=logging.INFO, file=LOG_FILE)
+logging.basicConfig(level=logging.INFO, filename=LOG_FILE, encoding='utf-8')
 logger = logging.getLogger(__name__)
 
 # Value obtained from print(str(logging.ERROR))
 # LightPHE needs to be reminded not to spam the terminal sometimes
 environ['LIGHTPHE_LOG_LEVEL'] = "40" # Errors and critical only
 
-# TODO: store building site count to enable accurate average calculation later
-# Doubly important for implementing variable building sizes
+# TODO: store which sites went into building (encrypted)
+# TODO: encrypt different sensitive columns with different keys
+
+# Could not create buildings for ./data/2021-Full_v8.1/2021/power/power-fifteen-20210101.csv
+    # Length of values (9) does not match length of index (96)
 
 class Building:
     def __init__(
@@ -64,15 +67,15 @@ class Building:
                 site = self.__clean_frame(dataframe[dataframe["ee_site_id"] == id])
                 try:
                     building = building.add(site, fill_value=0) # There shouldn't be NAs, but just in case...
-                except TypeError as error:
+                except TypeError as ex:
                     with Lock():
-                        logger.error("Building " + self.__bid + ": Could not create building due to incompatible data types: " + error)
+                        logger.error("Building " + self.__bid + ": Could not create building due to incompatible data types: " + ex)
         else:
             with Lock():
                 logger.error("Building " + self.__bid + ": No building ids supplied.")
             return None
         building = self.__correct_power_factor(building)
-        building["sites"] = [str(id) + "," for id in ids]
+        building["sites"] = str([str(id) + "," for id in ids])
         # Returns empty frame if none of the supplied ids match the data supplied
         return building
     
@@ -82,9 +85,9 @@ class Building:
         try:
             self.__data = self.__data.resample(period).sum()
             self.__data = self.__correct_power_factor(self.__data)
-        except Exception as error:
+        except Exception as ex:
             with Lock():
-                logger.error("Building " + self.__bid + ": Could not resample: " + error)
+                logger.error("Building " + self.__bid + ": Could not resample: " + ex)
         self.__data["sites"] = siteids # replace when done
         self.resolution = resolution
     
@@ -138,9 +141,9 @@ class Building:
                 list_min_t_times[list_min_t_times.index(time)] = this_datetime
             try:
                 min_t_series = pandas.Series(data=list_min_t_times).apply(pandas.to_datetime) # Easier than strptime
-            except Exception as error:
+            except Exception as ex:
                 with Lock():
-                    logger.error("Building " + self.__bid + ": Could not format datetime: " + error)
+                    logger.error("Building " + self.__bid + ": Could not format datetime: " + ex)
                 min_t_series = list_min_t_times
             # Fill missing intervals with NA using the 15-min increment list to create a complete index
             # (if 02:15-02:29 is missing, then this creates this interval with NA values in its columns)
@@ -158,9 +161,9 @@ class Building:
                 frame = frame.bfill(limit=3) # if more than 3 values are missing, it might be an outage
                 # TODO: check for NA and fill with historical data from year (such as "last Monday")
                 na_rows = frame.loc[pandas.isna(frame["power"]), :].index
-            except Exception as error:
+            except Exception as ex:
                 with Lock():
-                    logger.error("Building " + self.__bid + ": Could not impute: " + error + ".\nFilling with zeros instead.")
+                    logger.error("Building " + self.__bid + ": Could not impute: " + ex + ".\nFilling with zeros instead.")
             frame = frame.fillna(0) # Catch anything forward fill missed (e.g. first value = 0)
         except KeyError:
             #print("Frame already clean.")
