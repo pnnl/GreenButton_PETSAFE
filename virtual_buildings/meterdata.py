@@ -37,85 +37,87 @@ class MeterDataParser:
             decimal_places: Optional[int] = 5, # decimal places to keep for encryption
             encrypt: Optional[bool] = True # whether or not to encrypt
     ):
-        if file is None:
-            print("File not provided. Expected relative or absolute filepath.")
-            raise SystemExit
-        elif seed is None:
-            seed = numpy.random.randint(100000000, 999999999)
-            with multiprocessing.Lock():
-                logger.warning("Random seed generated. Seed: " + str(seed))
-                logger.info("If you need your seed, run MeterDataParser's get_seed() method during processing.")
-
-        # Check if processed file exists
-        self.resolution = AGG_TEMPORAL_RESOLUTION
-        date = file[-12:]
-        name = date[:4]
-        match self.resolution:
-                case "f":
-                    name += "-15mins"
-                case "h":
-                    name += "-hourly"
-                case "d":
-                    name += "-daily"
-        # Check whether the file already exists (eg. data already processed)
-        # if it doesn't exist, then continue.
-        name = OUTPUT_DIR + name + "/" + date[:4] + "-" + date[4:6] + "-" + date[6:] # the output filename
-        if not exists(name):
-            # Initialize variables
-            self.seed = seed
-            self.rd = numpy.random.default_rng(self.seed)
-            self.__file = file
-            self.__decimal_places = decimal_places
-            self.__encryption_enabled = encrypt
-            self.__building_count = building_count
-
-            # Building size or distribution length must be larger than minimum value specified below
-            self.__MIN_BUILDING_SIZE = 3
-            self.__BUILDING_SIZE = building_size
-            if self.__BUILDING_SIZE < self.__MIN_BUILDING_SIZE:
-                with multiprocessing.Lock():
-                    logger.critical("Building size too small.")
+        try: # handle keyboard interrupts nicely
+            if file is None:
+                print("File not provided. Expected relative or absolute filepath.")
                 raise SystemExit
-            if distribution == True:
-                self.__distribution = self.createDistribution()
-            # TODO: alter for customizable distribution
+            elif seed is None:
+                seed = numpy.random.randint(100000000, 999999999)
+                with multiprocessing.Lock():
+                    logger.warning("Random seed generated. Seed: " + str(seed))
+                    logger.info("If you need your seed, run MeterDataParser's get_seed() method during processing.")
 
-            # Path should have a trailing slash
-            if key_location[-1] != "/":
-                key_location += "/"
+            # Check if processed file exists
+            self.resolution = AGG_TEMPORAL_RESOLUTION
+            date = file[-12:]
+            name = date[:4]
+            match self.resolution:
+                    case "f":
+                        name += "-15mins"
+                    case "h":
+                        name += "-hourly"
+                    case "d":
+                        name += "-daily"
+            # Check whether the file already exists (eg. data already processed)
+            # if it doesn't exist, then continue.
+            name = OUTPUT_DIR + name + "/" + date[:4] + "-" + date[4:6] + "-" + date[6:] # the output filename
+            if not exists(name):
+                # Initialize variables
+                self.seed = seed
+                self.rd = numpy.random.default_rng(self.seed)
+                self.__file = file
+                self.__decimal_places = decimal_places
+                self.__encryption_enabled = encrypt
+                self.__building_count = building_count
 
-            self.__readData() # Read data into memory
-            self.__dist = self.createDistribution()
-            self.__prepared_data = self.__extractMains() # Remove non-mains circuits
-            print("Aggregating for", self.__file)
-            self.__makeBuildings() # Aggregate into buildings
-            with multiprocessing.Lock():
-                logger.info("Building processing done for " + self.__file)
+                # Building size or distribution length must be larger than minimum value specified below
+                self.__MIN_BUILDING_SIZE = 3
+                self.__BUILDING_SIZE = building_size
+                if self.__BUILDING_SIZE < self.__MIN_BUILDING_SIZE:
+                    with multiprocessing.Lock():
+                        logger.critical("Building size too small.")
+                    raise SystemExit
+                if distribution == True:
+                    self.__distribution = self.createDistribution()
+                # TODO: alter for customizable distribution
 
-            # Encrypt buildings
-            if self.__encryption_enabled == True:
-                self.__KEY_LOCATION = key_location
-                self.__ALGORITHM = algorithm
-                self.__KEY_LENGTH = key_length
+                # Path should have a trailing slash
+                if key_location[-1] != "/":
+                    key_location += "/"
+                self.__readData() # Read data into memory
+                self.__dist = self.createDistribution()
+                print("Aggregating for", self.__file)
+                self.__makeBuildings() # Aggregate into buildings
+                with multiprocessing.Lock():
+                    logger.info("Building processing done for " + self.__file)
 
-                self.__keys = self.__setup_encryption()
-                # Use multiprocessing to cut processing times significantly
-                # Nothing is written to file or alters a global, so there should
-                # be no race condition
-                processors = multiprocessing.cpu_count()
-                processors = floor(processors * PORTION_OF_CPU)
-                results = []
-                with multiprocessing.Pool(processes=processors) as pool:
-                    for result in pool.map(self.encrypt_frames, self.__building_list):
-                        try:
-                            results.append(result)
-                        except KeyboardInterrupt:
-                            pool.terminate()
-                for i in range(0, len(self.__building_list)):
-                    self.__building_list[i] = results[i]
-        else:
-            print(name, "exists, continuing to next file.")
-            self.status = "File exists."
+                # Encrypt buildings
+                if self.__encryption_enabled == True:
+                    self.__KEY_LOCATION = key_location
+                    self.__ALGORITHM = algorithm
+                    self.__KEY_LENGTH = key_length
+
+                    self.__keys = self.__setup_encryption()
+                    # Use multiprocessing to cut processing times significantly
+                    # Nothing is written to file or alters a global, so there should
+                    # be no race condition
+                    processors = multiprocessing.cpu_count()
+                    processors = floor(processors * PORTION_OF_CPU)
+                    results = []
+                    with multiprocessing.Pool(processes=processors) as pool:
+                        for result in pool.map(self.encrypt_frames, self.__building_list):
+                            try:
+                                results.append(result)
+                            except KeyboardInterrupt:
+                                pool.terminate()
+                    for i in range(0, len(self.__building_list)):
+                        self.__building_list[i] = results[i]
+            else:
+                print(name, "exists, continuing to next file.")
+                self.status = "File exists."
+        except KeyboardInterrupt:
+            print("Stopping.")
+            raise SystemExit
 
     # Returns the seed used to init rng. Useful if a seed was not provided
     # and you later need to recreate the sorting done by a random seed
@@ -137,22 +139,36 @@ class MeterDataParser:
             print("Reading", self.__file)
             with open(self.__file, "r") as csv_file:
                 self.__dataframe = pandas.read_csv(csv_file, parse_dates=True)
+            self.__dataframe = self.__extractMains() # Remove non-mains circuits
+            # Index by datetime 
+            """
+            self.__dataframe["min_t"] = self.__dataframe["min_t"].apply(pandas.to_datetime)
+            self.__dataframe = self.__dataframe.set_index(["min_t", "ee_site_id"])
+            sites = pandas.unique(self.__dataframe["ee_site_id"])
+            day = self.__dataframe.index[0].date()
+            end = day + pandas.Timedelta(1, "d") # one day ahead
+            fullIndex = pandas.date_range(start=day, end=end, freq="15min", normalize=True, inclusive="left")
+            fullIndex = pandas.Index(fullIndex, name="min_t")
+            print(fullIndex)
+            self.__dataframe = self.__dataframe.reindex(fullIndex)
+            """
             self.status = "File read."
             return self.__dataframe
         except Exception as ex:
             with multiprocessing.Lock():
-                logger.critical("Unable to read file. Aborting. Reason:" + ex)
+                logger.critical("Unable to read file. Aborting. Reason: " + str(ex))
             raise SystemExit
 
     # Reduces data to only Mains circuits
     def __extractMains(self):
-        # TODO: edit this to "contains Mains" since there are edge cases
-        # of "mains + something" or "Mains_right"
         try:
-            return self.__dataframe[self.__dataframe["regname"] == "Mains"]
+            return self.__dataframe[["Mains" in r for r in self.__dataframe["regname"]]]
         except KeyError:
             with multiprocessing.Lock():
                 logger.error("File does not contain Mains. Check filepath.")
+        except Exception as ex:
+            with multiprocessing.Lock():
+                logger.error("Unable to extract Mains: " + str(ex))
 
     def createDistribution(self):
         # Parameters and distribution obtained in ../tools/fit-curve.py with fitter library
@@ -206,7 +222,7 @@ class MeterDataParser:
     # Outputs a list of virtual buildings made from data
     def __makeBuildings(self):
         # List all sites by id number
-        self.__site_ids = pandas.unique(self.__prepared_data["ee_site_id"])
+        self.__site_ids = pandas.unique(self.__dataframe["ee_site_id"])
         self.__site_count = self.__site_ids.size
         self.__building_list = [] # will hold a list of Building objects
         # Decide when to stop; set True at end of loop if stop conditions triggered
@@ -227,7 +243,11 @@ class MeterDataParser:
                 raise SystemExit
             # Make a building (as long as we have ids to give it)
             if self.__random_ids.any():
-                building = Building(self.__random_ids, self.__prepared_data, decimal_places=self.__decimal_places, logging_id=id)
+                try:
+                    building = Building(self.__random_ids, self.__dataframe, decimal_places=self.__decimal_places, logging_id=id)
+                except Exception as ex:
+                    with multiprocessing.Lock():
+                        logger.error("unable to create building " + str(id) + ": " + str(ex))
                 try:
                     # Aggregate to temporal resolution
                     bsize = building.get_size() # grab site count before agg to avoid summing it
@@ -240,7 +260,7 @@ class MeterDataParser:
                     id += 1 # increment ID for logging
                 except Exception as ex:
                     with multiprocessing.Lock():
-                        logger.error("unable to aggregate building " + str(id - 1) + ": " + ex)
+                        logger.error("unable to aggregate building " + str(id - 1) + ": " + str(ex))
             # Decide whether to stop
             if self.__building_count < 0: # if we're making as many sites as the set allows
                 stop = True if len(self.__site_ids) < self.__BUILDING_SIZE else False
@@ -248,7 +268,7 @@ class MeterDataParser:
                 stop = True if self.__building_count <= 0 else False
         # Deal with leftovers- when we have fewer sites left than the building size
         if self.__site_ids.any() and self.__building_count is None:
-            self.__spare_building = Building(self.__site_ids, self.__prepared_data, self.__decimal_places)
+            self.__spare_building = Building(self.__site_ids, self.__dataframe, self.__decimal_places)
         self.status = "Buildings made."
         return self.__building_list
     
@@ -283,7 +303,7 @@ class MeterDataParser:
                     keys.export_keys(target_file = self.__KEY_LOCATION + "private.txt", public = False)
                 except Exception as ex:
                     with multiprocessing.Lock():
-                        logger.error("Unable to export keys. Decryption may fail. Reason: " + ex)
+                        logger.error("Unable to export keys. Decryption may fail. Reason: " + str(ex))
                 return keys
             elif exists(self.__KEY_LOCATION + "private.txt"):
                 privkey = LightPHE(algorithm_name = self.__ALGORITHM, key_file=self.__KEY_LOCATION + "private.txt")
@@ -317,7 +337,7 @@ class MeterDataParser:
             return frame
         except Exception as ex:
             with multiprocessing.Lock():
-                logger.error("Unable to concatenate buildings: " + ex)
+                logger.error("Unable to concatenate buildings: " + str(ex))
 
     # Outputs the aggregated data to the terminal
     def output_to_terminal(self):
@@ -368,4 +388,4 @@ class MeterDataParser:
                 print(filename, "exists. Continuing...")
         except Exception as ex:
             with multiprocessing.Lock():
-                logger.error("Unable to save data to file: " + ex)
+                logger.error("Unable to save data to file: " + str(ex))

@@ -70,7 +70,7 @@ class Building:
                     building = building.add(site, fill_value=0) # There shouldn't be NAs, but just in case...
                 except TypeError as ex:
                     with Lock():
-                        logger.error("Building " + self.__bid + ": Could not create building due to incompatible data types: " + ex)
+                        logger.error("Building " + self.__bid + ": Could not create building due to incompatible data types: " + str(ex))
         else:
             with Lock():
                 logger.error("Building " + self.__bid + ": No building ids supplied.")
@@ -130,29 +130,15 @@ class Building:
         try:
             # Drop unnecessary columns
             frame = frame.drop(self.__DROP_COLUMNS, axis=1)
-            # Used to fill in missing values with 0s
-            # Get a list of 15-min increments for an entire day
-            list_min_t_times = [f'{i:02d}:{j:02d}' for i in range(24) for j in range(0, 60, 15)]
-            # Add the day to the list of times to create a complete datetime
-            # The building object should only ever receive one day of data at a time, so snagging the date
-            # from the first datetime is acceptable
-            day = frame["min_t"].iloc[0]
-            day = pandas.to_datetime(day[:11])
-            for time in list_min_t_times:
-                this_datetime = str(day) + " " + str(time)
-                list_min_t_times[list_min_t_times.index(time)] = this_datetime
-            try:
-                min_t_series = pandas.Series(data=list_min_t_times).apply(pandas.to_datetime) # Easier than strptime
-            except Exception as ex:
-                with Lock():
-                    logger.error("Building " + self.__bid + ": Could not format datetime: " + ex)
-                min_t_series = list_min_t_times
             # Fill missing intervals with NA using the 15-min increment list to create a complete index
             # (if 02:15-02:29 is missing, then this creates this interval with NA values in its columns)
-            new_index = pandas.Index(min_t_series, name="min_t")
+            start_datetime = pandas.to_datetime(frame["min_t"].iloc[0])
+            end_datetime = start_datetime + pandas.Timedelta(1, "d") # one day ahead
+            fifteen_min_increments = pandas.date_range(start=start_datetime, end=end_datetime, freq="15min", normalize=True, inclusive="left")
+            new_index = pandas.Index(fifteen_min_increments, name="min_t")
             frame["min_t"] = frame["min_t"].apply(pandas.to_datetime)
-            frame = frame.set_index(["min_t"])
-            frame = frame.reindex(new_index)
+            frame = frame.set_index(["min_t"]).reindex(new_index)
+            #frame = frame.reindex(new_index)
             # TODO: what if the first value is NA?
             try:
                 # Forward-fill any missing values (NA) with the previous existing value
@@ -171,7 +157,7 @@ class Building:
                         logger.warning("Site " + str(frame["ee_site_id"].iloc[0]) + " missing rows: " + str(na_rows[0]) + " to " + str(na_rows[-1]))
                         # Get similar data from one week ago
                         # TODO: expand to check other potentially similar days in the recent past- same day of week, similar temp, season, etc.
-                        week_ago = day - pandas.Timedelta(7, "d")
+                        week_ago = start_datetime - pandas.Timedelta(7, "d")
                         week_ago_date = week_ago.date()
                         week_ago_file = OUTPUT_DIR + str(week_ago_date) + ".csv"
                         if exists(week_ago_file):

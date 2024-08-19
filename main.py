@@ -2,7 +2,6 @@ import multiprocessing
 import pickle
 import pandas
 from math import floor
-from sys import exit
 
 import config
 from list_files import list_files_in_dir
@@ -22,7 +21,7 @@ def process_file(file):
         parser = md.MeterDataParser(file, distribution=True, seed=config.SEED, encrypt=config.ENCRYPT, building_count=config.BUILDING_COUNT)
     except KeyboardInterrupt:
         print("Stopping.")
-        exit()
+        raise SystemExit
     except Exception as error:
         print("Could not create buildings for", file)
         print(error)
@@ -86,7 +85,7 @@ def main():
             print("Stopping.")
             if config.SAVE_AS_PICKLE == True:
                 pickle_data(frame)
-            exit()
+            raise SystemExit
 
     if config.CREATE_STATISTICS == True:
         # TODO: read from pickle if available
