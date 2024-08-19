@@ -1,5 +1,6 @@
 import pandas
 import multiprocessing
+import logging
 import numpy
 from scipy.stats import pareto
 from lightphe import LightPHE
@@ -8,11 +9,15 @@ from os import makedirs, environ
 from math import floor
 from typing import Optional
 from virtual_buildings.building import Building
-from config import AGG_TEMPORAL_RESOLUTION, OUTPUT_DIR, PORTION_OF_CPU
+from config import AGG_TEMPORAL_RESOLUTION, OUTPUT_DIR, PORTION_OF_CPU, LOG_FILE
 
 # Setting copy on write for PANDAS as recommended here:
 # https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
 pandas.options.mode.copy_on_write = True
+
+# Set up logger
+logging.basicConfig(level=logging.INFO, file=LOG_FILE)
+logger = logging.getLogger(__name__)
 
 # Value obtained from print(str(logging.ERROR))
 environ['LIGHTPHE_LOG_LEVEL'] = "40" # Errors and critical only
@@ -36,9 +41,10 @@ class MeterDataParser:
             print("File not provided. Expected relative or absolute filepath.")
             raise SystemExit
         elif seed is None:
-            print("Warning: random seed generated. Building assignment may not be repeatable!")
             seed = numpy.random.randint(100000000, 999999999)
-            print("If you need your seed, run this object's get_seed() method.")
+            with multiprocessing.Lock:
+                logger.warning("Random seed generated. Seed: " + str(seed))
+                logger.info("If you need your seed, run MeterDataParser's get_seed() method during processing.")
 
         # Check if processed file exists
         self.resolution = AGG_TEMPORAL_RESOLUTION
@@ -67,7 +73,8 @@ class MeterDataParser:
             self.__MIN_BUILDING_SIZE = 3
             self.__BUILDING_SIZE = building_size
             if self.__BUILDING_SIZE < self.__MIN_BUILDING_SIZE:
-                print("Building size too small.")
+                with multiprocessing.Lock:
+                    logger.critical("Building size too small.")
                 raise SystemExit
             if distribution == True:
                 self.__distribution = self.createDistribution()
@@ -82,7 +89,8 @@ class MeterDataParser:
             self.__prepared_data = self.__extractMains() # Remove non-mains circuits
             print("Aggregating for", self.__file)
             self.__makeBuildings() # Aggregate into buildings
-            print("Building processing done for", self.__file)
+            with multiprocessing.Lock:
+                logger.info("Building processing done for " + self.__file)
 
             # Encrypt buildings
             if self.__encryption_enabled == True:
@@ -119,7 +127,8 @@ class MeterDataParser:
         try:
             building.encrypt(self.__keys)
         except Exception as error:
-            print("Unable to encrypt:", error)
+            with multiprocessing.Lock:
+                logger.error("Unable to encrypt: " + error)
         return building
 
     # Reads a file's data into memory
@@ -131,8 +140,8 @@ class MeterDataParser:
             self.status = "File read."
             return self.__dataframe
         except Exception as error:
-            print("Unable to read file. Aborting.") 
-            print("Reason:", error)
+            with multiprocessing.Lock:
+                logger.critical("Unable to read file. Aborting. Reason:" + error)
             raise SystemExit
 
     # Reduces data to only Mains circuits
@@ -142,7 +151,8 @@ class MeterDataParser:
         try:
             return self.__dataframe[self.__dataframe["regname"] == "Mains"]
         except KeyError:
-            print("File does not contain Mains. Check filepath.")
+            with multiprocessing.Lock:
+                logger.error("File does not contain Mains. Check filepath.")
 
     def createDistribution(self):
         # Parameters and distribution obtained in ../tools/fit-curve.py with fitter library
@@ -189,7 +199,8 @@ class MeterDataParser:
         count = 0 # placeholder to kickstart while loop; buildings can't have no sites
         while count < min_size or count > max_size: # Exclude values that are too small or too large
             count = int(floor(pareto.rvs(self.__dist_c, loc=self.__dist_loc, scale=self.__dist_scale, size=1, random_state=self.rd)))
-        #print("GenCount:", count) # for debugging of building sizes
+        with multiprocessing.Lock:
+            logger.debug("Generated building count: " + count) # for debugging of building sizes
         return count
 
     # Outputs a list of virtual buildings made from data
@@ -201,6 +212,7 @@ class MeterDataParser:
         # Decide when to stop; set True at end of loop if stop conditions triggered
         stop = False
         # Make buildings until stop condition triggered
+        id = 1 # the building id; passed to building for logging purposes
         while stop == False:
             # Get a random set of site ids for a building
             try:
@@ -210,12 +222,12 @@ class MeterDataParser:
                     count = self.__BUILDING_SIZE
                 self.__random_ids = self.__get_random_ids(count)
             except:
-                print("Unable to construct buildings: site id randomization failed.")
-                print("Check building size parameter.")
+                with multiprocessing.Lock:
+                    logger.critical("Unable to construct buildings: site id randomization failed.")
                 raise SystemExit
             # Make a building (as long as we have ids to give it)
             if self.__random_ids.any():
-                building = Building(self.__random_ids, self.__prepared_data, self.__decimal_places)
+                building = Building(self.__random_ids, self.__prepared_data, self.__decimal_places, id)
                 try:
                     # Aggregate to temporal resolution
                     bsize = building.get_size() # grab site count before agg to avoid summing it
@@ -225,8 +237,10 @@ class MeterDataParser:
                     # Add the building to the list of buildings
                     self.__building_list.append(building)
                     self.__building_count -= 1 if self.__building_count > 0 else 0
+                    id += 1 # increment ID for logging
                 except Exception as error:
-                    print("failed to aggregate building:", error)
+                    with multiprocessing.Lock:
+                        logger.error("unable to aggregate building " + id - 1 + ": " + error)
             # Decide whether to stop
             if self.__building_count < 0: # if we're making as many sites as the set allows
                 stop = True if len(self.__site_ids) < self.__BUILDING_SIZE else False
@@ -249,8 +263,9 @@ class MeterDataParser:
             case "d":
                 data = building.aggregate_daily()
             case _:
-                print("Resolution not implemented.")
-                data = None
+                with multiprocessing.Lock:
+                    logger.info(AGG_TEMPORAL_RESOLUTION + " resolution not implemented. Using 15min resolution.")
+                data = building.get_data()
         self.status = "Buildings aggregated."
         return data
     
@@ -267,17 +282,19 @@ class MeterDataParser:
                     keys.export_keys(target_file = self.__KEY_LOCATION + "public.txt", public = True)
                     keys.export_keys(target_file = self.__KEY_LOCATION + "private.txt", public = False)
                 except Exception as error:
-                    print("Unable to export keys. Decryption may fail.")
-                    print(error)
+                    with multiprocessing.Lock:
+                        logger.error("Unable to export keys. Decryption may fail. Reason: " + error)
                 return keys
             elif exists(self.__KEY_LOCATION + "private.txt"):
                 privkey = LightPHE(algorithm_name = self.__ALGORITHM, key_file=self.__KEY_LOCATION + "private.txt")
                 return privkey
             else:
-                print("Encryption setup failed.")
+                with multiprocessing.Lock:
+                    logger.critical("Encryption setup failed.")
                 raise SystemExit
         except:
-            print("Key generation failure. Aborting.")
+            with multiprocessing.Lock:
+                logger.critical("Key generation failure. Aborting.")
             raise SystemExit
 
     # Puts individual building frames together to output as one frame
@@ -299,7 +316,8 @@ class MeterDataParser:
             self.status = "Frames concatenated."
             return frame
         except Exception as error:
-            print("Unable to concatenate buildings:", error)
+            with multiprocessing.Lock:
+                logger.error("Unable to concatenate buildings: " + error)
 
     # Outputs the aggregated data to the terminal
     def output_to_terminal(self):
@@ -338,7 +356,8 @@ class MeterDataParser:
                 if not exists(target_folder):
                     makedirs(target_folder)
             except:
-                print("Unable to create folder.")
+                with multiprocessing.Lock:
+                    logger.critical("No output folder.")
                 raise SystemExit
             # TODO: Also make this check earlier in the process and skip processing
             # for existing files. Save time.
@@ -348,5 +367,5 @@ class MeterDataParser:
             else:
                 print(filename, "exists. Continuing...")
         except Exception as error:
-            print("Unable to save data to file.")
-            print(error)
+            with multiprocessing.Lock:
+                logger.error("Unable to save data to file: " + error)

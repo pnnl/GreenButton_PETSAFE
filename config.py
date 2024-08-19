@@ -53,6 +53,9 @@ BUILDING_COUNT = 20
 # Output directory for prepped data
 OUTPUT_DIR = "./output/"
 
+# Where to log actions and issues
+LOG_FILE = OUTPUT_DIR + 'building_processing.log'
+
 # Root directory for input data
 ROOT_DATA_DIR = "./data/" + YEAR + "-Full_v8.1/" + YEAR + "/"
 # Name of target directory in root dir

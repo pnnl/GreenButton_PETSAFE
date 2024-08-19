@@ -1,12 +1,18 @@
 import pandas
 import numpy
+import logging
 from os import environ
+from multiprocessing import Lock
 from typing import Optional
-from config import PORTION_OF_CPU, ENCRYPT_COLS
+from config import ENCRYPT_COLS, LOG_FILE
 
 # Setting copy on write for PANDAS as recommended here:
 # https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
 pandas.options.mode.copy_on_write = True
+
+# Set up logger
+logging.basicConfig(level=logging.INFO, file=LOG_FILE)
+logger = logging.getLogger(__name__)
 
 # Value obtained from print(str(logging.ERROR))
 # LightPHE needs to be reminded not to spam the terminal sometimes
@@ -20,11 +26,13 @@ class Building:
             self,
             ids: list, # a list of ids to place in the building
             data, # a data frame of meter readings including (at minimum) the ids in ids
-            decimal_places: Optional[int] = 5 # The number of decimal places to preserve
+            decimal_places: Optional[int] = 5, # The number of decimal places to preserve
+            logging_id: Optional[int] = None # ID to use for logging; if none, does not specify
             ):
         self.__DROP_COLUMNS = ['regname', 'max_t']
         self.__data = data
         self.__ids = ids
+        self.__bid = str(logging_id) # Needs to be concatenated with strings for logging
         self.resolution = "fifteen minutes"
 
         # Used to convert floats to int so encryption works as expected.
@@ -57,9 +65,11 @@ class Building:
                 try:
                     building = building.add(site, fill_value=0) # There shouldn't be NAs, but just in case...
                 except TypeError as error:
-                    print("Could not create building due to incompatible data types:", error)
+                    with Lock():
+                        logger.error("Building " + self.__bid + ": Could not create building due to incompatible data types: " + error)
         else:
-            print("No building ids supplied.")
+            with Lock():
+                logger.error("Building " + self.__bid + ": No building ids supplied.")
             return None
         building = self.__correct_power_factor(building)
         building["sites"] = [str(id) + "," for id in ids]
@@ -73,7 +83,8 @@ class Building:
             self.__data = self.__data.resample(period).sum()
             self.__data = self.__correct_power_factor(self.__data)
         except Exception as error:
-            print("Could not resample:", error)
+            with Lock():
+                logger.error("Building " + self.__bid + ": Could not resample: " + error)
         self.__data["sites"] = siteids # replace when done
         self.resolution = resolution
     
@@ -128,7 +139,8 @@ class Building:
             try:
                 min_t_series = pandas.Series(data=list_min_t_times).apply(pandas.to_datetime) # Easier than strptime
             except Exception as error:
-                print("Could not format frame datetime:", error)
+                with Lock():
+                    logger.error("Building " + self.__bid + ": Could not format datetime: " + error)
                 min_t_series = list_min_t_times
             # Fill missing intervals with NA using the 15-min increment list to create a complete index
             # (if 02:15-02:29 is missing, then this creates this interval with NA values in its columns)
@@ -144,10 +156,11 @@ class Building:
                 # TODO: log use of fill for time periods
                 frame = frame.ffill(limit=3) # if more than 3 values are missing, it might be an outage
                 frame = frame.bfill(limit=3) # if more than 3 values are missing, it might be an outage
-                # TODO: fill with historical data from year (such as "last Monday")
+                # TODO: check for NA and fill with historical data from year (such as "last Monday")
+                na_rows = frame.loc[pandas.isna(frame["power"]), :].index
             except Exception as error:
-                print("Could not forward fill:", error)
-                print("Filling with zeroes instead.")
+                with Lock():
+                    logger.error("Building " + self.__bid + ": Could not impute: " + error + ".\nFilling with zeros instead.")
             frame = frame.fillna(0) # Catch anything forward fill missed (e.g. first value = 0)
         except KeyError:
             #print("Frame already clean.")
