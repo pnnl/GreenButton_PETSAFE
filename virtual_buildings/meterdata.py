@@ -140,6 +140,7 @@ class MeterDataParser:
             with open(self.__file, "r") as csv_file:
                 self.__dataframe = pandas.read_csv(csv_file, parse_dates=True)
             self.__dataframe = self.__extractMains() # Remove non-mains circuits
+            # TODO: can we detect missing sites here and fill them?
             self.status = "File read."
             return self.__dataframe
         except Exception as ex:
