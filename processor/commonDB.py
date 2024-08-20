@@ -1,8 +1,8 @@
 import datetime
 import sqlite3
+
+
 class DBConn:
-
-
 
     @staticmethod 
     def drop_TABLE(db_file,table_name):
@@ -11,12 +11,22 @@ class DBConn:
         # cursor object
         cursor_obj = connection_obj.cursor()
         
-        # Drop the GEEK table if already exists.
-        cursor_obj.execute("DROP TABLE IF EXISTS "+table_name)
+        # Drop the table_name table if already exists.
+        cursor_obj.execute("DROP TABLE IF EXISTS " + table_name)
 
 
     @staticmethod
     def create_LablesTABLE(db_file):
+        ''' Table structure:
+    0 =    '"ee_site_id"'
+    1 =    '"point_id"'
+    2 =    '"regname"'
+    3 =    '"circuit_label_type_id"'
+    4 =    '"circuit_label_type_desc"'
+    5 =    '"circuit_label"'
+    6 =    '"equipment_type_desc"'
+    7 =    '"day_zero_dt"'
+    '''
         # Creating table
         table_descriptor = """ CREATE TABLE LABELS (
                     ee_site_id INTEGER,
@@ -31,17 +41,6 @@ class DBConn:
                 ); """
         
         DBConn.create_TABLE(db_file,"LABELS",table_descriptor) 
-    '''
-        
-    0 =    '"ee_site_id"'
-    1 =    '"point_id"'
-    2 =    '"regname"'
-    3 =    '"circuit_label_type_id"'
-    4 =    '"circuit_label_type_desc"'
-    5 =    '"circuit_label"'
-    6 =    '"equipment_type_desc"'
-    7 =    '"day_zero_dt"'
-    '''
 
     @staticmethod
     def create_POWERTABLE(db_file):
@@ -67,11 +66,13 @@ class DBConn:
         # cursor object
         cursor_obj = connection_obj.cursor()
         
-        # Drop the GEEK table if already exists.
-        cursor_obj.execute("DROP TABLE IF EXISTS "+table_name)
+        # Drop the table_name table if already exists.
+        # TODO: this would be a very easy attack vector for data destruction.
+        # I don't see any safeguards against data loss.
+        cursor_obj.execute("DROP TABLE IF EXISTS " + table_name)
             
         cursor_obj.execute(table_descriptor)
-        print("Table: " +table_name+ " has been created")
+        print("Table: " + table_name + " has been created")
 
 
     @staticmethod 
@@ -85,11 +86,10 @@ class DBConn:
         try:
             conn = sqlite3.connect(db_file)
             cursor_obj = conn.cursor()
-            # Drop the GEEK table if already exists.
+            # Enable foreign keys
             cursor_obj.execute("PRAGMA foreign_keys = ON;")
         except Exception as e:
             print(e)
-
         return conn
 
 
@@ -117,8 +117,6 @@ class DBConn:
     
     @staticmethod 
     def query(conn, sql):
-
-      
         cur = conn.cursor()
         res=cur.execute(sql)
         x=res.fetchall()
