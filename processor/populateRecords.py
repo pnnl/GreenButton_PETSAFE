@@ -92,16 +92,16 @@ def main():
         allLabels=DBConn.query(conn,"select * from LABELS")
         for entry in  allLabels:
             siteID=entry[0]
-            curcuitLabel=entry[2]
+            circuitLabel=entry[2]
             pointID=entry[1]
         
             if siteID in points_DB:
-                if curcuitLabel not in points_DB[siteID]:
-                    points_DB[siteID][curcuitLabel]=pointID
+                if circuitLabel not in points_DB[siteID]:
+                    points_DB[siteID][circuitLabel]=pointID
                 else:
-                    print("SiteID:" ,siteID," [Error]",curcuitLabel,pointID, "already has a point ID",points_DB[siteID][curcuitLabel])
+                    print("SiteID:" ,siteID," [Error]",circuitLabel,pointID, "already has a point ID",points_DB[siteID][circuitLabel])
             else:
-                points_DB[siteID]={curcuitLabel:pointID}
+                points_DB[siteID]={circuitLabel:pointID}
 
         missing_ids={}
         for aFile in allFiles:
