@@ -118,6 +118,10 @@ class MeterDataParser:
         except KeyboardInterrupt:
             print("Stopping.")
             raise SystemExit
+        
+    # If we try to print the object, print its data
+    def __str__(self):
+        return self.get_data()
 
     # Returns the seed used to init rng. Useful if a seed was not provided
     # and you later need to recreate the sorting done by a random seed
