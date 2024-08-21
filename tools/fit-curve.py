@@ -153,8 +153,19 @@ with open("./multifamily-homes-by-size.csv", "r") as file:
     nrel_data = read_csv(file, index_col="BuildingID")
 nrel_data = nrel_data[nrel_data["BuildingSize"] > 1]
 nrel_data_sizes = nrel_data["BuildingSize"].value_counts() # TODO: there are weights to factor in!
-print(nrel_data_sizes)
-
+#print(nrel_data_sizes)
+# Misc (https://www.cbsnews.com/media/10-of-the-tallest-residential-buildings-in-the-u-s/):
+# New York by Gehry, NY: 904 apartments
+# John Hancock Center, Chicago: 700 condos
+# 70 Pine Street, NY: 644 apartments
+# Brooklyn Tower, NY: 150 condos, 425 apartments = 575 units
+# In plans (check if carried out): Baltimore Harborplace, ML: 900+ apartments
+manual_additions = {
+    "904": 1,
+    "700": 1,
+    "644": 1,
+    "575": 1
+}
 # For now
 data = neea_data
 
