@@ -14,6 +14,8 @@ def getEntriesOfType(
     query = "SELECT *  FROM LABELS WHERE "
     for id in ids:
         query += "LABELS.circuit_label_type_id=" + str(id)
+        query += " OR "
+    query = query[:-4] # Remove ending OR
     query += ";"
     results = conn.execute(query)
     x = results.fetchall()
@@ -29,7 +31,7 @@ def getEntriesOfType(
 def pullRecords(database):
     conn = DBConn.create_connection(database)
     with conn:
-        if 1==2:
+        if 1 == 2:
             res = conn.execute("""
         SELECT * FROM POWER  
         INNER JOIN LABELS 
@@ -87,21 +89,24 @@ def pullRecords(database):
             
 
             for entry in allMainEntries:
+                # Get power records for all main circuits
                 site_id = entry["ee_site_id"]
                 command = f'SELECT * FROM POWER WHERE ee_site_id={site_id} and regname = \'{entry["regname"]}\' order by timestamp;'
                 results = conn.execute(command)
                 main_recorder = results.fetchall()
 
-                heater_recorders=[]
-                heater_recorders_labels=[]
+                # If the circuit has a heater, get the power record
+                heater_recorders = []
+                heater_recorders_labels = []
                 for heater in allHeaterEntries:
-                    if heater["ee_site_id"]==site_id:
+                    if heater["ee_site_id"] == site_id:
                         command=f'SELECT * FROM POWER WHERE ee_site_id={entry["ee_site_id"]} and regname = \'{heater["regname"]}\' order by timestamp;'
                         res = conn.execute(command)
                         heater_recorder=res.fetchall()
                         heater_recorders.extend([heater_recorder])
-                        heater_recorders_labels.extend([heater["circuit_label_type_desc"]+"_"+str(heater["point_id"])])
+                        heater_recorders_labels.extend([heater["circuit_label_type_desc"] + "_" + str(heater["point_id"])])
                 
+                # If the site has an EV, 
                 ev_recorder=[]
                 for ev in allEVEntries:
                     if ev["ee_site_id"]==site_id:

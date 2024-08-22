@@ -15,6 +15,27 @@ def convertTime(date_str):
     epoch_time = int(time.mktime(dt.timetuple()))
     return epoch_time
 
+# Retrieves entries where the circuit_label_type_id is in [ids]
+def getEntriesOfType(
+        conn, # Database connection
+        ids: list # The list of type ids to match for circuit type
+):
+    # TODO: sanity check id list to ensure it's not "get everything"
+    query = "SELECT *  FROM LABELS WHERE "
+    for id in ids:
+        query += "LABELS.circuit_label_type_id=" + str(id)
+        query += " OR "
+    query = query[:-4] # Remove ending OR
+    query += ";"
+    results = conn.execute(query)
+    x = results.fetchall()
+    allEntries = []
+    for xi in x:
+        entry = {"ee_site_id":xi[0],"point_id":xi[1],"regname":xi[2],"circuit_label_type_id":xi[3],"circuit_label_type_desc":xi[4],"circuit_label":xi[5],"equipment_type_desc":xi[6]}
+        print(entry["ee_site_id"], entry["circuit_label_type_desc"])
+        allEntries.extend([entry])
+    return allEntries
+
 #unixepoch
 #select *,datetime(timestamp, 'unixepoch') ,unixepoch("2021-01-01") from POwER where  timestamp >unixepoch("2021-01-02") limit 10
 def pullRecords(database):
@@ -78,38 +99,17 @@ def pullRecords(database):
             """)
 
         if 1==2:
+           #############
             ###Mains With Solar, Mains Without Solar, Mains
-            res = conn.execute("""
-            SELECT *  FROM LABELS WHERE LABELS.circuit_label_type_id=15 OR LABELS.circuit_label_type_id=16;
-            """)
-            x=res.fetchall()
-            allMainEntries=[]
-            for xi in x:
-                entry={"ee_site_id":xi[0],"point_id":xi[1],"regname":xi[2],"circuit_label_type_id":xi[3],"circuit_label_type_desc":xi[4],"circuit_label":xi[5],"equipment_type_desc":xi[6]}
-                print(entry["ee_site_id"],entry["circuit_label_type_desc"])
-                allMainEntries.extend([entry])
+            allMainEntries = getEntriesOfType([15, 16], conn)
+
             #############
             ###Electric Baseboard Heaters, Electric Furnace
-            res = conn.execute("""
-            SELECT *  FROM LABELS WHERE LABELS.circuit_label_type_id=7 OR LABELS.circuit_label_type_id=8 OR LABELS.circuit_label_type_id=28;
-            """)
-            x=res.fetchall()
-            allHeaterEntries=[]
-            for xi in x:
-                entry={"ee_site_id":xi[0],"point_id":xi[1],"regname":xi[2],"circuit_label_type_id":xi[3],"circuit_label_type_desc":xi[4],"circuit_label":xi[5],"equipment_type_desc":xi[6]}
-                print(entry["ee_site_id"],entry["circuit_label_type_desc"])
-                allHeaterEntries.extend([entry])
+            allHeaterEntries = getEntriesOfType([7, 8, 28], conn)
+
             #################
             ###Electric Vehicle Chargers
-            res = conn.execute("""
-            SELECT *  FROM LABELS WHERE LABELS.circuit_label_type_id=10;
-            """)
-            x=res.fetchall()
-            allEVEntries=[]
-            for xi in x:
-                entry={"ee_site_id":xi[0],"point_id":xi[1],"regname":xi[2],"circuit_label_type_id":xi[3],"circuit_label_type_desc":xi[4],"circuit_label":xi[5],"equipment_type_desc":xi[6]}
-                print(entry["ee_site_id"],entry["circuit_label_type_desc"])
-                allEVEntries.extend([entry])
+            allEVEntries = getEntriesOfType([10], conn)
             #################
 
             
