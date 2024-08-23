@@ -1,30 +1,18 @@
 from fitter import Fitter
 import scipy
+import multiprocessing as mp
 from math import floor
 import plotly.express as px
-import numpy
+import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 from pandas import read_csv
-
-"""
-seed = numpy.random.randint(100000000, 999999999)
-dist_loc = 1
-dist_scale = 2.8406122167267887
-dist_c = 0.3923899300763164
-dist = scipy.stats.expon
-known_params = {"c": dist_c, "loc": dist_loc, "scale": dist_scale}
-# (dist_c, loc=dist_loc, scale=dist_scale)
-#fit = scipy.stats.goodness_of_fit(dist, data["Count"], known_params=known_params)
-#fit = scipy.stats.goodness_of_fit(dist, data["Count"])
-#print(fit)
-"""
-import pandas as pd
 
 # Parameters for curve
 # pareto: (0.5335371308758773, -0.16241563710448093, 2.1624156371044805)
 dist_c = 2.5335371308758773
-dist_loc = -20.16241563710448093
-dist_scale = 20.1624156371044805
+dist_loc = -0.16241563710448093
+dist_scale = 2.1624156371044805
 
 # levy
 dist_loc = 1.364779244088083
@@ -34,14 +22,12 @@ dist_scale = 2.5963880878956456
 dist_loc = 2
 dist_scale = 2.1624533028540704
 
-#actual_data_size = 480
-
 def get_nums_wrapper():
     nums = []
     number_of_measurements = 1000 #2000000 # 341
     max_size_limit = 50000
     min_size_limit = 2
-    for i in range(0, number_of_measurements): # number of measurements in original dataset
+    for i in range(0, number_of_measurements): # number of measurements to take
         nums.append(get_num(min_size_limit, max_size_limit))
     nums = pd.array(nums)
     numcounts = nums.value_counts()
@@ -49,32 +35,47 @@ def get_nums_wrapper():
     return numcounts
 
 def get_num(min, max):
-    num = -9999 # Intentionally invalid starting value for while loop
+    num = -1 # Intentionally invalid starting value for while loop
     while num < min or num > max:
         #num = int(scipy.stats.pareto.rvs(dist_c, loc=dist_loc, scale=dist_scale, size=1)[0])
         #num = int(scipy.stats.levy.rvs(loc=dist_loc, scale=dist_scale, size=1)[0])
         num = int(scipy.stats.halfcauchy.rvs(loc=dist_loc, scale=dist_scale, size=1)[0])
     return num
 
+def expand_data_into_list(args):
+    index = args[0]
+    data = args[1]
+    try: # this is slow. parallelize?
+        print("Processing building size", index)
+        countframe = data[data["BuildingSize"] == index] # grab the row for that building size
+        count = int(countframe["Count"].iloc[0]) # how many of the building
+        listnum = [int(index)] # the building size
+        expanded = listnum * count
+        expanded = pd.Series(expanded)
+        return expanded
+    except Exception as error:
+        print("No index:", index)
+        print(error)
+
 # Get the data in original form for fitting- duplicate values and all.
 def get_original_data(data):
     print("Preparing data for fitting (may take a while for large sets)...")
-    actual_data = pd.Series()
+    #actual_data = pd.Series()
     indices = pd.unique(data.index)
     data = data.reset_index()
+
+    processors = mp.cpu_count()
+    PORTION_OF_CPU = 0.5
+    processors = floor(processors * PORTION_OF_CPU)
+    results = []
+    args = []
     for index in indices:
-        try:
-            countframe = data[data["BuildingSize"] == index] # grab the row for that building size
-            count = int(countframe["Count"].iloc[0]) # how many of the building
-            listnum = [int(index)] # the building size
-            expanded = listnum * count
-            expanded = pd.Series(expanded)
-            actual_data = pd.concat([actual_data, expanded])
-        except Exception as error:
-            print("No index:", index)
-            print(error)
-    #print(actual_data)
-    #print(actual_data.value_counts())
+        args.append([index, data])
+    with mp.Pool(processes=processors) as pool:
+        for result in pool.map(expand_data_into_list, args):
+            results.append(result)
+    actual_data = pd.concat(results)
+    #print("Actual data:", actual_data)
     return actual_data
 
 def fit_with_fitter(data):
@@ -111,15 +112,33 @@ def fit_with_fitter(data):
 # cauchy             0.000312  2121.923288  2146.280696     inf      0.329187        0.0
 # {'halfcauchy': {'loc': 2, 'scale': 9.060033922652938}}
 
-def goodness_fit_test():
+def goodness_fit_test(data):
     # Test goodness of fit
     actual_data = get_original_data(data)
-    dist = scipy.stats.pareto
-    dist = scipy.stats.levy
+    #dist = scipy.stats.pareto
+    #dist = scipy.stats.levy
     dist = scipy.stats.halfcauchy
-    #known_params = {"c": dist_c, "loc": dist_loc, "scale": dist_scale}
-    #fit = scipy.stats.goodness_of_fit(dist, data["Count"], known_params=known_params)
     fit = scipy.stats.goodness_of_fit(dist, actual_data)
+    print(fit)
+
+def fit_data(data):
+    # Test goodness of fit
+    actual_data = get_original_data(data)
+    dist = scipy.stats.halfcauchy
+
+    print("Binning...")
+    hist, bin_borders = np.histogram(actual_data, bins='fd', range=(2,actual_data.max()))
+    bin_centers = bin_borders[:-1] + np.diff(bin_borders) / 2
+    print(hist)
+
+    print("Fitting...")
+    fit = scipy.stats.fit(dist, hist) # , p0=[1., 0., 1.]
+
+    #x_interval_for_fit = np.linspace(bin_borders[0], bin_borders[-1], 10000)
+    #plt.plot(x_interval_for_fit, gaussian(x_interval_for_fit, *popt), label='fit')
+    #plt.legend()
+    
+    #fit = scipy.stats.fit(dist, actual_data)
     print(fit)
 
 def test_visually(data):
@@ -160,66 +179,72 @@ def test_visually(data):
     fig.show()
 
 
+def main():
+    # Get the data and index
 
+    # Set: 2022 NEEA RSBA; WA, OR, ID (NEEA)
+    with open("./building-size-distribution.csv", "r") as file:
+        neea_data = read_csv(file, index_col="BuildingSize")
 
+    # Set: 2024 Open Energy Data Initiative NREL PDS building stock end use load profiles
+    # https://www.nrel.gov/buildings/end-use-load-profiles.html
+    with open("./multifamily-homes-by-size.csv", "r") as file:
+        nrel_data = read_csv(file, index_col="BuildingID")
+    nrel_data = nrel_data[nrel_data["BuildingSize"] > 1]
+    nrel_data_sizes = nrel_data["BuildingSize"].value_counts() # TODO: there are weights to factor in!
+    #print(nrel_data_sizes)
 
-# Get the data and index
+    # Set: 2020? HUD multifamily properties
+    with open("./MULTIFAMILY_PROPERTIES_ASSISTED.csv", "r", encoding="UTF-8") as file:
+        hud_data = read_csv(file)
+    hud_data = hud_data["TOTAL_UNIT_COUNT"]
+    hud_counts = hud_data.value_counts().sort_index()
+    hud_counts = pd.DataFrame(data=hud_counts)
+    hud_counts = hud_counts.reset_index()
+    hud_counts = hud_counts.rename(columns={"TOTAL_UNIT_COUNT": "BuildingSize", "count": "Count"})
+    hud_counts = hud_counts[hud_counts["BuildingSize"] > 1].set_index("BuildingSize") # Remove 1 and 0 unit counts
+    #print("HUD counts:", hud_counts)
 
-# Set: 2022 NEEA RSBA; WA, OR, ID (NEEA)
-with open("./building-size-distribution.csv", "r") as file:
-    neea_data = read_csv(file, index_col="BuildingSize")
+    # Misc (https://www.cbsnews.com/media/10-of-the-tallest-residential-buildings-in-the-u-s/)
+    # confirmed with other sources:
+    # New York by Gehry, NY: 904 apartments
+    # John Hancock Center, Chicago: 700 condos
+    # 70 Pine Street, NY: 644 apartments
+    # Brooklyn Tower, NY: 150 condos, 425 apartments = 575 units
+    # Metropolis Condominium, Atlanta Georgia: 498 units
+    # In plans (check if carried out): Baltimore Harborplace, ML: 900+ apartments
+    manual_additions = [
+        [904, 1],
+        [700, 1],
+        [644, 1],
+        [575, 1],
+        [498, 1]
+    ]
+    outliers = pd.DataFrame(data=manual_additions)
+    outliers = outliers.rename(columns={0: "BuildingSize", 1: "Count"})
+    outliers = outliers.set_index("BuildingSize")
+    # For now; add the nrel in future for better sample
+    data = neea_data
 
-# Set: 2024 Open Energy Data Initiative NREL PDS building stock end use load profiles
-# https://www.nrel.gov/buildings/end-use-load-profiles.html
-with open("./multifamily-homes-by-size.csv", "r") as file:
-    nrel_data = read_csv(file, index_col="BuildingID")
-nrel_data = nrel_data[nrel_data["BuildingSize"] > 1]
-nrel_data_sizes = nrel_data["BuildingSize"].value_counts() # TODO: there are weights to factor in!
-#print(nrel_data_sizes)
+    # Total count from census annual estimates of housing units for US in 2022
+    # PROBLEM: scale is too big for fitting!
+    buildings_in_us = 143789637
+    buildings_in_sample = data["Count"].sum()
+    size_weight = int(buildings_in_us / buildings_in_sample)
+    # TODO: weight based on proportion per size- you have that data for ranges. Problem: "50+"
+    data["Count"] = data["Count"] * size_weight # scale up to approximate actual proportions
+    data = data.fillna(0)
+    # Concat outliers into frame- done after weight because these buildings are very rare
+    data = data.add(outliers, fill_value=0)
+    data = data.add(hud_counts, fill_value=0)
+    data = data.reindex() # Outliers get added with odd indices. This should fix that.
+    #data["Count"] = data["Count"] / 10 # size is too large for scipy. Reduce it, but not so much that large buildings disappear.
 
-# Misc (https://www.cbsnews.com/media/10-of-the-tallest-residential-buildings-in-the-u-s/):
-# New York by Gehry, NY: 904 apartments
-# John Hancock Center, Chicago: 700 condos
-# 70 Pine Street, NY: 644 apartments
-# Brooklyn Tower, NY: 150 condos, 425 apartments = 575 units
-# Metropolis Condominium, Atlanta Georgia: 498 units
-# In plans (check if carried out): Baltimore Harborplace, ML: 900+ apartments
-manual_additions = {
-    904: 1,
-    700: 1,
-    644: 1,
-    575: 1
-}
-manual_additions = [
-    [904, 1],
-    [700, 1],
-    [644, 1],
-    [575, 1]
-]
-outliers = pd.DataFrame(data=manual_additions)
-outliers = outliers.rename(columns={0: "BuildingSize", 1: "Count"})
-outliers = outliers.set_index("BuildingSize")
-# For now; add the nrel in future for better sample
-data = neea_data
+    #fit_with_fitter(data)
+    #test_visually(data)
+    #goodness_fit_test()
 
-# Total count from census annual estimates of housing units for US in 2022
-buildings_in_us = 143789637
-buildings_in_sample = data["Count"].sum()
-size_weight = buildings_in_us / buildings_in_sample
-#size_weight = size_weight / 100 # Make it smaller to save processing time for initial fit- refit once you know some options
-data["Count"] = round(data["Count"] * size_weight) # scale up to approximate actual proportions
-data = data.fillna(0)
-# Concat outliers into frame- done after weight because these buildings are very rare
-data = data.add(outliers, fill_value = 0)
-#data = pd.concat([data, outliers])
-#print(data[904])
-#print(data)
-#print(get_original_data(data))
-
-#fit_with_fitter(data)
-# Add very large buildings here
-#test_visually(data)
-goodness_fit_test()
+    fit_data(data)
 
 """
  Generate random numbers:
@@ -231,3 +256,11 @@ rv = expon()
 ax.plot(x, expon.pdf(x),
     ...        'r-', lw=5, alpha=0.6, label='expon pdf')
 """
+
+# Thanks, multiprocessing
+if __name__ == '__main__':
+    mp.freeze_support()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("Stopping.")
