@@ -4,6 +4,9 @@
 PREP_FILES = True
 CREATE_STATISTICS = False
 
+# Database file target
+DATABASE = "records.db"
+
 # Set to true if you want to encrypt data before saving to file
 ENCRYPT = False
 # Set to True if processing encrypted data

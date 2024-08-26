@@ -13,7 +13,7 @@ from commonDB import helpers as h
 #dir_path = r'C:\\GitHub\\n95111-data\\NEEA\\2021'
 #dir_path = r'C:\\GitHub\\n95111-data\\NEEA\\2022'
 
-dir_path="..\\"
+dir_path="../data"
 
 def loadDataLabels(database):
     def str_to_int(v): # str -> int
@@ -75,8 +75,7 @@ def iterate(cur_path,allFiles):
             iterate(fullPath,allFiles)
 
 
-
-def main():
+def populateAll():
     allFiles = [] # list to store files
     iterate(dir_path,allFiles) # Find the files in this dir and its subdirectories
     database = 'records.db'
@@ -137,5 +136,3 @@ def main():
                     print("Columns missing from row:", str(row))
             DBConn.insert_PowerRecords(conn, allRows)
             print ("Done with", aFile)
-
-main()

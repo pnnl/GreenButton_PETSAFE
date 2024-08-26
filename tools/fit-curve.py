@@ -121,24 +121,38 @@ def goodness_fit_test(data):
     fit = scipy.stats.goodness_of_fit(dist, actual_data)
     print(fit)
 
+def data_to_hist(data):
+    print("Binning...")
+    stable_data = data.where(data < 200).dropna()
+    stable_bin_count = pd.unique(stable_data).size
+    #print(stable_data)
+    stable_hist = np.histogram(stable_data, bins=stable_bin_count)
+    stable_hist = pd.Series(data=stable_hist)
+    print(stable_hist)
+    dynamic_data = data.where(data >= 200).dropna()
+    # TODO: bin size as variable instead of set bin number
+    dynamic_hist = np.histogram(dynamic_data, bins=20) # range=(2,actual_data.max())
+    dynamic_hist = pd.Series(data=dynamic_hist)
+    full_hist = pd.concat([stable_hist, dynamic_hist], ignore_index=True)
+    #bin_centers = bin_borders[:-1] + np.diff(bin_borders) / 2
+    print(full_hist)
+    full_hist = pd.Series(data=full_hist)
+    #print("Bin borders:", bin_borders)
+    return full_hist
+
 def fit_data(data):
     # Test goodness of fit
     actual_data = get_original_data(data)
     dist = scipy.stats.halfcauchy
 
-    print("Binning...")
-    hist, bin_borders = np.histogram(actual_data, bins='fd', range=(2,actual_data.max()))
-    bin_centers = bin_borders[:-1] + np.diff(bin_borders) / 2
-    print(hist)
+    data["Count"] = data["Count"] / data["Count"].sum() # Portion of buildings with that size
+    hist = data_to_hist(actual_data)
 
     print("Fitting...")
-    fit = scipy.stats.fit(dist, hist) # , p0=[1., 0., 1.]
-
-    #x_interval_for_fit = np.linspace(bin_borders[0], bin_borders[-1], 10000)
-    #plt.plot(x_interval_for_fit, gaussian(x_interval_for_fit, *popt), label='fit')
-    #plt.legend()
+    fit = scipy.stats.goodness_of_fit(dist, hist)
     
     #fit = scipy.stats.fit(dist, actual_data)
+    # hist fit halfcauchy: (loc=1.0, scale=2.5739309079414565)
     print(fit)
 
 def test_visually(data):

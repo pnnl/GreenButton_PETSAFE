@@ -168,5 +168,5 @@ def pullRecords(database):
                 '''
 #loadDataLabels("records.db")
   
-
-pullRecords("records.db")
+if __name__ == "__main__":
+    pullRecords("records.db")

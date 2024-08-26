@@ -14,6 +14,21 @@ from building_analysis.decryptor import Decryptor
 # Output directory for prepped data
 OUTPUT_DIR = "./output/"
 
+def populate_database():
+    import processor.populateRecords as popdb
+    print("Creating database...")
+    popdb.populateAll()
+    print("Records created.")
+    
+def make_buildings(count):
+    pass
+
+
+
+
+
+
+
 def process_file(file):
     file = config.POWER_DIR + file
     try:
@@ -54,6 +69,12 @@ def unpickle_data():
 
 def main():
     if config.PREP_FILES == True:
+        populate_database()
+        make_buildings(config.BUILDING_COUNT)
+
+
+    """
+    if config.PREP_FILES == True:
         files = list_files_in_dir(config.POWER_DIR, False)
         # Establish a processed frame to append everything to so it can be pickled to one file
         frame = files.pop(0)
@@ -86,6 +107,7 @@ def main():
             if config.SAVE_AS_PICKLE == True:
                 pickle_data(frame)
             raise SystemExit
+    """
 
     if config.CREATE_STATISTICS == True:
         # TODO: read from pickle if available

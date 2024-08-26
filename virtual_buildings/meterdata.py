@@ -12,6 +12,9 @@ from virtual_buildings.building import Building
 from config import AGG_TEMPORAL_RESOLUTION, OUTPUT_DIR, PORTION_OF_CPU
 from logger_config import config_logger
 
+# This is meant to work with raw files in the data directory. To process buildings
+# from SQLite, see create_buildings.py.
+
 # Setting copy on write for PANDAS as recommended here:
 # https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
 pandas.options.mode.copy_on_write = True
