@@ -1,5 +1,4 @@
-import pandas
-from scipy.stats import pareto
+import pandas as pd
 from lightphe import LightPHE
 from os.path import exists
 from os import environ
@@ -8,15 +7,14 @@ from numpy import random
 from typing import Optional
 from scipy.stats import halfcauchy
 
-import processor.pullMains as pulldb
+#import processor.pullMains as pulldb
 from processor.commonDB import DBConn
 from logger_config import config_logger
-
 from config import DATABASE, SEED
 
 # Setting copy on write for PANDAS as recommended here:
 # https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
-pandas.options.mode.copy_on_write = True
+pd.options.mode.copy_on_write = True
 
 # Set up logger
 logger = config_logger()
@@ -25,35 +23,57 @@ randomizer = random.default_rng(SEED)
 
 # Gets a set of random building ids; used to create buildings
 def choose_random_ids():
+    # TODO: very large buildings will need duplicate sites
+    print("Generating building size.")
     # Get the building size
     dist_loc = 2
     dist_scale = 2.1624533028540704
     count = -1 # Obviously invalid placeholder to initiate while loop
-    while count < 2:
+    while count < 2 or count > 300: # 300 is temporary until duplication is handled
+        # TODO: get this to work with the random seed for predictability
         count = int(halfcauchy.rvs(loc=dist_loc, scale=dist_scale, size=1)[0]) # Generate building size
+    # ----------------------
+    count = 2 # Temporary to test everything works for minimum case
+    # ----------------------
     # Get possible IDs to choose from
-    conn = DBConn.create_connection(DATABASE)
-    query = "SELECT ee_site_id FROM POWER"
-    results = conn.execute(query)
-    ids = results.fetchall()
+    print("Selecting building IDs.")
+    with DBConn.create_connection(DATABASE) as conn:
+        query = "SELECT DISTINCT point_id FROM LABELS"
+        results = conn.execute(query)
+        ids = results.fetchall()
     # Select a random set from the results
     building_ids = randomizer.choice(ids, count, replace=False)
     return building_ids
+
+def make_buildings(count):
+    for i in range(0, count):
+        ids = choose_random_ids()
+        print("Creating building", i)
+        building = Building(ids, encrypt=False) # encryption false to check this works
+        print("Building", i, "created.")
 
 # The building class
 class Building:
     def __init__(
         self,
-        database: str = DATABASE,
-        ids: list = None,
-        encrypt: bool = True, # Whether or not to encrypt the building
+        ids: list,
+        database: Optional[str] = DATABASE,
+        encrypt: Optional[bool] = True, # Whether or not to encrypt the building
     ):
         self.__ids = ids
         self.__database = database
         self.__encryption_enabled = encrypt
 
+        self.__get_data()
+        #self.aggregate("1h") # Temporary, allow this to be passed
+
         if self.__encryption_enabled == True:
             self.__keys = self.__setup_encryption()
+
+        #self.save_data()
+    
+    def __str__(self):
+        return self.__data.to_string(max_rows=20)
 
     # Sets up and exports encryption keys; returns
     # a LightPHE Keys object
@@ -88,15 +108,30 @@ class Building:
                 raise SystemExit
             
     def __get_data(self):
-        conn = DBConn.create_connection(self.__database)
-        # TODO: finish this so the data is in a complete pandas frame
-        for id in self.__ids:
-            # TODO: narrow this to just mains?
-            query = f"SELECT * FROM POWER WHERE ee_site_id={id} ORDER BY timestamp"
-            results = conn.execute(query)
-            data = results.fetchall()
-        # Place into the same frame
-        self.__data = None # Will be the final
+        with DBConn.create_connection(self.__database) as conn:# Can this be parallelized? YES, as long as nothing writes
+            print("Connected to database.")
+            columns = ['ee_site_id', 'point_id', 'timestamp', 'duration', 'real_power', 'apparent_power', 'pf'] # used for frame creation
+            for id in self.__ids:
+                id = id[0]
+                print("ID:", id)
+                # TODO: narrow this to just mains?
+                # This is the slow step; may be best to parallelize or optimize querying (cache?)
+                query = f"SELECT * FROM POWER WHERE point_id={id}"
+                results = conn.execute(query)
+                data = []
+                while True:
+                    chunk = results.fetchmany(50000) # fetchall() results in MemoryError for invalid id value
+                    if chunk == []: # fetchmany returns empty list if there are no more results
+                        break
+                    else:
+                        data = data + chunk
+                # Place into the same frame
+                if not hasattr(self, '__data'):
+                    self.__data = pd.DataFrame.from_records(data=data, columns=columns)
+                else:
+                    newframe = pd.DataFrame.from_records(data=data, columns=columns)
+                    self.__data = pd.concat([self.__data, newframe])
+        return self.__data
 
     # Run after functions that change power factor (sum functions); recalculates it to be correct
     def __correct_power_factor(self, building):
@@ -120,5 +155,5 @@ class Building:
     def save_data(self):
         # TODO: save building to table in database
         # Structure: two tables? Building-site mapping and buildings data?
-        pass
+        raise NotImplemented
 

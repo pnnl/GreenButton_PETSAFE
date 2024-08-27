@@ -18,10 +18,9 @@
 | num | Column name               | Datatype            |
 |-----|---------------------------|---------------------|
 | 0   | ee_site_id                | Int                 |
-| 1   | point_id                  | Primary key         |
+| 1   | point_id (FK, Labels)     | Primary key, Int    |
 | 2   | timestamp                 | Int                 |
 | 3   | duration                  | Int                 |
 | 4   | P REAL                    | float?              |
 | 5   | Q REAL                    | float?              |
 | 6   | PF REAL                   | float               |
-| 7   | point_id (FK, Labels)     | Int                 |

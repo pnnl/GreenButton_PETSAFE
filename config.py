@@ -1,7 +1,8 @@
 # ----- GENERAL -----
 
 # Actions to perform
-PREP_FILES = True
+PREP_FILES = False
+CREATE_BUILDINGS = True
 CREATE_STATISTICS = False
 
 # Database file target
@@ -51,7 +52,7 @@ BUILDING_SIZE = 8
 # How many buildings to make per day if processing via distribution. 
 # # Set to -1 for "as many as possible without duplicating sites"
 # If processing multiple years for analysis, it's recommended to keep this value the same between years
-BUILDING_COUNT = 20
+BUILDING_COUNT = 1
 
 # Output directory for prepped data
 OUTPUT_DIR = "./output/"
@@ -61,6 +62,7 @@ LOG_FILE = OUTPUT_DIR + 'building_processing.log'
 
 # Root directory for input data
 ROOT_DATA_DIR = "./data/" + YEAR + "-Full_v8.1/" + YEAR + "/"
+ROOT_DATA_DIR = "./data"
 # Name of target directory in root dir
 POWER_DIR = ROOT_DATA_DIR + "power/"
 

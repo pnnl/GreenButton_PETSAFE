@@ -2,9 +2,13 @@ import os
 import csv
 import datetime
 import time
-
-from commonDB import DBConn
-from commonDB import helpers as h
+if __name__ == "__main__":
+    from commonDB import DBConn
+    from commonDB import helpers as h
+else:
+    from processor.commonDB import DBConn
+    from processor.commonDB import helpers as h
+    from config import DATABASE, ROOT_DATA_DIR
 
 # folder path
 #dir_path = r'C:\\GitHub\\n95111-data\\NEEA\\2018'
@@ -13,7 +17,7 @@ from commonDB import helpers as h
 #dir_path = r'C:\\GitHub\\n95111-data\\NEEA\\2021'
 #dir_path = r'C:\\GitHub\\n95111-data\\NEEA\\2022'
 
-dir_path="../data"
+dir_path = DATABASE
 
 def loadDataLabels(database):
     def str_to_int(v): # str -> int
@@ -35,7 +39,7 @@ def loadDataLabels(database):
     # Recreate the Labels table since we're loading data into it- no duplicates
     DBConn.drop_TABLE(database,"LABELS")
     DBConn.create_LablesTABLE(database)
-    dataLabels=os.path.join(dir_path,"processor","points.csv")
+    dataLabels=os.path.join(ROOT_DATA_DIR,"points.csv")
 
     #conn = DBConn.create_connection(database)
     # Read data from file
@@ -77,13 +81,13 @@ def iterate(cur_path,allFiles):
 
 def populateAll():
     allFiles = [] # list to store files
-    iterate(dir_path,allFiles) # Find the files in this dir and its subdirectories
+    #iterate(dir_path,allFiles) # Find the files in this dir and its subdirectories
+    iterate(ROOT_DATA_DIR, allFiles)
     database = 'records.db'
     # What is this?
     #["lt",["sqrt",["sum", ["pow","PowerSystemResource.Measurement.MeasurementType.ReactivePower",2], ["pow","PowerSystemResource.Measurement.MeasurementType.ActivePower",2]]],100]
 
-    # Why are we checking something that's always false? Testing convenience? TODO: ask
-    if 1 == 2:
+    if 1 == 1:
         loadDataLabels(database)
         DBConn.create_POWERTABLE(database)
     # create a database connection
@@ -112,27 +116,27 @@ def populateAll():
             # Retrieve data from file
             with open(aFile, newline='') as csvfile:
                 data = csv.reader(csvfile, delimiter=',', quotechar='"')
-            allRows = [] # Will hold file contents
-            for row in data:
-                if len(row) == 8 and row[0] != 'ee_site_id': # Assert that is not the header
-                    #assert row[4]=='15', "Measurements must have 15 minute intervals"
-                    site_id = int(row[0])
-                    circuit_label = row[1]
-                    try:
-                        pointID = points_DB[site_id][circuit_label]
-                        # prow: "print row" or "point row"
-                        prow = (site_id, pointID, h.getTime(row[2]), int(row[4]), h.getValue(row[5]), h.getValue(row[6]), h.getValue(row[7]))
-                        #print(', '.join(prow))
-                        allRows.extend([prow])
-                    except Exception as e:
-                        if site_id not in missing_ids: # This site has not had missing circuits before
-                            missing_ids[site_id] = [] # Add the site to the missing ids list to record that it wasn't processed
-                        if circuit_label not in missing_ids[site_id]: # This circuit has not been recorded as missing for this site
-                            missing_ids[site_id] += [circuit_label] # Add the circuit to the site's missing entries
-                            #x = os.path.basename(aFile)
-                            print (circuit_label, "is not present in siteID", site_id)
-                        #print (e)
-                elif len(row) != 8: # Handle misformatted data
-                    print("Columns missing from row:", str(row))
+                allRows = [] # Will hold file contents
+                for row in data:
+                    if len(row) == 8 and row[0] != 'ee_site_id': # Assert that is not the header
+                        #assert row[4]=='15', "Measurements must have 15 minute intervals"
+                        site_id = int(row[0])
+                        circuit_label = row[1]
+                        try:
+                            pointID = points_DB[site_id][circuit_label]
+                            # prow: "print row" or "point row"
+                            prow = (site_id, pointID, h.getTime(row[2]), int(row[4]), h.getValue(row[5]), h.getValue(row[6]), h.getValue(row[7]))
+                            #print(', '.join(prow))
+                            allRows.extend([prow])
+                        except Exception as e:
+                            if site_id not in missing_ids: # This site has not had missing circuits before
+                                missing_ids[site_id] = [] # Add the site to the missing ids list to record that it wasn't processed
+                            if circuit_label not in missing_ids[site_id]: # This circuit has not been recorded as missing for this site
+                                missing_ids[site_id] += [circuit_label] # Add the circuit to the site's missing entries
+                                #x = os.path.basename(aFile)
+                                print (circuit_label, "is not present in siteID", site_id)
+                            #print (e)
+                    elif len(row) != 8: # Handle misformatted data
+                        print("Columns missing from row:", str(row))
             DBConn.insert_PowerRecords(conn, allRows)
             print ("Done with", aFile)

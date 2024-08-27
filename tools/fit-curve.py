@@ -3,7 +3,6 @@ import scipy
 import multiprocessing as mp
 from math import floor
 import plotly.express as px
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from pandas import read_csv
@@ -123,36 +122,46 @@ def goodness_fit_test(data):
 
 def data_to_hist(data):
     print("Binning...")
+    # PROBLEM: everything I can find for fitting fits on raw data and makes a histogram
+    # AFTER the face. I need to fit the histogram itself without losing fit relevance.
+    # Could also try fitting a large random sample of the data repeatedly to see if the
+    # parameters converge?
     stable_data = data.where(data < 200).dropna()
     stable_bin_count = pd.unique(stable_data).size
     #print(stable_data)
-    stable_hist = np.histogram(stable_data, bins=stable_bin_count)
+    stable_hist = np.histogram(stable_data, bins=stable_bin_count)[0] # Discard bin edges for now
     stable_hist = pd.Series(data=stable_hist)
-    print(stable_hist)
     dynamic_data = data.where(data >= 200).dropna()
     # TODO: bin size as variable instead of set bin number
-    dynamic_hist = np.histogram(dynamic_data, bins=20) # range=(2,actual_data.max())
+    # TODO: bin edges need to be considered when fitting somehow
+    dynamic_hist = np.histogram(dynamic_data, bins=20)[0] # range=(2,actual_data.max())
     dynamic_hist = pd.Series(data=dynamic_hist)
     full_hist = pd.concat([stable_hist, dynamic_hist], ignore_index=True)
     #bin_centers = bin_borders[:-1] + np.diff(bin_borders) / 2
     print(full_hist)
     full_hist = pd.Series(data=full_hist)
     #print("Bin borders:", bin_borders)
+    # TODO: discard values < 2
     return full_hist
 
 def fit_data(data):
-    # Test goodness of fit
+    # Fit data to a distribution
     actual_data = get_original_data(data)
     dist = scipy.stats.halfcauchy
 
+    # This IS a probability density of sorts, just not continuous. Is there a way
+    # to make it continuous without needing the original data?
     data["Count"] = data["Count"] / data["Count"].sum() # Portion of buildings with that size
-    hist = data_to_hist(actual_data)
+    #hist = data_to_hist(actual_data)
+    print("Sampling...")
+    sample = actual_data.sample(frac=0.01) # Sample a smaller portion of the data
+    sample = sample.astype(int)
 
     print("Fitting...")
-    fit = scipy.stats.goodness_of_fit(dist, hist)
-    
-    #fit = scipy.stats.fit(dist, actual_data)
-    # hist fit halfcauchy: (loc=1.0, scale=2.5739309079414565)
+    #print(sample)
+    # TODO: repeat this to account for sample variation
+    fit = scipy.stats.fit(dist, actual_data, n_mc_samples=1000)
+    #fit = scipy.stats.goodness_of_fit(dist, sample, n_mc_samples=1000)
     print(fit)
 
 def test_visually(data):

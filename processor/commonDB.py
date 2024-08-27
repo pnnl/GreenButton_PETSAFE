@@ -67,8 +67,7 @@ class DBConn:
         cursor_obj = connection_obj.cursor()
         
         # Drop the table_name table if already exists.
-        # TODO: this would be a very easy attack vector for data destruction.
-        # I don't see any safeguards against data loss.
+        # TODO: I don't see any safeguards against data loss.
         cursor_obj.execute("DROP TABLE IF EXISTS " + table_name)
             
         cursor_obj.execute(table_descriptor)
@@ -118,8 +117,12 @@ class DBConn:
     @staticmethod 
     def query(conn, sql):
         cur = conn.cursor()
-        res=cur.execute(sql)
-        x=res.fetchall()
+        try:
+            res=cur.execute(sql)
+            x=res.fetchall()
+        except sqlite3.OperationalError as error:
+            print(error)
+            x = None
         return x
     
 
