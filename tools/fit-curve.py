@@ -6,50 +6,43 @@ import plotly.express as px
 import numpy as np
 import pandas as pd
 from pandas import read_csv
+import decimal
 
-# Parameters for curve
-# pareto: (0.5335371308758773, -0.16241563710448093, 2.1624156371044805)
-dist_c = 2.5335371308758773
-dist_loc = -0.16241563710448093
-dist_scale = 2.1624156371044805
+# Options:
+# "fit": fit parameters
+# "graph": create a graph of the selected distribution against the actual data
+# "show": print data
+ACTION = "fit"
 
-# levy
-dist_loc = 1.364779244088083
-dist_scale = 2.5963880878956456
-
-# halfcauchy
-dist_loc = 2
-dist_scale = 2.1624533028540704
-
-def get_nums_wrapper():
+def get_nums_wrapper(dist, args):
+    loc = args[0]
+    scale = args[1]
     nums = []
-    number_of_measurements = 1000 #2000000 # 341
+    number_of_measurements = 10000 #2000000 # 341
     max_size_limit = 50000
     min_size_limit = 2
     for i in range(0, number_of_measurements): # number of measurements to take
-        nums.append(get_num(min_size_limit, max_size_limit))
+        nums.append(get_num(min_size_limit, max_size_limit, dist, loc, scale))
     nums = pd.array(nums)
     numcounts = nums.value_counts()
     numcounts = numcounts / number_of_measurements # Convert to percentage of the time it was chosen
     return numcounts
 
-def get_num(min, max):
+def get_num(min, max, dist, loc, scale):
     num = -1 # Intentionally invalid starting value for while loop
     while num < min or num > max:
-        #num = int(scipy.stats.pareto.rvs(dist_c, loc=dist_loc, scale=dist_scale, size=1)[0])
-        #num = int(scipy.stats.levy.rvs(loc=dist_loc, scale=dist_scale, size=1)[0])
-        num = int(scipy.stats.halfcauchy.rvs(loc=dist_loc, scale=dist_scale, size=1)[0])
+        num = int(dist.rvs(loc=loc, scale=scale, size=1)[0])
     return num
 
 def expand_data_into_list(args):
     index = args[0]
     data = args[1]
-    try: # this is slow. parallelize?
+    try:
         print("Processing building size", index)
         countframe = data[data["BuildingSize"] == index] # grab the row for that building size
         count = int(countframe["Count"].iloc[0]) # how many of the building
         listnum = [int(index)] # the building size
-        expanded = listnum * count
+        expanded = listnum * count # Expand to a list of the size with len(count)
         expanded = pd.Series(expanded)
         return expanded
     except Exception as error:
@@ -62,7 +55,6 @@ def get_original_data(data):
     #actual_data = pd.Series()
     indices = pd.unique(data.index)
     data = data.reset_index()
-
     processors = mp.cpu_count()
     PORTION_OF_CPU = 0.5
     processors = floor(processors * PORTION_OF_CPU)
@@ -90,14 +82,6 @@ def fit_with_fitter(data):
     print(fitter.fitted_param["pareto"])
 
 # Results before adding large buildings:
-#             sumsquare_error          aic          bic  kl_div  ks_statistic     ks_pvalue
-# lomax             0.000146  1644.025381  1655.521029     inf      0.155425  1.165421e-07
-# genpareto         0.000146  1644.025778  1655.521426     inf      0.155425  1.165421e-07
-# pareto            0.000146  1644.027669  1655.523316     inf      0.155425  1.165421e-07
-# levy              0.000148  1650.078976  1657.742741     inf      0.144518  1.116687e-06
-# nct               0.000150  1647.454892  1662.782422     inf      0.124782  4.363519e-05
-# Recommended params for best fit:
-# {'lomax': {'c': 0.5335113173075132, 'loc': 1.999999999569653, 'scale': 2.16217857286271}}
 # pareto: (c=0.5335371308758773, loc=-0.16241563710448093, scale=2.1624156371044805)
 # levy: loc=1.364779244088083, scale=2.5963880878956456
 
@@ -114,68 +98,70 @@ def fit_with_fitter(data):
 def goodness_fit_test(data):
     # Test goodness of fit
     actual_data = get_original_data(data)
-    #dist = scipy.stats.pareto
-    #dist = scipy.stats.levy
     dist = scipy.stats.halfcauchy
     fit = scipy.stats.goodness_of_fit(dist, actual_data)
     print(fit)
 
 def data_to_hist(data):
     print("Binning...")
-    # PROBLEM: everything I can find for fitting fits on raw data and makes a histogram
-    # AFTER the face. I need to fit the histogram itself without losing fit relevance.
-    # Could also try fitting a large random sample of the data repeatedly to see if the
-    # parameters converge?
-    stable_data = data.where(data < 200).dropna()
-    stable_bin_count = pd.unique(stable_data).size
-    #print(stable_data)
-    stable_hist = np.histogram(stable_data, bins=stable_bin_count)[0] # Discard bin edges for now
-    stable_hist = pd.Series(data=stable_hist)
-    dynamic_data = data.where(data >= 200).dropna()
-    # TODO: bin size as variable instead of set bin number
-    # TODO: bin edges need to be considered when fitting somehow
-    dynamic_hist = np.histogram(dynamic_data, bins=20)[0] # range=(2,actual_data.max())
-    dynamic_hist = pd.Series(data=dynamic_hist)
-    full_hist = pd.concat([stable_hist, dynamic_hist], ignore_index=True)
-    #bin_centers = bin_borders[:-1] + np.diff(bin_borders) / 2
-    print(full_hist)
-    full_hist = pd.Series(data=full_hist)
-    #print("Bin borders:", bin_borders)
-    # TODO: discard values < 2
-    return full_hist
+    # TODO: Isn't data technically already binned? value_counts() -> hist?
+    bin_interval = 100 # Large buildings bin size
+    split_point = 201 # Where to switch to larger bins
+    min_size = 2
+    small_bins = list(range(min_size, split_point)) # Bin each small building size into its own bin
+    large_bins = list(range(split_point, data.max() + 1, bin_interval))
+    bins = small_bins + large_bins
+    data = data[data >= min_size]
+    hist, bin_edges = np.histogram(data, bins=bins)
+    print(hist, "\n", bin_edges)
+    return hist, bin_edges
 
 def fit_data(data):
     # Fit data to a distribution
+    """
+    # Histogram creation
     actual_data = get_original_data(data)
-    dist = scipy.stats.halfcauchy
-
-    # This IS a probability density of sorts, just not continuous. Is there a way
-    # to make it continuous without needing the original data?
-    data["Count"] = data["Count"] / data["Count"].sum() # Portion of buildings with that size
-    #hist = data_to_hist(actual_data)
-    print("Sampling...")
-    sample = actual_data.sample(frac=0.01) # Sample a smaller portion of the data
-    sample = sample.astype(int)
+    hist, bins = data_to_hist(actual_data)
+    data_to_fit = hist
+    """
+    def multivar_func(x, loc, scale):
+        from math import exp, pi
+        from scipy.special import factorial
+        dist = "halfcauchy"
+        match dist:
+            case "halfcauchy":
+                return (2/(pi * scale)) * (1/(1 + (x - loc)**2 / scale**2))
+                # loc: 0.01407878, scale: 2.32293437
+            case "poisson":
+                # x is k, scale is mu
+                x = x - loc
+                return exp(0-scale) * ((scale**x) / factorial(x))
+                # mu=1.12827518, loc=-0.0345403
+            case _:
+                return None
+    
+    # TODO: Look into kernel density estimation?
 
     print("Fitting...")
-    #print(sample)
-    # TODO: repeat this to account for sample variation
-    fit = scipy.stats.fit(dist, actual_data, n_mc_samples=1000)
-    #fit = scipy.stats.goodness_of_fit(dist, sample, n_mc_samples=1000)
-    print(fit)
+    data["Count"] = data["Count"] / data["Count"].sum()
+    x = data.index.astype(int).values
+    y = data["Count"]
+    parameters, covariance = scipy.optimize.curve_fit(multivar_func, x, y)
+    print("Parameters:", parameters)
+    print("Covariance:", covariance)
 
-def test_visually(data):
+def test_visually(data, simulated_curve_count, dist, args):
     # Test fit of data visually
     # Fill missing sizes
     indices = pd.unique(data.index)
-    max = indices[-1]
+    max = indices[-1] + 1
     index = range(0, max)
     data = data.reset_index()
     index = pd.Index(index, name="BuildingSize")
     data = data.set_index(["BuildingSize"]).reindex(index)
 
     # Get initial frame
-    numcounts = pd.Series(get_nums_wrapper())
+    numcounts = pd.Series(get_nums_wrapper(dist, args)).apply(decimal.Decimal)
     countFrame = data
     countFrame = countFrame.fillna(0)
     countFrame = countFrame.rename(columns={"Count": "Actual"})
@@ -183,9 +169,8 @@ def test_visually(data):
     print("Sum of actual:", countFrame["Actual"].sum())
 
     # More copies to see range
-    line_count = 30 # 4
-    for i in range(1, line_count + 1):
-        numcounts = pd.Series(get_nums_wrapper())
+    for i in range(1, simulated_curve_count + 1):
+        numcounts = pd.Series(get_nums_wrapper(dist, args)).apply(decimal.Decimal)
         countFrame["Simulated " + str(i)] = numcounts
         print("Simulated curve", i, "done.")
     countFrame.sort_index(inplace=True)
@@ -226,48 +211,56 @@ def main():
     hud_counts = hud_counts.reset_index()
     hud_counts = hud_counts.rename(columns={"TOTAL_UNIT_COUNT": "BuildingSize", "count": "Count"})
     hud_counts = hud_counts[hud_counts["BuildingSize"] > 1].set_index("BuildingSize") # Remove 1 and 0 unit counts
+    hud_counts["Count"] = hud_counts["Count"].apply(decimal.Decimal)
     #print("HUD counts:", hud_counts)
-
-    # Misc (https://www.cbsnews.com/media/10-of-the-tallest-residential-buildings-in-the-u-s/)
-    # confirmed with other sources:
-    # New York by Gehry, NY: 904 apartments
-    # John Hancock Center, Chicago: 700 condos
-    # 70 Pine Street, NY: 644 apartments
-    # Brooklyn Tower, NY: 150 condos, 425 apartments = 575 units
-    # Metropolis Condominium, Atlanta Georgia: 498 units
-    # In plans (check if carried out): Baltimore Harborplace, ML: 900+ apartments
-    manual_additions = [
-        [904, 1],
-        [700, 1],
-        [644, 1],
-        [575, 1],
-        [498, 1]
-    ]
-    outliers = pd.DataFrame(data=manual_additions)
-    outliers = outliers.rename(columns={0: "BuildingSize", 1: "Count"})
-    outliers = outliers.set_index("BuildingSize")
     # For now; add the nrel in future for better sample
     data = neea_data
 
     # Total count from census annual estimates of housing units for US in 2022
     # PROBLEM: scale is too big for fitting!
+
     buildings_in_us = 143789637
     buildings_in_sample = data["Count"].sum()
-    size_weight = int(buildings_in_us / buildings_in_sample)
-    # TODO: weight based on proportion per size- you have that data for ranges. Problem: "50+"
-    data["Count"] = data["Count"] * size_weight # scale up to approximate actual proportions
+    # We need more precision than floats; hence, decimal module
+    size_weight = decimal.Decimal(buildings_in_us / buildings_in_sample)
+    # Scale up to approximate actual proportions, round to whole number because half units don't make sense
+    data["Count"] = data["Count"] * size_weight
+    #data["Count"] = data["Count"].astype(str)
+    data["Count"] = data["Count"].apply(decimal.Decimal)
+    data["Count"] = data["Count"].apply(decimal.Decimal.quantize, args=[decimal.Decimal("1.")])
     data = data.fillna(0)
     # Concat outliers into frame- done after weight because these buildings are very rare
-    data = data.add(outliers, fill_value=0)
     data = data.add(hud_counts, fill_value=0)
-    data = data.reindex() # Outliers get added with odd indices. This should fix that.
-    #data["Count"] = data["Count"] / 10 # size is too large for scipy. Reduce it, but not so much that large buildings disappear.
+    data = data[data.index >= 2]
 
-    #fit_with_fitter(data)
-    #test_visually(data)
-    #goodness_fit_test()
+    # Convert to percent of results at that size
+    #data["Count"] = data["Count"] / data["Count"].sum()
+    #print("Count sums to:", data["Count"].sum())
 
-    fit_data(data)
+    ACTION = "graph"
+    dist = scipy.stats.halfcauchy
+    # Parameters for curve
+    # halfcauchy
+    #dist_loc = 2
+    #dist_scale = 2.1624533028540704
+    # Custom halfcauchy
+    # loc: 0.01407878, scale: 2.32293437
+    dist_loc = 0.01407878
+    dist_scale = 6
+    simulated_curve_count = 10 # 30
+    match ACTION:
+        case "fit":
+            fit_data(data)
+        case "graph":
+            args = [dist_loc, dist_scale]
+            test_visually(data, simulated_curve_count, dist, args)
+        case "goodness":
+            goodness_fit_test(data)
+        case "show":
+            print(data)
+        case "fitter-lib":
+            fit_with_fitter(data)
+
 
 """
  Generate random numbers:

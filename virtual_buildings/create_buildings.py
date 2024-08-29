@@ -107,6 +107,9 @@ class Building:
                 logger.critical("Key generation failure. Aborting.")
                 raise SystemExit
             
+    # Retrieves data for component sites via SQL query
+    # stores in self.__data
+    # returns updated self.__data
     def __get_data(self):
         with DBConn.create_connection(self.__database) as conn:# Can this be parallelized? YES, as long as nothing writes
             print("Connected to database.")
@@ -116,8 +119,8 @@ class Building:
                 print("ID:", id)
                 # TODO: narrow this to just mains?
                 # This is the slow step; may be best to parallelize or optimize querying (cache?)
-                query = f"SELECT * FROM POWER WHERE point_id={id}"
-                results = conn.execute(query)
+                query = "SELECT * FROM POWER WHERE point_id=?"
+                results = conn.execute(query.format(point_id=id))
                 data = []
                 while True:
                     chunk = results.fetchmany(50000) # fetchall() results in MemoryError for invalid id value
