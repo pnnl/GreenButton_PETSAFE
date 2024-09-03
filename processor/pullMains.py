@@ -20,14 +20,10 @@ def getEntriesOfType(
         conn, # Database connection
         ids: list # The list of type ids to match for circuit type
 ):
-    # TODO: sanity check id list to ensure it's not "get everything"
-    query = "SELECT *  FROM LABELS WHERE "
-    for id in ids:
-        query += "LABELS.circuit_label_type_id=" + str(id)
-        query += " OR "
-    query = query[:-4] # Remove ending OR
-    query += ";"
-    results = conn.execute(query)
+    # fstring is injection vector; parameterized mitigates that
+    query = "SELECT *  FROM LABELS WHERE LABELS.circuit_label_type_id IN (?)"
+    ids = str(tuple(ids)) # format for parameterized query
+    results = conn.execute(query, ids)
     x = results.fetchall()
     allEntries = []
     for xi in x:
@@ -61,7 +57,9 @@ def pullRecords(database):
 
             for p in points:
                 colName=str(p)
-                res = conn.execute(f'select timestamp,P  FROM POWER WHERE POWER.point_id = {p}  and POWER.timestamp >=unixepoch("2021-01-01")+3600*8   and POWER.timestamp <unixepoch("2022-01-01")+3600*8 ;')
+                params = str(p)
+                query = 'Select timestamp,P  FROM POWER WHERE POWER.point_id=? AND POWER.timestamp >=unixepoch("2021-01-01")+3600*8 AND POWER.timestamp < unixepoch("2022-01-01")+3600*8 ;'
+                res = conn.execute(query, params)
                 allPs=res.fetchall()
                 if len(allPs)==0:
                     print("No data found with pointID", colName)
