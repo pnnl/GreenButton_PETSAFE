@@ -32,9 +32,6 @@ def choose_random_ids():
     while count < 2:
         # TODO: get this to work with the random seed for predictability
         count = int(halfcauchy.rvs(loc=dist_loc, scale=dist_scale, size=1)[0]) # Generate building size
-    # ----------------------
-    count = 2 # Temporary to test everything works for minimum case
-    # ----------------------
     # Get possible IDs to choose from
     print("Selecting building IDs.")
     with DBConn.create_connection(DATABASE) as conn:
@@ -121,7 +118,8 @@ class Building:
             columns = ['ee_site_id', 'point_id', 'timestamp', 'duration', 'real_power', 'apparent_power', 'pf'] # used for frame creation
 
             # TODO: narrow this to just mains?
-            in_statement = str(self.__ids)
+            # We only need to query each id once. Convert to set to get unique.
+            in_statement = str(set((self.__ids)))
             print("Building IDs:", in_statement)
             # Parameterized query mitigates injection vector as per Python docs
             query = "SELECT * FROM POWER WHERE point_id IN (?);"
