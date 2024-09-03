@@ -14,11 +14,11 @@ import decimal
 # "show": print data
 ACTION = "fit"
 
-def get_nums_wrapper(dist, args):
+def get_nums_wrapper(dist, sample_per_curve, args):
     loc = args[0]
     scale = args[1]
     nums = []
-    number_of_measurements = 10000 #2000000 # 341
+    number_of_measurements = sample_per_curve #2000000 # 341
     max_size_limit = 50000
     min_size_limit = 2
     for i in range(0, number_of_measurements): # number of measurements to take
@@ -102,9 +102,11 @@ def goodness_fit_test(data):
     fit = scipy.stats.goodness_of_fit(dist, actual_data)
     print(fit)
 
-def data_to_hist(data):
+def actual_data_to_hist(data):
     print("Binning...")
     # TODO: Isn't data technically already binned? value_counts() -> hist?
+    # ANSWER: yes, but grouping larger bins improves the fit by raising them further from 0.
+    # Fit to center points of bins? You could use resample() on that section to lump them together
     bin_interval = 100 # Large buildings bin size
     split_point = 201 # Where to switch to larger bins
     min_size = 2
@@ -116,14 +118,17 @@ def data_to_hist(data):
     print(hist, "\n", bin_edges)
     return hist, bin_edges
 
+# https://stackoverflow.com/questions/37396264/pandas-equivalent-of-resample-for-integer-index
+def counted_data_to_hist(data):
+    data_to_bin = data[data.index >= 200]
+    rest_of_data = data[data.index < 200]
+    groupby_labels = (data_to_bin.index.to_series() / 100).astype(int)
+    newindex = groupby_labels.groupby(groupby_labels).apply(lambda x: np.mean(x.index))
+    data_to_bin = data_to_bin.groupby(groupby_labels).median().set_index(newindex)
+    return pd.concat([rest_of_data, data_to_bin])
+
 def fit_data(data):
     # Fit data to a distribution
-    """
-    # Histogram creation
-    actual_data = get_original_data(data)
-    hist, bins = data_to_hist(actual_data)
-    data_to_fit = hist
-    """
     def multivar_func(x, loc, scale):
         from math import exp, pi
         from scipy.special import factorial
@@ -143,6 +148,7 @@ def fit_data(data):
     # TODO: Look into kernel density estimation?
 
     print("Fitting...")
+    data["Count"] = data["Count"].apply(int)
     data["Count"] = data["Count"] / data["Count"].sum()
     x = data.index.astype(int).values
     y = data["Count"]
@@ -150,40 +156,42 @@ def fit_data(data):
     print("Parameters:", parameters)
     print("Covariance:", covariance)
 
-def test_visually(data, simulated_curve_count, dist, args):
+def test_visually(data, simulated_curve_count, sample_per_curve, dist, args):
     # Test fit of data visually
     # Fill missing sizes
     indices = pd.unique(data.index)
-    max = indices[-1] + 1
+    max = int(indices[-1] + 1)
     index = range(0, max)
     data = data.reset_index()
     index = pd.Index(index, name="BuildingSize")
     data = data.set_index(["BuildingSize"]).reindex(index)
 
     # Get initial frame
-    numcounts = pd.Series(get_nums_wrapper(dist, args)).apply(decimal.Decimal)
+    #numcounts = pd.Series(get_nums_wrapper(dist, sample_per_curve, args)).apply(decimal.Decimal)
     countFrame = data
     countFrame = countFrame.fillna(0)
     countFrame = countFrame.rename(columns={"Count": "Actual"})
+    countFrame["Actual"] = countFrame["Actual"].apply(decimal.Decimal)
     countFrame["Actual"] = countFrame["Actual"] / countFrame["Actual"].sum() # Resize to proportion of data w/that size
     print("Sum of actual:", countFrame["Actual"].sum())
 
     # More copies to see range
     for i in range(1, simulated_curve_count + 1):
-        numcounts = pd.Series(get_nums_wrapper(dist, args)).apply(decimal.Decimal)
+        numcounts = pd.Series(get_nums_wrapper(dist, sample_per_curve, args)).apply(decimal.Decimal)
         countFrame["Simulated " + str(i)] = numcounts
         print("Simulated curve", i, "done.")
     countFrame.sort_index(inplace=True)
     countFrame = countFrame.fillna(0)
     print(countFrame)
-    print("Actual count:", data["Count"].sum()) # For sampling reference
+    #print("Actual count:", data["Count"].sum()) # For sampling reference
     # Graph it
     fig = px.line(countFrame, labels={
         "value": "Percentage of buildings with size", 
-        "BuildingSize": "Building Size"})
+        "BuildingSize": "Unit Count"})
     max_x_axis_width = 50
     #fig.update_xaxes(autorangeoptions=dict(maxallowed=max_x_axis_width))
     fig.update_traces(opacity=0.75)
+    fig.data[0].line.color = "#A9A9A9"
     fig.show()
 
 
@@ -233,6 +241,9 @@ def main():
     data = data.add(hud_counts, fill_value=0)
     data = data[data.index >= 2]
 
+    # Rebin data to give larger buildings a shot at being fitted
+    data = counted_data_to_hist(data)
+
     # Convert to percent of results at that size
     #data["Count"] = data["Count"] / data["Count"].sum()
     #print("Count sums to:", data["Count"].sum())
@@ -245,21 +256,25 @@ def main():
     #dist_scale = 2.1624533028540704
     # Custom halfcauchy
     # loc: 0.01407878, scale: 2.32293437
-    dist_loc = 0.01407878
-    dist_scale = 6
-    simulated_curve_count = 10 # 30
+    dist_loc = 0.14739042
+    dist_scale = 2.34947676
+    simulated_curve_count = 3 # 30
+    sample_per_curve = 100000
+    large_building_bin_size = 100
     match ACTION:
         case "fit":
             fit_data(data)
         case "graph":
             args = [dist_loc, dist_scale]
-            test_visually(data, simulated_curve_count, dist, args)
+            test_visually(data, simulated_curve_count, sample_per_curve, dist, args)
         case "goodness":
             goodness_fit_test(data)
         case "show":
             print(data)
         case "fitter-lib":
             fit_with_fitter(data)
+        case "check_hist":
+            print(data.index)
 
 
 """
