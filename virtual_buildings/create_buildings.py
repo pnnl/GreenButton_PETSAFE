@@ -138,8 +138,6 @@ class Building:
     # stores in self.__data
     # returns updated self.__data
     def __get_data(self):
-        # TODO: if number of sites needed is larger than number in database (site duplication needed),
-        # make sure to only query for them once, then duplicate them (will need to change ID for index)
         with DBConn.create_connection(self.__database) as conn:
             print("Connected to database.")
 
@@ -188,9 +186,6 @@ class Building:
                         all_ids = all_ids.append(id)
                         dupesite["point_id"] = id
                         self.__data = pd.concat((self.__data, dupesite))
-        # TODO: problem: duped data is doubled. It should not be doubled. Sum is doubled but mean is normal- duped twice?
-        print("Sum:", self.__data.groupby(["point_id"]).sum()) # TODO: Consider using this to assert that sites were duped correctly
-        print("Mean:", self.__data.groupby(["point_id"]).mean()) # TODO: Consider using this to assert that sites were duped correctly
         return self.__data
 
     # Run after functions that change power factor (sum functions); recalculates it to be correct
@@ -211,7 +206,6 @@ class Building:
         na_rows = frame.loc[pd.isna(frame["power"]), :].index
         if not na_rows.empty:
             for row in na_rows:
-                # TODO: Log it
                 # Get similar data from one week ago
                 # TODO: expand to check other potentially similar days in the recent past- same day of week, similar temp, season, etc.
                 week_ago_date = (self.__data["timestamp"].iloc[row] - pd.Timedelta(7, "d")).date()
