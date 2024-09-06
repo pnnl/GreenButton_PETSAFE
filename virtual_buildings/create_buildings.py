@@ -11,7 +11,7 @@ from math import floor
 #import processor.pullMains as pulldb
 from processor.commonDB import DBConn
 from logger_config import config_logger
-from config import DATABASE, SEED
+from config import DATABASE, SEED, ENCRYPT_COLS
 
 # Setting copy on write for PANDAS as recommended here:
 # https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
@@ -30,8 +30,7 @@ def choose_random_ids():
     dist_scale = 2.1624533028540704
     count = -1 # Obviously invalid placeholder to initiate while loop
     while count < 2:
-        # TODO: get this to work with the random seed for predictability
-        count = int(halfcauchy.rvs(loc=dist_loc, scale=dist_scale, size=1)[0]) # Generate building size
+        count = int(halfcauchy.rvs(loc=dist_loc, scale=dist_scale, size=1, random_state=SEED)[0]) # Generate building size
     # Get possible IDs to choose from
     print("Selecting building IDs.")
     with DBConn.create_connection(DATABASE) as conn:
@@ -47,7 +46,7 @@ def make_buildings(count):
     for i in range(0, count):
         ids = choose_random_ids()
         print("Creating building", i)
-        building = Building(ids, encrypt=False) # encryption false to check this works
+        building = Building(ids, encrypt=False, building_id=i, pickle=True) # encryption false to check this works
         print("Building", i, "created.")
 
 # The building class
@@ -56,21 +55,31 @@ class Building:
         self,
         ids: list,
         database: Optional[str] = DATABASE,
+        building_id: Optional[int] = 0, # Building ID, used for saving to file
         encrypt: Optional[bool] = True, # Whether or not to encrypt the building
+        pickle: Optional[bool] = False # Whether to pickle the building to its own individual file
     ):
         self.__ids = ids
         self.__database = database
+        self.__bid = building_id
         self.__encryption_enabled = encrypt
+        self.__pickle = pickle
 
-        self.__get_data()
-        # Make sure the aggregation interval is greater than the interval in the data-
-        # reference duration column
-        #self.aggregate("1h") # Temporary, allow this to be passed
+        # Sanity check for id length
+        if len(self.__ids) < 2:
+            print("Building must have at least two units.")
+        else:
+            self.__get_data()
+            # Make sure the aggregation interval is greater than the interval in the data-
+            # reference duration column
+            #self.aggregate("1h") # Temporary, allow this to be passed
 
-        if self.__encryption_enabled == True:
-            self.__keys = self.__setup_encryption()
+            if self.__encryption_enabled == True:
+                self.__keys = self.__setup_encryption()
 
-        #self.save_data()
+            if self.__pickle == True:
+                self.save_data()
+                print("Building", self.__bid, "saved to pickle file.")
     
     def __str__(self):
         return self.__data.to_string(max_rows=20)
@@ -107,23 +116,45 @@ class Building:
                 logger.critical("Key generation failure. Aborting.")
                 raise SystemExit
             
+    # Encrypt all sensitive columns defined in config
+    def encrypt_building(self):
+        for column in self.__data.columns:
+            if column in ENCRYPT_COLS:
+                self.__data[column] = self.__data[column].apply(self.__encrypt_value)
+        return self.__data
+            
+    # Encrypt one column. Called by encrypt() during multiprocessing to speed things up
+    def __encrypt_value(
+            self,
+            target: str # the name of the value to encrypt
+            ):
+        # HE doesn't always play nicely with floats; conversion to INT is needed
+        # This conversion will be removed if we switch to CKKS
+        decimal_places = 8 # How many decimal places to keep; needs to be the same when decrypted
+        CONVERSION_SCALAR = 10**decimal_places
+        return self.__keys.encrypt(int(float(target) * CONVERSION_SCALAR))
+            
     # Retrieves data for component sites via SQL query
     # stores in self.__data
     # returns updated self.__data
     def __get_data(self):
         # TODO: if number of sites needed is larger than number in database (site duplication needed),
-        # make sure to only query for them once.
-        with DBConn.create_connection(self.__database) as conn:# Can this be parallelized? YES, as long as nothing writes
+        # make sure to only query for them once, then duplicate them (will need to change ID for index)
+        with DBConn.create_connection(self.__database) as conn:
             print("Connected to database.")
-            columns = ['ee_site_id', 'point_id', 'timestamp', 'duration', 'real_power', 'apparent_power', 'pf'] # used for frame creation
 
             # TODO: narrow this to just mains?
             # We only need to query each id once. Convert to set to get unique.
-            in_statement = str(set((self.__ids)))
-            print("Building IDs:", in_statement)
+            print("Building IDs:", self.__ids)
+            unique_ids = tuple(set(self.__ids))
+            query = f"SELECT * FROM POWER WHERE point_id IN {unique_ids};"
+            results = conn.execute(query)
+            # TODO: figure out why parameterized query gets no results
+            # in_statement = str(set(self.__ids))[1:-1]
+            # print("Building IDs:", in_statement)
             # Parameterized query mitigates injection vector as per Python docs
-            query = "SELECT * FROM POWER WHERE point_id IN (?);"
-            results = conn.execute(query, (in_statement,))
+            #query = "SELECT * FROM POWER WHERE point_id IN (?);"
+            #results = conn.execute(query, (in_statement,))
             print("Query done. Retrieving...")
 
             data = []
@@ -133,6 +164,8 @@ class Building:
                     break
                 else:
                     data = data + chunk
+            # Needed to concatenate frames properly because from_records() needs a list of columns
+            columns = ['ee_site_id', 'point_id', 'timestamp', 'duration', 'real_power', 'apparent_power', 'pf'] # used for frame creation
             # Place into the same frame
             if not hasattr(self, '__data'): # Frame does not exist yet
                 self.__data = pd.DataFrame.from_records(data=data, columns=columns)
@@ -140,28 +173,24 @@ class Building:
                 newframe = pd.DataFrame.from_records(data=data, columns=columns)
                 self.__data = pd.concat([self.__data, newframe])
 
-            """
-            for id in self.__ids:
-                id = id[0]
-                print("ID:", id)
-                # TODO: narrow this to just mains?
-                # This is the slow step; may be best to parallelize or optimize querying (cache?)
-                query = "SELECT * FROM POWER WHERE point_id=?"
-                results = conn.execute(query.format(point_id=id))
-                data = []
-                while True:
-                    chunk = results.fetchmany(50000) # fetchall() results in MemoryError for invalid id value
-                    if chunk == []: # fetchmany returns empty list if there are no more results
-                        break
-                    else:
-                        data = data + chunk
-                # Place into the same frame
-                if not hasattr(self, '__data'):
-                    self.__data = pd.DataFrame.from_records(data=data, columns=columns)
-                else:
-                    newframe = pd.DataFrame.from_records(data=data, columns=columns)
-                    self.__data = pd.concat([self.__data, newframe])
-            """
+            # Duplicate entries that are listed more than once in ids
+            id_counts = pd.Series(data=self.__ids).value_counts() # Find how many times IDs are duplicated
+            all_ids = list(unique_ids) # Needs to be separate so we can append without affecting for loop
+            for id in unique_ids:
+                if id_counts[id] > 1:
+                    print(id, "is duplicated", id_counts[id], "times.")
+                    for i in range(1, id_counts[id]):
+                        # Duplicate ID into a new fake site
+                        dupesite = self.__data[self.__data["point_id"] == id]
+                        # Point ID of dupe needs to be changed; index must be unique
+                        while id in unique_ids:
+                            id += 1
+                        all_ids = all_ids.append(id)
+                        dupesite["point_id"] = id
+                        self.__data = pd.concat((self.__data, dupesite))
+        # TODO: problem: duped data is doubled. It should not be doubled. Sum is doubled but mean is normal- duped twice?
+        print("Sum:", self.__data.groupby(["point_id"]).sum()) # TODO: Consider using this to assert that sites were duped correctly
+        print("Mean:", self.__data.groupby(["point_id"]).mean()) # TODO: Consider using this to assert that sites were duped correctly
         return self.__data
 
     # Run after functions that change power factor (sum functions); recalculates it to be correct
@@ -206,7 +235,8 @@ class Building:
         # Make sure it's a pandas frame
 
     def save_data(self):
-        # TODO: save building to table in database
-        # Structure: two tables? Building-site mapping and buildings data?
-        raise NotImplemented
+        # TODO: save building to table in database?
+        # Right now, we pickle it
+        filename = "Building-" + str(self.__bid) + ".pkl"
+        self.__data.to_pickle(filename)
 

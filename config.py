@@ -1,7 +1,7 @@
 # ----- GENERAL -----
 
 # Actions to perform
-PREP_FILES = False
+READ_FILES = False
 CREATE_BUILDINGS = True
 CREATE_STATISTICS = False
 

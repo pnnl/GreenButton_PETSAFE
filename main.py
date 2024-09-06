@@ -1,13 +1,9 @@
 import multiprocessing
-import pickle
 import pandas as pd
-from math import floor
 
 import config
-from list_files import list_files_in_dir
 
 # Building module-related imports
-from virtual_buildings import meterdata as md
 from virtual_buildings import create_buildings as cb
 #from building_analysis.reader import Reader
 #from building_analysis.decryptor import Decryptor
@@ -35,7 +31,7 @@ def main():
             data = pd.DataFrame.from_records(data=data, columns=columns)
         print(data)
 
-    if config.PREP_FILES == True:
+    if config.READ_FILES == True:
         populate_database()
     
     if config.CREATE_BUILDINGS == True:
