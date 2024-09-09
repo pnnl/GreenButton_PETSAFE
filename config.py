@@ -69,6 +69,6 @@ POWER_DIR = ROOT_DATA_DIR + "power/"
 # ----- ENCRYPTION AND RANDOMIZATION -----
 
 # Which columns to encrypt
-ENCRYPT_COLS = ["power", "apparent_power", "pf", "sites"]
+ENCRYPT_COLS = ["real_power", "apparent_power", "pf"]
 # Seed to use for building site randomization
 SEED = 176575734

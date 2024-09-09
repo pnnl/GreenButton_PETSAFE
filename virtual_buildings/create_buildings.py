@@ -2,7 +2,7 @@ import pandas as pd
 from lightphe import LightPHE
 from os.path import exists
 from os import environ
-from multiprocessing import Lock
+import multiprocessing as mp
 from numpy import random
 from typing import Optional
 from scipy.stats import halfcauchy
@@ -11,7 +11,7 @@ from math import floor
 #import processor.pullMains as pulldb
 from processor.commonDB import DBConn
 from logger_config import config_logger
-from config import DATABASE, SEED, ENCRYPT_COLS
+from config import DATABASE, SEED, ENCRYPT_COLS, PORTION_OF_CPU
 
 # Setting copy on write for PANDAS as recommended here:
 # https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
@@ -34,7 +34,8 @@ def choose_random_ids():
     # Get possible IDs to choose from
     print("Selecting building IDs.")
     with DBConn.create_connection(DATABASE) as conn:
-        query = "SELECT DISTINCT point_id FROM LABELS"
+        # TODO: what if site has no Mains?
+        query = "SELECT DISTINCT point_id FROM LABELS WHERE LABELS.circuit_label_type_id IN (15,16)" # Only mains
         results = conn.execute(query)
         ids = results.fetchall()
     # Select a random set from the results
@@ -46,8 +47,9 @@ def make_buildings(count):
     for i in range(0, count):
         ids = choose_random_ids()
         print("Creating building", i)
-        building = Building(ids, encrypt=False, building_id=i, pickle=True) # encryption false to check this works
+        building = Building(ids, encrypt=True, building_id=i, pickle=True) # encryption false to check this works
         print("Building", i, "created.")
+        print(building.get_data)
 
 # The building class
 class Building:
@@ -69,13 +71,16 @@ class Building:
         if len(self.__ids) < 2:
             print("Building must have at least two units.")
         else:
-            self.__get_data()
+            self.__query_database()
+            self.__data = self.aggregate("15min")
+
+            # TODO: when changing resolution-
             # Make sure the aggregation interval is greater than the interval in the data-
             # reference duration column
-            #self.aggregate("1h") # Temporary, allow this to be passed
 
             if self.__encryption_enabled == True:
                 self.__keys = self.__setup_encryption()
+                self.__data = self.encrypt_building()
 
             if self.__pickle == True:
                 self.save_data()
@@ -101,26 +106,52 @@ class Building:
                     keys.export_keys(target_file = self.__KEY_LOCATION + "public.txt", public = True)
                     keys.export_keys(target_file = self.__KEY_LOCATION + "private.txt", public = False)
                 except Exception as ex:
-                    with Lock():
-                        logger.error("Unable to export keys. Decryption may fail. Reason: " + str(ex))
+                    print("Unable to export keys. Decryption may fail. Reason: " + str(ex))
                 return keys
             elif exists(self.__KEY_LOCATION + "private.txt"):
                 privkey = LightPHE(algorithm_name = self.__ALGORITHM, key_file=self.__KEY_LOCATION + "private.txt")
                 return privkey
             else:
-                with Lock():
-                    logger.critical("Encryption setup failed.")
+                print("Encryption setup failed.")
                 raise SystemExit
         except:
-            with Lock():
-                logger.critical("Key generation failure. Aborting.")
-                raise SystemExit
+            print("Key generation failure. Aborting.")
+            raise SystemExit
             
     # Encrypt all sensitive columns defined in config
     def encrypt_building(self):
-        for column in self.__data.columns:
-            if column in ENCRYPT_COLS:
-                self.__data[column] = self.__data[column].apply(self.__encrypt_value)
+        def encrypt_value(
+            target: str # the name of the value to encrypt
+            ):
+            # HE doesn't always play nicely with floats; conversion to INT is needed
+            # This conversion will be removed if we switch to CKKS
+            decimal_places = 8 # How many decimal places to keep; needs to be the same when decrypted
+            CONVERSION_SCALAR = 10**decimal_places
+            return self.__keys.encrypt(int(float(target) * CONVERSION_SCALAR))
+        
+        def worker(column):
+            try:
+                print("Encrypting", column)
+                if column in ENCRYPT_COLS:
+                    self.__data[column] = self.__data[column].apply(encrypt_value)
+                    return 0
+            except Exception as ex:
+                print("Could not encrypt", column + ":", ex)
+                return 1
+        
+        print("Encrypting.")
+        processors = mp.cpu_count()
+        processors = floor(processors * PORTION_OF_CPU)
+        results = []
+        with mp.Pool(processes=processors) as pool:
+            for result in pool.map(worker, self.__data.columns):
+                try:
+                    results.append(result)
+                except KeyboardInterrupt:
+                    pool.terminate()
+        if 1 in results:
+            print("Some columns not encrypted. See log for errors.")
+        print(self.__data)
         return self.__data
             
     # Encrypt one column. Called by encrypt() during multiprocessing to speed things up
@@ -137,7 +168,7 @@ class Building:
     # Retrieves data for component sites via SQL query
     # stores in self.__data
     # returns updated self.__data
-    def __get_data(self):
+    def __query_database(self):
         with DBConn.create_connection(self.__database) as conn:
             print("Connected to database.")
 
@@ -186,51 +217,80 @@ class Building:
                         all_ids = all_ids.append(id)
                         dupesite["point_id"] = id
                         self.__data = pd.concat((self.__data, dupesite))
+            # Timestamps need to be datetime for resample to work for aggregation
+            self.__data['timestamp'] = pd.to_datetime(self.__data['timestamp'],unit='s')
         return self.__data
 
     # Run after functions that change power factor (sum functions); recalculates it to be correct
     def __correct_power_factor(self, building):
         # Fix the power factor
-        building["pf"] = building["power"] / building["apparent_power"]
+        building["pf"] = building["real_power"] / building["apparent_power"]
         return building
     
     def __impute(
             self,
+            target, # The frame to impute on
             outage_threshold: Optional[int] = 6 # Minimum # of missed consecutive readings to consider it an outage, not a meter failure
             ):
+        print("Imputing missing data.") # TODO: only display after checking this is necessary
+        # We need to zero any N/A PF values; many of these should be zero to begin with, but for those corresponding
+        # to outages, it'll be recalculated after real and apparent power are imputed. We don't want the
+        # should-be-zero PF values to be included when finding N/A rows.
+        target["pf"] = target["pf"].fillna(0)
+        # Simple fills first: chains of less than the outage_threshold can be forward or backward filled.
         max_fills = floor(outage_threshold / 2)
-        self.__data = self.__data.infer_objects(copy=False)
-        self.__data = self.__data.ffill(limit=max_fills)
-        self.__data = self.__data.bfill(limit=max_fills)
+        target = target.infer_objects(copy=False)
+        target = target.ffill(limit=max_fills)
+        target = target.bfill(limit=max_fills)
         # TODO: log that fills took place
-        na_rows = frame.loc[pd.isna(frame["power"]), :].index
-        if not na_rows.empty:
+        # Find any remaining rows containing N/A that need more involved imputation
+        na_rows = target.loc[pd.isna(target["real_power"]), :].index
+        if not na_rows.empty: # If we have N/A rows
             for row in na_rows:
                 # Get similar data from one week ago
                 # TODO: expand to check other potentially similar days in the recent past- same day of week, similar temp, season, etc.
-                week_ago_date = (self.__data["timestamp"].iloc[row] - pd.Timedelta(7, "d")).date()
-                week_ago_data = self.__data[self.__data["timestamp"] == week_ago_date]
-                # Fill with prev data from year if available
+                # Procedural way to know this?
+                week_ago_date = (target["timestamp"].iloc[row] - pd.Timedelta(7, "d")).date()
+                week_ago_data = target[target["timestamp"] == week_ago_date]
+                # TODO: Fill with prev data from year if available
                 print("One week ago:", week_ago_date)
-                # TODO: historical fill goes here
-        frame = frame.fillna(0) # Catch anything the fill methods missed
+        target = target.fillna(0) # Catch anything the fill methods missed. TODO: Make sure to log this!
+        return target
 
-    def aggregate(self, resolution): # resolution should be a valid resample value
-        siteids = self.__data["sites"]
-        self.__data = self.__data.drop("sites") # Str type doesn't work with resample
-        try:
-            self.__data = self.__data.resample(resolution).sum()
-            self.__data = self.__correct_power_factor(self.__data)
-        except Exception as ex:
-            with Lock():
-                logger.error("Building " + self.__bid + ": Could not resample: " + ex)
-        self.__data["sites"] = siteids # replace when done
-        self.resolution = resolution
-        # Make sure it's a pandas frame
+    def change_resolution(self, resolution): # resolution should be a valid resample value
+        # Do each point separately to avoid duplicate timestamp issues
+        siteids = self.__data["ee_point_id"]
+        for site in siteids:
+            try:
+                sitedata = self.__data[self.__data["site"] == site]
+                # Resample to desired time resolution
+                sitedata = sitedata.resample(resolution, on="timestamp").sum()
+                # Power factor will be inaccurate; should be 1 or less. Recalculate it.
+                sitedata = self.__correct_power_factor(self.__data)
+                # Place aggregated site back into sitedata
+                print(sitedata)
+                self.__data[self.__data["site"] == site] = sitedata
+            except Exception as ex:
+                print("Building " + self.__bid + ": Could not resample: " + ex)
+        return self.__data
+
+    def aggregate(self, resolution):
+        # For each matching timestamp, sum values at all sites
+        print("Aggregating.")
+        mains = self.__data
+        mains = self.__impute(mains)
+        # For each timestamp in the ids list, sum all values
+        # TODO: Impute BEFORE doing this
+        mains = mains.resample(resolution, on="timestamp").sum()
+        return mains
+    
 
     def save_data(self):
         # TODO: save building to table in database?
         # Right now, we pickle it
         filename = "Building-" + str(self.__bid) + ".pkl"
         self.__data.to_pickle(filename)
+
+    def get_data(self):
+        return self.__data
 
