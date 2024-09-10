@@ -32,6 +32,11 @@ def choose_random_ids():
     while count < 2:
         count = int(halfcauchy.rvs(loc=dist_loc, scale=dist_scale, size=1, random_state=SEED)[0]) # Generate building size
     # Get possible IDs to choose from
+
+# TEMP
+    count = 2
+# TEMP
+
     print("Selecting building IDs.")
     with DBConn.create_connection(DATABASE) as conn:
         # TODO: what if site has no Mains?
@@ -117,9 +122,9 @@ class Building:
         except:
             print("Key generation failure. Aborting.")
             raise SystemExit
-            
-    # Encrypt all sensitive columns defined in config
-    def encrypt_building(self):
+        
+
+    def worker(self, column):
         def encrypt_value(
             target: str # the name of the value to encrypt
             ):
@@ -129,28 +134,31 @@ class Building:
             CONVERSION_SCALAR = 10**decimal_places
             return self.__keys.encrypt(int(float(target) * CONVERSION_SCALAR))
         
-        def worker(column):
-            try:
+        try:
+            if column in ENCRYPT_COLS:
                 print("Encrypting", column)
-                if column in ENCRYPT_COLS:
-                    self.__data[column] = self.__data[column].apply(encrypt_value)
-                    return 0
-            except Exception as ex:
-                print("Could not encrypt", column + ":", ex)
-                return 1
-        
-        print("Encrypting.")
+                self.__data[column] = self.__data[column].apply(encrypt_value)
+                return (self.__data[column], column)
+        except Exception as ex:
+            print("Could not encrypt", column + ":", ex)
+            return ("Encryption failed for " + column, column)
+                        
+    # Encrypt all sensitive columns defined in config
+    def encrypt_building(self):
+        # Took about 90 mins for 4 sites over whole time period
         processors = mp.cpu_count()
         processors = floor(processors * PORTION_OF_CPU)
-        results = []
+        results = {}
         with mp.Pool(processes=processors) as pool:
-            for result in pool.map(worker, self.__data.columns):
+            for result in pool.map(self.worker, self.__data.columns):
                 try:
-                    results.append(result)
+                    column = result[1]
+                    data = result[0]
+                    results[column] = data
                 except KeyboardInterrupt:
                     pool.terminate()
-        if 1 in results:
-            print("Some columns not encrypted. See log for errors.")
+        for column in results:
+            self.__data[column] = results[column]
         print(self.__data)
         return self.__data
             

@@ -29,9 +29,13 @@ def get_nums_wrapper(dist, sample_per_curve, args):
     return numcounts
 
 def get_num(min, max, dist, loc, scale):
+    loc1 = -18.2106283
+    scale1 = 33.35380842
+    loc2 = -3.59212261
+    scale2 = 3.0540727
     num = -1 # Intentionally invalid starting value for while loop
     while num < min or num > max:
-        num = int(dist.rvs(loc=loc, scale=scale, size=1)[0])
+        num = int(dist.rvs(loc1=loc1, scale1=scale1, loc2=loc2, scale2=scale2, size=1)[0])
     return num
 
 def expand_data_into_list(args):
@@ -129,6 +133,7 @@ def counted_data_to_hist(data):
 
 def fit_data(data):
     # Fit data to a distribution
+    from typing import Optional
     def multivar_func(x, loc, scale):
         from math import exp, pi
         from scipy.special import factorial
@@ -144,15 +149,25 @@ def fit_data(data):
                 # mu=1.12827518, loc=-0.0345403
             case _:
                 return None
+            
+    def custom_function(x, loc1, scale1, loc2, scale2):
+        from math import pi, sqrt, e
+        from numpy import log
+        from scipy.stats import lognorm
+        # halfcauchy + log-normal
+        return (2/(pi * scale1)) * (1/(1 + (x - loc1)**2 / scale1**2)) + \
+                (1/(x * scale2 * (sqrt(2 * pi)))) * (e**(-1/2 * ((log(x) - loc2) / scale2))**2)
     
     # TODO: Look into kernel density estimation?
+    # TODO: Extend rv_discrete with custom function to inherit rng methods
 
     print("Fitting...")
     data["Count"] = data["Count"].apply(int)
     data["Count"] = data["Count"] / data["Count"].sum()
     x = data.index.astype(int).values
     y = data["Count"]
-    parameters, covariance = scipy.optimize.curve_fit(multivar_func, x, y)
+    from numpy import inf
+    parameters, covariance = scipy.optimize.curve_fit(custom_function, x, y, bounds=(0, inf))
     print("Parameters:", parameters)
     print("Covariance:", covariance)
 
@@ -196,6 +211,19 @@ def test_visually(data, simulated_curve_count, sample_per_curve, dist, args):
 
 
 def main():
+
+    # Create custom distribution
+    from scipy.stats import rv_discrete
+    from math import pi, sqrt, e
+    from numpy import log
+    class building_dist(rv_discrete):
+        def _argcheck(self, loc1, scale1, loc2, scale2):
+            return True # Figure this out later, just need it to work for now
+        def _pmf(self, x, loc1, scale1, loc2, scale2):
+            # Divide and log of denom of second part is 0
+            return (2/(pi * scale1)) * (1/(1 + (x - loc1)**2 / scale1**2)) + \
+                ((1/(x * scale2 * (sqrt(2 * pi)) * e))**(-1/2 * ((log(x) - loc2) / scale2))**2)
+
     # Get the data and index
 
     # Set: 2022 NEEA RSBA; WA, OR, ID (NEEA)
@@ -249,23 +277,27 @@ def main():
     #print("Count sums to:", data["Count"].sum())
 
     ACTION = "graph"
-    dist = scipy.stats.halfcauchy
+    #dist = scipy.stats.halfcauchy
+    dist = building_dist(name="building_dist")
     # Parameters for curve
     # halfcauchy
     #dist_loc = 2
     #dist_scale = 2.1624533028540704
     # Custom halfcauchy
-    # loc: 0.01407878, scale: 2.32293437
-    dist_loc = 0.14739042
-    dist_scale = 2.34947676
+    # loc: 0.14739042, scale: 2.34947676
+    dist_loc1 = 1.74710558e-11
+    dist_scale1 = 0.225850421
+    dist_loc2 = 5.24691790
+    dist_scale2 = 2.80952836
     simulated_curve_count = 3 # 30
-    sample_per_curve = 100000
+    sample_per_curve = 1000
     large_building_bin_size = 100
     match ACTION:
         case "fit":
             fit_data(data)
         case "graph":
-            args = [dist_loc, dist_scale]
+            #args = [dist_loc1, dist_scale1]
+            args = [dist_loc1, dist_scale1, dist_loc2, dist_scale2]
             test_visually(data, simulated_curve_count, sample_per_curve, dist, args)
         case "goodness":
             goodness_fit_test(data)
