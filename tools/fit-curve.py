@@ -8,53 +8,49 @@ import pandas as pd
 from pandas import read_csv
 import decimal
 
-# Options:
-# "fit": fit parameters
-# "graph": create a graph of the selected distribution against the actual data
-# "show": print data
-ACTION = "fit"
-
 def get_nums_wrapper(dist, sample_per_curve, args):
-    loc = args[0]
-    scale = args[1]
     nums = []
     number_of_measurements = sample_per_curve #2000000 # 341
     max_size_limit = 50000
     min_size_limit = 2
     for i in range(0, number_of_measurements): # number of measurements to take
-        nums.append(get_num(min_size_limit, max_size_limit, dist, loc, scale))
+        nums.append(get_num(min_size_limit, max_size_limit, dist, args))
     nums = pd.array(nums)
     numcounts = nums.value_counts()
     numcounts = numcounts / number_of_measurements # Convert to percentage of the time it was chosen
     return numcounts
 
-def get_num(min, max, dist, loc, scale):
-    loc1 = -18.2106283
-    scale1 = 33.35380842
-    loc2 = -3.59212261
-    scale2 = 3.0540727
+def get_num(min, max, dist, args):
+    loc1 = args[0]
+    #loc2 = args[1]
+    scale1 = args[2]
+    #scale2 = args[3]
     num = -1 # Intentionally invalid starting value for while loop
+    attempts = 0 # Limit how many tries can be done in case we wind up stuck with invalid values
     while num < min or num > max:
-        num = int(dist.rvs(loc1=loc1, scale1=scale1, loc2=loc2, scale2=scale2, size=1)[0])
+        num = int(dist.rvs(loc1=loc1, scale1=scale1, size=1)[0])
+        attempts += 1
+        if attempts > 10:
+            break
     return num
-
-def expand_data_into_list(args):
-    index = args[0]
-    data = args[1]
-    try:
-        print("Processing building size", index)
-        countframe = data[data["BuildingSize"] == index] # grab the row for that building size
-        count = int(countframe["Count"].iloc[0]) # how many of the building
-        listnum = [int(index)] # the building size
-        expanded = listnum * count # Expand to a list of the size with len(count)
-        expanded = pd.Series(expanded)
-        return expanded
-    except Exception as error:
-        print("No index:", index)
-        print(error)
 
 # Get the data in original form for fitting- duplicate values and all.
 def get_original_data(data):
+    def expand_data_into_list(args):
+        index = args[0]
+        data = args[1]
+        try:
+            print("Processing building size", index)
+            countframe = data[data["BuildingSize"] == index] # grab the row for that building size
+            count = int(countframe["Count"].iloc[0]) # how many of the building
+            listnum = [int(index)] # the building size
+            expanded = listnum * count # Expand to a list of the size with len(count)
+            expanded = pd.Series(expanded)
+            return expanded
+        except Exception as error:
+            print("No index:", index)
+            print(error)
+
     print("Preparing data for fitting (may take a while for large sets)...")
     #actual_data = pd.Series()
     indices = pd.unique(data.index)
@@ -131,7 +127,7 @@ def counted_data_to_hist(data):
     data_to_bin = data_to_bin.groupby(groupby_labels).median().set_index(newindex)
     return pd.concat([rest_of_data, data_to_bin])
 
-def fit_data(data):
+def fit_data(data, dist):
     # Fit data to a distribution
     from typing import Optional
     def multivar_func(x, loc, scale):
@@ -149,14 +145,6 @@ def fit_data(data):
                 # mu=1.12827518, loc=-0.0345403
             case _:
                 return None
-            
-    def custom_function(x, loc1, scale1, loc2, scale2):
-        from math import pi, sqrt, e
-        from numpy import log
-        from scipy.stats import lognorm
-        # halfcauchy + log-normal
-        return (2/(pi * scale1)) * (1/(1 + (x - loc1)**2 / scale1**2)) + \
-                (1/(x * scale2 * (sqrt(2 * pi)))) * (e**(-1/2 * ((log(x) - loc2) / scale2))**2)
     
     # TODO: Look into kernel density estimation?
     # TODO: Extend rv_discrete with custom function to inherit rng methods
@@ -167,7 +155,7 @@ def fit_data(data):
     x = data.index.astype(int).values
     y = data["Count"]
     from numpy import inf
-    parameters, covariance = scipy.optimize.curve_fit(custom_function, x, y, bounds=(0, inf))
+    parameters, covariance = scipy.optimize.curve_fit(dist.get_equation, x, y, bounds=(0, inf))
     print("Parameters:", parameters)
     print("Covariance:", covariance)
 
@@ -216,13 +204,37 @@ def main():
     from scipy.stats import rv_discrete
     from math import pi, sqrt, e
     from numpy import log
+    # Custom halfcauchy
+    # loc: 0.14739042, scale: 2.34947676
+    dist_loc1 = 1.74710558e-11
+    dist_scale1 = 2.25850421e-01
+    dist_loc1 = 0.14739042
+    dist_scale1 = 2.34947676
+    dist_loc2 = 5.24691790
+    dist_scale2 = 2.80952836
+    ACTION = "graph"
+    simulated_curve_count = 3 # 30
+    sample_per_curve = 1000
+    large_building_bin_size = 100
     class building_dist(rv_discrete):
-        def _argcheck(self, loc1, scale1, loc2, scale2):
+        def _argcheck(self, loc1, scale1):
             return True # Figure this out later, just need it to work for now
-        def _pmf(self, x, loc1, scale1, loc2, scale2):
+        # Currently returns 0s and nothing else.
+        def _pmf(self, x, loc1, scale1):
             # Divide and log of denom of second part is 0
+            return (2/(pi * scale1)) * (1/(1 + (x - loc1)**2 / scale1**2)) #+ \
+            #return ((1/(x * scale2 * (sqrt(2 * pi)))) * e**((-1/2 * ((log(x) - loc2)) / scale2)**2))
+        def get_equation(self, x, loc1, scale1, loc2, scale2):
             return (2/(pi * scale1)) * (1/(1 + (x - loc1)**2 / scale1**2)) + \
-                ((1/(x * scale2 * (sqrt(2 * pi)) * e))**(-1/2 * ((log(x) - loc2) / scale2))**2)
+            ((1/(x * scale2 * (sqrt(2 * pi)))) * e**((-1/2 * ((log(x) - loc2)) / scale2)**2))
+
+    dist = building_dist(name="building_dist")
+    # Parameters for curve
+    # halfcauchy
+    #dist_loc = 2
+    #dist_scale = 2.1624533028540704
+    # Custom halfcauchy
+    # loc: 0.14739042, scale: 2.34947676
 
     # Get the data and index
 
@@ -275,29 +287,12 @@ def main():
     # Convert to percent of results at that size
     #data["Count"] = data["Count"] / data["Count"].sum()
     #print("Count sums to:", data["Count"].sum())
-
-    ACTION = "graph"
-    #dist = scipy.stats.halfcauchy
-    dist = building_dist(name="building_dist")
-    # Parameters for curve
-    # halfcauchy
-    #dist_loc = 2
-    #dist_scale = 2.1624533028540704
-    # Custom halfcauchy
-    # loc: 0.14739042, scale: 2.34947676
-    dist_loc1 = 1.74710558e-11
-    dist_scale1 = 0.225850421
-    dist_loc2 = 5.24691790
-    dist_scale2 = 2.80952836
-    simulated_curve_count = 3 # 30
-    sample_per_curve = 1000
-    large_building_bin_size = 100
     match ACTION:
         case "fit":
-            fit_data(data)
+            fit_data(data, dist)
         case "graph":
             #args = [dist_loc1, dist_scale1]
-            args = [dist_loc1, dist_scale1, dist_loc2, dist_scale2]
+            args = [dist_loc1, dist_loc2, dist_scale1, dist_scale2]
             test_visually(data, simulated_curve_count, sample_per_curve, dist, args)
         case "goodness":
             goodness_fit_test(data)

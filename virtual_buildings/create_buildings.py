@@ -33,13 +33,14 @@ def choose_random_ids():
         count = int(halfcauchy.rvs(loc=dist_loc, scale=dist_scale, size=1, random_state=SEED)[0]) # Generate building size
     # Get possible IDs to choose from
 
-# TEMP
+# TEMP FOR QUICK ENCRYPTION TESTING
     count = 2
 # TEMP
 
     print("Selecting building IDs.")
     with DBConn.create_connection(DATABASE) as conn:
         # TODO: what if site has no Mains?
+        # TODO: Add time range selection
         query = "SELECT DISTINCT point_id FROM LABELS WHERE LABELS.circuit_label_type_id IN (15,16)" # Only mains
         results = conn.execute(query)
         ids = results.fetchall()
@@ -126,19 +127,31 @@ class Building:
 
     def worker(self, column):
         def encrypt_value(
-            target: str # the name of the value to encrypt
+            target # the value to encrypt
             ):
+            if type(target) == int or type(target) == float:
             # HE doesn't always play nicely with floats; conversion to INT is needed
             # This conversion will be removed if we switch to CKKS
-            decimal_places = 8 # How many decimal places to keep; needs to be the same when decrypted
-            CONVERSION_SCALAR = 10**decimal_places
-            return self.__keys.encrypt(int(float(target) * CONVERSION_SCALAR))
-        
+                decimal_places = 8 # How many decimal places to keep; needs to be the same when decrypted
+                CONVERSION_SCALAR = 10**decimal_places
+                return self.__keys.encrypt(int(float(target) * CONVERSION_SCALAR))
+            else:
+                raise TypeError("Column to encrypt must only contain floats and/or integers.")
+        # Worker main function starts here
         try:
-            if column in ENCRYPT_COLS:
+            if column in ENCRYPT_COLS and column in self.__data.columns:
                 print("Encrypting", column)
-                self.__data[column] = self.__data[column].apply(encrypt_value)
+                encrypted_column = self.__data[column].apply(encrypt_value)
+                return (encrypted_column, column)
+            elif column in ENCRYPT_COLS:
+                print("Column", column, "does not exist in data frame.")
+                return ("Column does not exist:  " + column, column)
+            elif column in self.__data.columns:
+                print(column, "not in list of columns to encrypt.")
                 return (self.__data[column], column)
+            else:
+                print("No columns to encrypt and/or column", column, "not in data frame.")
+                return ("Encryption failed for " + column, column)
         except Exception as ex:
             print("Could not encrypt", column + ":", ex)
             return ("Encryption failed for " + column, column)
@@ -150,13 +163,16 @@ class Building:
         processors = floor(processors * PORTION_OF_CPU)
         results = {}
         with mp.Pool(processes=processors) as pool:
-            for result in pool.map(self.worker, self.__data.columns):
-                try:
-                    column = result[1]
-                    data = result[0]
-                    results[column] = data
-                except KeyboardInterrupt:
-                    pool.terminate()
+            try:
+                encrypted_outputs = pool.map(self.worker, self.__data.columns)
+            except KeyboardInterrupt:
+                pool.terminate()
+        for result in encrypted_outputs:
+                print(result)
+                # Error: result is not subscriptable (NoneType)
+                column = result[1]
+                data = result[0]
+                results[column] = data
         for column in results:
             self.__data[column] = results[column]
         print(self.__data)
@@ -251,6 +267,7 @@ class Building:
         target = target.ffill(limit=max_fills)
         target = target.bfill(limit=max_fills)
         # TODO: log that fills took place
+        # TODO: Account for missing starts and ends; sites do not always have the same start/end dates
         # Find any remaining rows containing N/A that need more involved imputation
         na_rows = target.loc[pd.isna(target["real_power"]), :].index
         if not na_rows.empty: # If we have N/A rows
