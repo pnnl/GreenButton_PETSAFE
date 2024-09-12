@@ -34,16 +34,22 @@ def choose_random_ids():
     # Get possible IDs to choose from
 
 # TEMP FOR QUICK ENCRYPTION TESTING
-    count = 2
+    count = 50
 # TEMP
 
     print("Selecting building IDs.")
     with DBConn.create_connection(DATABASE) as conn:
-        # TODO: what if site has no Mains?
-        # TODO: Add time range selection
+        # TODO: what if site has no Mains? Is this ever the case in the data?
+        # TODO: Buildings have different reading start dates; this needs to be accounted for
+        # TODO: Add optional time range selection to limit output size
         query = "SELECT DISTINCT point_id FROM LABELS WHERE LABELS.circuit_label_type_id IN (15,16)" # Only mains
         results = conn.execute(query)
         ids = results.fetchall()
+        cursor_obj = conn.cursor()
+        # "it is recommended that applications run "PRAGMA optimize" (with no arguments) 
+        # just before closing each database connection."
+        # https://www.sqlite.org/pragma.html#pragma_optimize
+        cursor_obj.execute("PRAGMA optimize;")
     # Select a random set from the results
     building_ids = randomizer.choice(ids, count, replace=True)
     building_ids = tuple([id[0] for id in building_ids])
@@ -217,32 +223,38 @@ class Building:
                     break
                 else:
                     data = data + chunk
-            # Needed to concatenate frames properly because from_records() needs a list of columns
-            columns = ['ee_site_id', 'point_id', 'timestamp', 'duration', 'real_power', 'apparent_power', 'pf'] # used for frame creation
-            # Place into the same frame
-            if not hasattr(self, '__data'): # Frame does not exist yet
-                self.__data = pd.DataFrame.from_records(data=data, columns=columns)
-            else: # Frame exists
-                newframe = pd.DataFrame.from_records(data=data, columns=columns)
-                self.__data = pd.concat([self.__data, newframe])
+            # "it is recommended that applications run "PRAGMA optimize" (with no arguments) 
+            # just before closing each database connection."
+            # https://www.sqlite.org/pragma.html#pragma_optimize
+            cursor_obj = conn.cursor()
+            cursor_obj.execute("PRAGMA optimize;")
 
-            # Duplicate entries that are listed more than once in ids
-            id_counts = pd.Series(data=self.__ids).value_counts() # Find how many times IDs are duplicated
-            all_ids = list(unique_ids) # Needs to be separate so we can append without affecting for loop
-            for id in unique_ids:
-                if id_counts[id] > 1:
-                    print(id, "is duplicated", id_counts[id], "times.")
-                    for i in range(1, id_counts[id]):
-                        # Duplicate ID into a new fake site
-                        dupesite = self.__data[self.__data["point_id"] == id]
-                        # Point ID of dupe needs to be changed; index must be unique
-                        while id in unique_ids:
-                            id += 1
-                        all_ids = all_ids.append(id)
-                        dupesite["point_id"] = id
-                        self.__data = pd.concat((self.__data, dupesite))
-            # Timestamps need to be datetime for resample to work for aggregation
-            self.__data['timestamp'] = pd.to_datetime(self.__data['timestamp'],unit='s')
+        # Needed to concatenate frames properly because from_records() needs a list of columns
+        columns = ['ee_site_id', 'point_id', 'timestamp', 'duration', 'real_power', 'apparent_power', 'pf'] # used for frame creation
+        # Place into the same frame
+        if not hasattr(self, '__data'): # Frame does not exist yet
+            self.__data = pd.DataFrame.from_records(data=data, columns=columns)
+        else: # Frame exists
+            newframe = pd.DataFrame.from_records(data=data, columns=columns)
+            self.__data = pd.concat([self.__data, newframe])
+
+        # Duplicate entries that are listed more than once in ids
+        id_counts = pd.Series(data=self.__ids).value_counts() # Find how many times IDs are duplicated
+        all_ids = list(unique_ids) # Needs to be separate so we can append without affecting for loop
+        for id in unique_ids:
+            if id_counts[id] > 1:
+                print(id, "is duplicated", id_counts[id], "times.")
+                for i in range(1, id_counts[id]):
+                    # Duplicate ID into a new fake site
+                    dupesite = self.__data[self.__data["point_id"] == id]
+                    # Point ID of dupe needs to be changed; index must be unique
+                    while id in unique_ids:
+                        id += 1
+                    all_ids = all_ids.append(id)
+                    dupesite["point_id"] = id
+                    self.__data = pd.concat((self.__data, dupesite))
+        # Timestamps need to be datetime for resample to work for aggregation
+        self.__data['timestamp'] = pd.to_datetime(self.__data['timestamp'],unit='s')
         return self.__data
 
     # Run after functions that change power factor (sum functions); recalculates it to be correct
