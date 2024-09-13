@@ -34,7 +34,7 @@ def choose_random_ids():
     # Get possible IDs to choose from
 
 # TEMP FOR QUICK ENCRYPTION TESTING
-    count = 2
+    count = 50
 # TEMP
 
     print("Selecting building IDs.")
@@ -62,7 +62,7 @@ def make_buildings(count):
         print("Creating building", i)
         building = Building(ids, encrypt=True, building_id=i, pickle=True) # encryption false to check this works
         print("Building", i, "created.")
-        print(building.get_data)
+        print(building.get_data())
 
 # The building class
 class Building:
@@ -214,7 +214,7 @@ class Building:
             # Retrieve the rows queried. This is the relative slow step in querying; it runs quickly
             # for 2 units but slows down as more units are added to the building and more rows must be
             # retrieved.
-            # TODO: Test values for best speed. 10000 better than 50000; will smaller help even more?
+            # TODO: Test values for best speed. 10000 better than 100000; will smaller help even more?
             cursor_obj.arraysize = 10000 # May speed up retrieval; sets how many rows are fetched by fetchmany()
             while True:
                 # Fetchmany allows both performance improvements over fetchall() and prevents MemoryError for invalid id values
@@ -259,6 +259,8 @@ class Building:
                     self.__data = pd.concat((self.__data, dupesite))
         # Timestamps need to be datetime for resample to work for aggregation
         self.__data['timestamp'] = pd.to_datetime(self.__data['timestamp'],unit='s')
+        # TODO: Save the site IDs so they can be identified later
+        # TODO: account for different start dates when including site IDs in rows
         return self.__data
 
     # Run after functions that change power factor (sum functions); recalculates it to be correct

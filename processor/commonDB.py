@@ -106,7 +106,7 @@ class DBConn:
             cursor_obj.execute("PRAGMA journal_mode = WAL;") # Write-ahead log, improves performance
             cursor_obj.execute("PRAGMA synchronous = normal;") # Asks WAL to wait for FSYNC, but readers don't have to wait
             # Note on nmap: I/O errors need to be caught by the application and vaccuum may fail silently
-            cursor_obj.execute("PRAGMA mmap_size = 30000000000;") # memory mapping, improves performance
+            cursor_obj.execute("PRAGMA mmap_size = 15000000000;") # memory mapping, improves performance
             cursor_obj.execute("PRAGMA threads = 3;") # enables threads to assist with queries
             cursor_obj.execute("PRAGMA analysis_limit = 400;") # reduces duration of pragma optimize (run when closing)
             cursor_obj.close()
@@ -116,7 +116,6 @@ class DBConn:
     
     def close_connection(connection):
         cursor_obj = connection.cursor()
-        cursor_obj.execute("PRAGMA analysis_limit = 400;") # reduces duration of pragma optimize
         cursor_obj.execute("PRAGMA optimize;") # Collects statistics that speed up queries
         cursor_obj.close()
         connection.close()

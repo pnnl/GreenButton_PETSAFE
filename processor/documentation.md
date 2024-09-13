@@ -17,10 +17,19 @@
 
 | num | Column name               | Datatype            |
 |-----|---------------------------|---------------------|
-| 0   | ee_site_id (Indexed)      | Int                 |
-| 1   | point_id (FK, Labels)     | Int                 |
+| 0   | ee_site_id                | Int                 |
+| 1   | point_id (FK Labels)      | Int, indexed        |
 | 2   | timestamp                 | Int                 |
 | 3   | duration                  | Int                 |
 | 4   | P REAL                    | float               |
 | 5   | Q REAL                    | float               |
 | 6   | PF REAL                   | float               |
+
+## PRAGMA Settings
+
+- **foreign_keys = ON:** Enforce foreign key constraints.
+- **journal_mode = WAL:** Write-ahead log, improves performance. Primarily affects behavior of writers; readers should not be significantly affected.
+- **synchronous = normal:** Asks WAL to wait for FSYNC, but readers don't have to wait. Because WAL is journal_mode, database will not be corrupted on power loss, but uncommitted transactions may be rolled back.
+- **mmap_size = 15000000000:** Enables memory mapping up to 15,000,000,000 bytes (15GB), improves performance. I/O errors need to be caught by application and vaccuum may fail silently, but vaccuum isn't in use at present (2024-09-13), making this less of a concern.
+- **threads = 3:** enables threads to assist with queries, letting them run much faster. 3 was chosen as a relatively safe number for portability; adjust if needed for your device.
+- **analysis_limit = 400:** limits duration of pragma optimize, which is run when closing as per [SQLite documentation's suggested best practice](https://www.sqlite.org/pragma.html#pragma_optimize).
