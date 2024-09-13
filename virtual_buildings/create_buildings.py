@@ -5,7 +5,6 @@ from os import environ
 import multiprocessing as mp
 from numpy import random
 from typing import Optional
-from scipy.stats import halfcauchy
 from math import floor
 
 #import processor.pullMains as pulldb
@@ -22,19 +21,30 @@ logger = config_logger()
 # Initialize with seed
 randomizer = random.default_rng(SEED)
 
+# Building distribution
+from scipy.stats import rv_discrete, lognorm, halfcauchy
+class building_dist(rv_discrete):
+        def _pmf(self, x, loc1, scale1, loc2, scale2, s):
+            return halfcauchy.pdf(x, scale=scale1, loc=loc1) + lognorm.pdf(x, s, scale=scale2, loc=loc2)
+        def get_equation(self, x, s, loc1, scale1, loc2, scale2):
+            return halfcauchy.pdf(x, scale=scale1, loc=loc1) + lognorm.pdf(x, s, scale=scale2, loc=loc2)
+
 # Gets a set of random building ids; used to create buildings
 def choose_random_ids():
     print("Generating building size.")
     # Get the building size
-    dist_loc = 2
-    dist_scale = 2.1624533028540704
+    loc1 = 1.83202980
+    scale1 = 7.28441947e-03
+    loc2 = 2.99999936
+    scale2 = 2.72075073e+01
+    s = 3.28533426
     count = -1 # Obviously invalid placeholder to initiate while loop
     while count < 2:
-        count = int(halfcauchy.rvs(loc=dist_loc, scale=dist_scale, size=1, random_state=SEED)[0]) # Generate building size
+        count = int(building_dist.rvs(loc1=loc1, scale1=scale1, loc2=loc2, scale2=scale2, s=s, size=1)[0]) # Generate building size
     # Get possible IDs to choose from
 
 # TEMP FOR QUICK ENCRYPTION TESTING
-    count = 50
+    count = 25
 # TEMP
 
     print("Selecting building IDs.")

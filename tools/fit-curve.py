@@ -22,13 +22,14 @@ def get_nums_wrapper(dist, sample_per_curve, args):
 
 def get_num(min, max, dist, args):
     loc1 = args[0]
-    #loc2 = args[1]
+    loc2 = args[1]
     scale1 = args[2]
-    #scale2 = args[3]
+    scale2 = args[3]
+    s = args[4]
     num = -1 # Intentionally invalid starting value for while loop
     attempts = 0 # Limit how many tries can be done in case we wind up stuck with invalid values
     while num < min or num > max:
-        num = int(dist.rvs(loc1=loc1, scale1=scale1, size=1)[0])
+        num = int(dist.rvs(loc1=loc1, scale1=scale1, loc2=loc2, scale2=scale2, s=s, size=1)[0])
         attempts += 1
         if attempts > 10:
             break
@@ -201,32 +202,24 @@ def test_visually(data, simulated_curve_count, sample_per_curve, dist, args):
 def main():
 
     # Create custom distribution
-    from scipy.stats import rv_discrete
-    from math import pi, sqrt, e
-    from numpy import log
+    from scipy.stats import rv_discrete, halfcauchy, lognorm
     # Custom halfcauchy
     # loc: 0.14739042, scale: 2.34947676
-    dist_loc1 = 1.74710558e-11
-    dist_scale1 = 2.25850421e-01
-    dist_loc1 = 0.14739042
-    dist_scale1 = 2.34947676
-    dist_loc2 = 5.24691790
-    dist_scale2 = 2.80952836
+    dist_loc1 = 1.83202980
+    dist_scale1 = 7.28441947e-03
+    dist_loc2 = 2.99999936
+    dist_scale2 = 2.72075073e+01
+    s = 3.28533426
+    ACTION = "show-random"
+    #ACTION = "fit"
     ACTION = "graph"
     simulated_curve_count = 3 # 30
-    sample_per_curve = 1000
-    large_building_bin_size = 100
+    sample_per_curve = 100000
     class building_dist(rv_discrete):
-        def _argcheck(self, loc1, scale1):
-            return True # Figure this out later, just need it to work for now
-        # Currently returns 0s and nothing else.
-        def _pmf(self, x, loc1, scale1):
-            # Divide and log of denom of second part is 0
-            return (2/(pi * scale1)) * (1/(1 + (x - loc1)**2 / scale1**2)) #+ \
-            #return ((1/(x * scale2 * (sqrt(2 * pi)))) * e**((-1/2 * ((log(x) - loc2)) / scale2)**2))
-        def get_equation(self, x, loc1, scale1, loc2, scale2):
-            return (2/(pi * scale1)) * (1/(1 + (x - loc1)**2 / scale1**2)) + \
-            ((1/(x * scale2 * (sqrt(2 * pi)))) * e**((-1/2 * ((log(x) - loc2)) / scale2)**2))
+        def _pmf(self, x, loc1, scale1, loc2, scale2, s):
+            return halfcauchy.pdf(x, scale=scale1, loc=loc1) + lognorm.pdf(x, s, scale=scale2, loc=loc2)
+        def get_equation(self, x, s, loc1, scale1, loc2, scale2):
+            return halfcauchy.pdf(x, scale=scale1, loc=loc1) + lognorm.pdf(x, s, scale=scale2, loc=loc2)
 
     dist = building_dist(name="building_dist")
     # Parameters for curve
@@ -292,12 +285,14 @@ def main():
             fit_data(data, dist)
         case "graph":
             #args = [dist_loc1, dist_scale1]
-            args = [dist_loc1, dist_loc2, dist_scale1, dist_scale2]
+            args = [dist_loc1, dist_loc2, dist_scale1, dist_scale2, s]
             test_visually(data, simulated_curve_count, sample_per_curve, dist, args)
         case "goodness":
             goodness_fit_test(data)
-        case "show":
+        case "show-data":
             print(data)
+        case "show-random":
+            print(dist.rvs(loc1=dist_loc1, loc2=dist_loc2, scale1=dist_scale1, scale2=dist_scale2, s=s, size=100))
         case "fitter-lib":
             fit_with_fitter(data)
         case "check_hist":
