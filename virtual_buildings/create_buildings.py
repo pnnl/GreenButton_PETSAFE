@@ -34,7 +34,7 @@ def choose_random_ids():
     # Get possible IDs to choose from
 
 # TEMP FOR QUICK ENCRYPTION TESTING
-    count = 50
+    count = 2
 # TEMP
 
     print("Selecting building IDs.")
@@ -50,6 +50,7 @@ def choose_random_ids():
         # just before closing each database connection."
         # https://www.sqlite.org/pragma.html#pragma_optimize
         cursor_obj.execute("PRAGMA optimize;")
+        cursor_obj.close()
     # Select a random set from the results
     building_ids = randomizer.choice(ids, count, replace=True)
     building_ids = tuple([id[0] for id in building_ids])
@@ -130,7 +131,6 @@ class Building:
             print("Key generation failure. Aborting.")
             raise SystemExit
         
-
     def worker(self, column):
         def encrypt_value(
             target # the value to encrypt
@@ -140,9 +140,15 @@ class Building:
             # This conversion will be removed if we switch to CKKS
                 decimal_places = 8 # How many decimal places to keep; needs to be the same when decrypted
                 CONVERSION_SCALAR = 10**decimal_places
-                return self.__keys.encrypt(int(float(target) * CONVERSION_SCALAR))
+                if target not in self.__value_map: # Encrypt and add to value map
+                    encrypted_value = self.__keys.encrypt(int(float(target) * CONVERSION_SCALAR))
+                    self.__value_map[target] = encrypted_value
+                    return encrypted_value
+                else: # We've encrypted this value already. Return it.
+                    return self.__value_map[target]
             else:
                 raise TypeError("Column to encrypt must only contain floats and/or integers.")
+            
         # Worker main function starts here
         try:
             if column in ENCRYPT_COLS and column in self.__data.columns:
@@ -168,6 +174,7 @@ class Building:
         processors = mp.cpu_count()
         processors = floor(processors * PORTION_OF_CPU)
         results = {}
+        self.__value_map = {} # Used to speed encryption by only encrypting each value once
         with mp.Pool(processes=processors) as pool:
             try:
                 encrypted_outputs = pool.map(self.worker, self.__data.columns)
@@ -175,25 +182,14 @@ class Building:
                 pool.terminate()
         for result in encrypted_outputs:
                 print(result)
-                # Error: result is not subscriptable (NoneType)
                 column = result[1]
                 data = result[0]
                 results[column] = data
         for column in results:
             self.__data[column] = results[column]
         print(self.__data)
+        del self.__value_map
         return self.__data
-            
-    # Encrypt one column. Called by encrypt() during multiprocessing to speed things up
-    def __encrypt_value(
-            self,
-            target: str # the name of the value to encrypt
-            ):
-        # HE doesn't always play nicely with floats; conversion to INT is needed
-        # This conversion will be removed if we switch to CKKS
-        decimal_places = 8 # How many decimal places to keep; needs to be the same when decrypted
-        CONVERSION_SCALAR = 10**decimal_places
-        return self.__keys.encrypt(int(float(target) * CONVERSION_SCALAR))
             
     # Retrieves data for component sites via SQL query
     # stores in self.__data
@@ -201,8 +197,6 @@ class Building:
     def __query_database(self):
         with DBConn.create_connection(self.__database) as conn:
             print("Connected to database.")
-
-            # TODO: narrow this to just mains?
             # We only need to query each id once. Convert to set to get unique.
             print("Building IDs:", self.__ids)
             unique_ids = tuple(set(self.__ids))
@@ -214,27 +208,37 @@ class Building:
             # Parameterized query mitigates injection vector as per Python docs
             #query = "SELECT * FROM POWER WHERE point_id IN (?);"
             #results = conn.execute(query, (in_statement,))
-            print("Query done. Retrieving...")
-
+            print("Query done. Retrieving (this may take a while)...")
             data = []
+            cursor_obj = conn.cursor()
+            # Retrieve the rows queried. This is the relative slow step in querying; it runs quickly
+            # for 2 units but slows down as more units are added to the building and more rows must be
+            # retrieved.
+            # TODO: Test values for best speed. 10000 better than 50000; will smaller help even more?
+            cursor_obj.arraysize = 10000 # May speed up retrieval; sets how many rows are fetched by fetchmany()
             while True:
-                chunk = results.fetchmany(50000) # fetchall() results in MemoryError for invalid id value
+                # Fetchmany allows both performance improvements over fetchall() and prevents MemoryError for invalid id values
+                chunk = results.fetchmany()
                 if chunk == []: # fetchmany returns empty list if there are no more results
                     break
                 else:
-                    data = data + chunk
+                    data = data + chunk # Append to list of records
             # "it is recommended that applications run "PRAGMA optimize" (with no arguments) 
-            # just before closing each database connection."
+            # just before closing each database connection." This should be very fast or a no-op.
             # https://www.sqlite.org/pragma.html#pragma_optimize
-            cursor_obj = conn.cursor()
-            cursor_obj.execute("PRAGMA optimize;")
+            print("Retrieved. Cleaning up (do not interrupt)...")
+            try:
+                cursor_obj.execute("PRAGMA optimize;")
+                cursor_obj.close()
+            except KeyboardInterrupt:
+                cursor_obj.close()
 
         # Needed to concatenate frames properly because from_records() needs a list of columns
         columns = ['ee_site_id', 'point_id', 'timestamp', 'duration', 'real_power', 'apparent_power', 'pf'] # used for frame creation
-        # Place into the same frame
+        # Transfer records into a data frame for easier processing
         if not hasattr(self, '__data'): # Frame does not exist yet
             self.__data = pd.DataFrame.from_records(data=data, columns=columns)
-        else: # Frame exists
+        else: # Frame exists; add new data to existing frame
             newframe = pd.DataFrame.from_records(data=data, columns=columns)
             self.__data = pd.concat([self.__data, newframe])
 

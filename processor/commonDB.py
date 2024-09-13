@@ -13,6 +13,7 @@ class DBConn:
         
         # Drop the table_name table if already exists.
         cursor_obj.execute("DROP TABLE IF EXISTS " + table_name)
+        cursor_obj.close()
 
 
     @staticmethod
@@ -56,6 +57,7 @@ class DBConn:
                     FOREIGN KEY(point_id) REFERENCES LABELS(point_id)
                 ); """
         DBConn.create_TABLE(db_file,"POWER",table_descriptor) 
+        DBConn.create_INDEX(db_file,"POWER","point_id") 
     
 
 
@@ -71,7 +73,21 @@ class DBConn:
         cursor_obj.execute("DROP TABLE IF EXISTS " + table_name)
             
         cursor_obj.execute(table_descriptor)
+        cursor_obj.close()
         print("Table: " + table_name + " has been created")
+
+    @staticmethod 
+    def create_INDEX(db_file,table_name,col_to_index):
+        connection_obj = DBConn.create_connection(db_file)
+
+        # cursor object
+        cursor_obj = connection_obj.cursor()
+        
+        # Create index on col_to_index
+        statement = "CREATE INDEX IF NOT EXISTS " + col_to_index + " ON " + table_name + "(" + col_to_index + ")"
+        cursor_obj.execute(statement)
+        print("Index " + col_to_index + "created on " + table_name)
+        cursor_obj.close()
 
 
     @staticmethod 
@@ -83,18 +99,27 @@ class DBConn:
         """
         conn = None
         try:
-            conn = sqlite3.connect(db_file)
+            conn = sqlite3.connect(db_file, cached_statements=100, isolation_level="DEFERRED")
             cursor_obj = conn.cursor()
             # Enable foreign keys
-            cursor_obj.execute("PRAGMA foreign_keys = ON;")
+            cursor_obj.execute("PRAGMA foreign_keys = ON;") # Enforce foreign key constraints
             cursor_obj.execute("PRAGMA journal_mode = WAL;") # Write-ahead log, improves performance
-            cursor_obj.execute("PRAGMA synchronous = normal;") # Asks WAL to wait for FSYNC, but not readers
+            cursor_obj.execute("PRAGMA synchronous = normal;") # Asks WAL to wait for FSYNC, but readers don't have to wait
             # Note on nmap: I/O errors need to be caught by the application and vaccuum may fail silently
             cursor_obj.execute("PRAGMA mmap_size = 30000000000;") # memory mapping, improves performance
             cursor_obj.execute("PRAGMA threads = 3;") # enables threads to assist with queries
+            cursor_obj.execute("PRAGMA analysis_limit = 400;") # reduces duration of pragma optimize (run when closing)
+            cursor_obj.close()
         except Exception as e:
             print(e)
         return conn
+    
+    def close_connection(connection):
+        cursor_obj = connection.cursor()
+        cursor_obj.execute("PRAGMA analysis_limit = 400;") # reduces duration of pragma optimize
+        cursor_obj.execute("PRAGMA optimize;") # Collects statistics that speed up queries
+        cursor_obj.close()
+        connection.close()
 
 
 
@@ -128,6 +153,7 @@ class DBConn:
         except sqlite3.OperationalError as error:
             print(error)
             x = None
+        cur.close()
         return x
     
 

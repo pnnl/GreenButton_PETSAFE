@@ -87,12 +87,12 @@ def populateAll():
     # What is this?
     #["lt",["sqrt",["sum", ["pow","PowerSystemResource.Measurement.MeasurementType.ReactivePower",2], ["pow","PowerSystemResource.Measurement.MeasurementType.ActivePower",2]]],100]
 
-    if 1 == 1:
-        loadDataLabels(database)
-        DBConn.create_POWERTABLE(database)
+    loadDataLabels(database)
+    DBConn.create_POWERTABLE(database)
     # create a database connection
-    conn = DBConn.create_connection(database)
-    with conn:
+    with DBConn.create_connection(database) as conn:
+        cursor_obj = conn.cursor()
+        cursor_obj.execute("BEGIN TRANSACTION") # Speeds up transaction
         points_DB = {}
         # Labels table contains data about each circuit's locations and attributes
         # sourced from points.csv.
@@ -126,17 +126,15 @@ def populateAll():
                             pointID = points_DB[site_id][circuit_label]
                             # prow: "print row" or "point row"
                             prow = (site_id, pointID, h.getTime(row[2]), int(row[4]), h.getValue(row[5]), h.getValue(row[6]), h.getValue(row[7]))
-                            #print(', '.join(prow))
                             allRows.extend([prow])
                         except Exception as e:
                             if site_id not in missing_ids: # This site has not had missing circuits before
                                 missing_ids[site_id] = [] # Add the site to the missing ids list to record that it wasn't processed
                             if circuit_label not in missing_ids[site_id]: # This circuit has not been recorded as missing for this site
                                 missing_ids[site_id] += [circuit_label] # Add the circuit to the site's missing entries
-                                #x = os.path.basename(aFile)
                                 print (circuit_label, "is not present in siteID", site_id)
-                            #print (e)
                     elif len(row) != 8: # Handle misformatted data
                         print("Columns missing from row:", str(row))
             DBConn.insert_PowerRecords(conn, allRows)
+            cursor_obj.close()
             print ("Done with", aFile)

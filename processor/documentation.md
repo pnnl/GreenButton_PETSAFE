@@ -17,7 +17,7 @@
 
 | num | Column name               | Datatype            |
 |-----|---------------------------|---------------------|
-| 0   | ee_site_id                | Int                 |
+| 0   | ee_site_id (Indexed)      | Int                 |
 | 1   | point_id (FK, Labels)     | Int                 |
 | 2   | timestamp                 | Int                 |
 | 3   | duration                  | Int                 |
