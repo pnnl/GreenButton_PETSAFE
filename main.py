@@ -35,7 +35,7 @@ def main():
         populate_database()
     
     if config.CREATE_BUILDINGS == True:
-        cb.make_buildings(config.BUILDING_COUNT)
+        cb.make_buildings(config.BUILDING_COUNT, pickle=True)
 
     if config.CREATE_STATISTICS == True:
         raise NotImplemented

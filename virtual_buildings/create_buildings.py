@@ -10,7 +10,7 @@ from math import floor
 #import processor.pullMains as pulldb
 from processor.commonDB import DBConn
 from logger_config import config_logger
-from config import DATABASE, SEED, ENCRYPT_COLS, PORTION_OF_CPU
+from config import DATABASE, SEED, ENCRYPT_COLS, PORTION_OF_CPU, ENCRYPT
 
 # Setting copy on write for PANDAS as recommended here:
 # https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
@@ -26,7 +26,7 @@ from scipy.stats import rv_discrete, lognorm, halfcauchy
 class building_dist(rv_discrete):
         def _pmf(self, x, loc1, scale1, loc2, scale2, s):
             return halfcauchy.pdf(x, scale=scale1, loc=loc1) + lognorm.pdf(x, s, scale=scale2, loc=loc2)
-        def get_equation(self, x, s, loc1, scale1, loc2, scale2):
+        def get_equation(x, s, loc1, scale1, loc2, scale2):
             return halfcauchy.pdf(x, scale=scale1, loc=loc1) + lognorm.pdf(x, s, scale=scale2, loc=loc2)
 
 # Gets a set of random building ids; used to create buildings
@@ -39,12 +39,13 @@ def choose_random_ids():
     scale2 = 2.72075073e+01
     s = 3.28533426
     count = -1 # Obviously invalid placeholder to initiate while loop
+    dist = building_dist(name="building_dist")
     while count < 2:
-        count = int(building_dist.rvs(loc1=loc1, scale1=scale1, loc2=loc2, scale2=scale2, s=s, size=1)[0]) # Generate building size
+        count = int(dist.rvs(loc1=loc1, scale1=scale1, loc2=loc2, scale2=scale2, s=s, size=1)[0]) # Generate building size
     # Get possible IDs to choose from
 
-# TEMP FOR QUICK ENCRYPTION TESTING
-    count = 25
+# TEMP FOR QUICK ENCRYPTION/AGGREGATION TESTING
+    count = 2
 # TEMP
 
     print("Selecting building IDs.")
@@ -66,13 +67,13 @@ def choose_random_ids():
     building_ids = tuple([id[0] for id in building_ids])
     return building_ids
 
-def make_buildings(count):
+def make_buildings(count, pickle: bool):
     for i in range(0, count):
         ids = choose_random_ids()
         print("Creating building", i)
-        building = Building(ids, encrypt=True, building_id=i, pickle=True) # encryption false to check this works
+        building = Building(ids, encrypt=ENCRYPT, building_id=i, pickle=pickle)
         print("Building", i, "created.")
-        print(building.get_data())
+        #print(building.get_data())
 
 # The building class
 class Building:
@@ -80,8 +81,8 @@ class Building:
         self,
         ids: list,
         database: Optional[str] = DATABASE,
-        building_id: Optional[int] = 0, # Building ID, used for saving to file
         encrypt: Optional[bool] = True, # Whether or not to encrypt the building
+        building_id: Optional[int] = 0, # Building ID, used for saving to file
         pickle: Optional[bool] = False # Whether to pickle the building to its own individual file
     ):
         self.__ids = ids
@@ -288,6 +289,13 @@ class Building:
         # We need to zero any N/A PF values; many of these should be zero to begin with, but for those corresponding
         # to outages, it'll be recalculated after real and apparent power are imputed. We don't want the
         # should-be-zero PF values to be included when finding N/A rows.
+        # Fill in missing timestamps
+        # timestamp should be index
+        start_datetime = target.index[0]
+        end_datetime = start_datetime + pd.Timedelta(1, "d") # one day ahead for date_range to work properly
+        fifteen_min_increments = pd.date_range(start=start_datetime, end=end_datetime, freq="15min", normalize=True, inclusive="left")
+        new_index = pd.Index(fifteen_min_increments, name="timestamp")
+        target = target.reindex(new_index)
         target["pf"] = target["pf"].fillna(0)
         # Simple fills first: chains of less than the outage_threshold can be forward or backward filled.
         max_fills = floor(outage_threshold / 2)
@@ -300,13 +308,16 @@ class Building:
         na_rows = target.loc[pd.isna(target["real_power"]), :].index
         if not na_rows.empty: # If we have N/A rows
             for row in na_rows:
+                pass
                 # Get similar data from one week ago
                 # TODO: expand to check other potentially similar days in the recent past- same day of week, similar temp, season, etc.
                 # Procedural way to know this?
-                week_ago_date = (target["timestamp"].iloc[row] - pd.Timedelta(7, "d")).date()
-                week_ago_data = target[target["timestamp"] == week_ago_date]
+                #week_ago_date = (target["timestamp"].iloc[row] - pd.Timedelta(7, "d")).date()
+                #week_ago_data = target[target["timestamp"] == week_ago_date]
                 # TODO: Fill with prev data from year if available
-                print("One week ago:", week_ago_date)
+                #print("One week ago:", week_ago_date)
+                # Figure out what timestamp is supposed to be
+
         target = target.fillna(0) # Catch anything the fill methods missed. TODO: Make sure to log this!
         return target
 
@@ -321,7 +332,7 @@ class Building:
                 # Power factor will be inaccurate; should be 1 or less. Recalculate it.
                 sitedata = self.__correct_power_factor(self.__data)
                 # Place aggregated site back into sitedata
-                print(sitedata)
+                #print(sitedata)
                 self.__data[self.__data["site"] == site] = sitedata
             except Exception as ex:
                 print("Building " + self.__bid + ": Could not resample: " + ex)
@@ -330,11 +341,22 @@ class Building:
     def aggregate(self, resolution):
         # For each matching timestamp, sum values at all sites
         print("Aggregating.")
+        print(self.__data["point_id"].unique())
         mains = self.__data
-        mains = self.__impute(mains)
         # For each timestamp in the ids list, sum all values
-        # TODO: Impute BEFORE doing this
         mains = mains.resample(resolution, on="timestamp").sum()
+        mains = mains.groupby(by="timestamp").sum()
+        # Fill in missing timestamps now that timestamps are unique
+        mains = self.__impute(mains)
+        #print(mains[mains["point_id"] == 0])
+        # Set ID columns
+        # point_id is repurposed to hold a tuple of point_ids in the building
+        # ee_site_id is renamed to building_id and repurposed for that in case it winds up
+        # in a frame with other buildings
+        mains["point_id"] = str(self.__ids) # TODO: assign per row based on presence in aggregation?
+        mains = mains.rename(columns={"ee_site_id": "building_id"}) 
+        mains["building_id"] = self.__bid
+        print(mains["point_id"].unique())
         return mains
     
 
