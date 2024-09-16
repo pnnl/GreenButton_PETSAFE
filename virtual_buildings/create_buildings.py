@@ -1,7 +1,7 @@
 import pandas as pd
 from lightphe import LightPHE
 from os.path import exists
-from os import environ
+from os import makedirs, environ
 import multiprocessing as mp
 from numpy import random
 from typing import Optional
@@ -45,7 +45,7 @@ def choose_random_ids():
     # Get possible IDs to choose from
 
 # TEMP FOR QUICK ENCRYPTION/AGGREGATION TESTING
-    count = 2
+    #count = 2
 # TEMP
 
     print("Selecting building IDs.")
@@ -341,7 +341,6 @@ class Building:
     def aggregate(self, resolution):
         # For each matching timestamp, sum values at all sites
         print("Aggregating.")
-        print(self.__data["point_id"].unique())
         mains = self.__data
         # For each timestamp in the ids list, sum all values
         mains = mains.resample(resolution, on="timestamp").sum()
@@ -356,7 +355,6 @@ class Building:
         mains["point_id"] = str(self.__ids) # TODO: assign per row based on presence in aggregation?
         mains = mains.rename(columns={"ee_site_id": "building_id"}) 
         mains["building_id"] = self.__bid
-        print(mains["point_id"].unique())
         return mains
     
 
@@ -364,7 +362,10 @@ class Building:
         # TODO: save building to table in database?
         # Right now, we pickle it
         filename = "Building-" + str(self.__bid) + ".pkl"
-        self.__data.to_pickle(filename)
+        dirpath = "./output/buildings/"
+        if not exists(dirpath):
+            makedirs(dirpath)
+        self.__data.to_pickle(dirpath + filename)
 
     def get_data(self):
         return self.__data

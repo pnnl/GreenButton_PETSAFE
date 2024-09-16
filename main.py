@@ -2,6 +2,7 @@ import multiprocessing
 import pandas as pd
 
 import config
+import dct
 
 # Building module-related imports
 from virtual_buildings import create_buildings as cb
@@ -37,6 +38,9 @@ def main():
     if config.CREATE_BUILDINGS == True:
         cb.make_buildings(config.BUILDING_COUNT, pickle=True)
 
+    if config.DCT == True:
+        pass
+
     if config.CREATE_STATISTICS == True:
         raise NotImplemented
 
@@ -49,40 +53,6 @@ if __name__ == '__main__':
         print("Stopping.")
 
     """
-    if config.PREP_FILES == True:
-        files = list_files_in_dir(config.POWER_DIR, False)
-        # Establish a processed frame to append everything to so it can be pickled to one file
-        frame = files.pop(0)
-        frame = process_file(frame)
-        try:
-        # Only use multiprocessing if we're not going to need multiprocessing for
-        # encryption- would use too many cores otherwise
-            if config.ENCRYPT == False:
-                processors = multiprocessing.cpu_count()
-                processors = floor(processors * config.PORTION_OF_CPU)
-                results = []
-                with multiprocessing.Pool(processes=processors) as pool:
-                    for result in pool.map(process_file, files):
-                        if result is not None:
-                            frame = pandas.concat([frame, result])
-                        results.append(result)
-            # Data is getting encrypted; do not use multiprocessing since encryption
-            # also uses multiprocessing and doing both would eat all available cores
-            else:
-                frame = process_file(files.pop(0))
-                for file in files:
-                    result = process_file(file)
-                    if result is not None:
-                        frame = pandas.concat([frame, result])
-            if config.SAVE_AS_PICKLE == True:
-                pickle_data(frame)
-            print(config.YEAR, "done.")
-        except KeyboardInterrupt:
-            print("Stopping.")
-            if config.SAVE_AS_PICKLE == True:
-                pickle_data(frame)
-            raise SystemExit
-
     if config.CREATE_STATISTICS == True:
         # TODO: read from pickle if available
         reader = Reader(config.START_DATE, config.END_DATE, resolution=config.STAT_TEMPORAL_RESOLUTION)
@@ -108,37 +78,6 @@ if __name__ == '__main__':
                 print("Decrypted first value:", test_value)
         except Exception as error:
             print("Unable to retrieve values:", error)
-
-def process_file(file):
-    file = config.POWER_DIR + file
-    try:
-        # Set distribution to False for uniform building size as per building_count
-        parser = md.MeterDataParser(file, distribution=True, seed=config.SEED, encrypt=config.ENCRYPT, building_count=config.BUILDING_COUNT)
-    except KeyboardInterrupt:
-        print("Stopping.")
-        raise SystemExit
-    except Exception as error:
-        print("Could not create buildings for", file)
-        print(error)
-        parser = None
-    try:
-        if parser != None and parser.status != "File exists.":
-            parser.output_to_file(config.OUTPUT_DIR)
-            print(file, "done.")
-            return parser.get_data()
-        else:
-            return None
-    except Exception as error:
-        # Error to fix: Could not output files: 'NoneType' object has no attribute 'status'
-        print("Could not output files:", error)
-
-def pickle_data(data):
-    if config.OUTPUT_DIR[-1] != "/":
-        config.OUTPUT_DIR += "/"
-    filename = config.OUTPUT_DIR + config.YEAR + "-" + config.AGG_TEMPORAL_RESOLUTION
-    with open(filename, "ab") as file:
-        pickle.dump(data, file)
-    print("Pickled to file.")
 
 def unpickle_data():
     if config.OUTPUT_DIR[-1] != "/":

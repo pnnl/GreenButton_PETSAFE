@@ -5,6 +5,7 @@ READ_FILES = False
 CREATE_BUILDINGS = True
 CREATE_STATISTICS = False
 ENCRYPT = False
+DCT = True
 
 # Database file target
 DATABASE = "records.db"
