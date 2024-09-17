@@ -2,12 +2,12 @@
 
 # Actions to perform
 READ_FILES = False
-CREATE_BUILDINGS = True
+CREATE_BUILDINGS = False
 CREATE_STATISTICS = False
 ENCRYPT = False
 
-DCT = False
-GRAPH_DCT = False
+DCT = True
+GRAPH_DCT = True
 
 # Database file target
 DATABASE = "records.db"

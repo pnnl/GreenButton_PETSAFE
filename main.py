@@ -43,13 +43,17 @@ def main():
     TEST_QUERY = False
     # Test query, about 75sec
     if TEST_QUERY == True:
+        print("Testing query (may take a while)")
         with DBConn.create_connection(config.DATABASE) as conn:
-            columns = ['ee_site_id', 'point_id', 'timestamp', 'duration', 'real_power', 'apparent_power', 'pf']
+            #columns = ['ee_site_id', 'point_id', 'timestamp', 'duration', 'real_power', 'apparent_power', 'pf']
+            columns = ['timestamp']
             query = "SELECT * FROM POWER WHERE ee_site_id=491 AND timestamp=1585155600"
+            query = "SELECT timestamp FROM POWER"
             results = conn.execute(query)
             data = results.fetchall()
             data = pd.DataFrame.from_records(data=data, columns=columns)
         print(data)
+        print("Query testing done.")
 
     if config.READ_FILES == True:
         populate_database()
@@ -62,7 +66,7 @@ def main():
         for id in buildings["building_id"].unique():
             this_building = buildings[buildings["building_id"] == id]
             dct_matrix = dct.decompose(this_building["real_power"])
-            #dct_matrix = dct.drop_coefficients(dct_matrix)
+            dct_matrix = dct.drop_coefficients(dct_matrix)
             recomposed = dct.recompose(dct_matrix)
 
             if config.GRAPH_DCT == True:
@@ -71,7 +75,7 @@ def main():
                 graphframe = graphframe.rename(columns={0: "recomposed"})
                 graphframe = pd.concat((graphframe, buildings["real_power"].reset_index()), axis=1)
                 graphframe = graphframe.set_index("timestamp")
-                print(graphframe)
+                #print(graphframe)
                 fig = px.line(graphframe)
                 fig.update_traces(opacity=0.75)
                 fig.data[0].line.color = "#A9A9A9"

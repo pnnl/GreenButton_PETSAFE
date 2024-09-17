@@ -19,7 +19,7 @@
 |-----|---------------------------|---------------------|
 | 0   | ee_site_id                | Int                 |
 | 1   | point_id (FK Labels)      | Int, indexed        |
-| 2   | timestamp                 | Int                 |
+| 2   | timestamp                 | Int (unix timestamp)|
 | 3   | duration                  | Int                 |
 | 4   | P REAL                    | float               |
 | 5   | Q REAL                    | float               |
