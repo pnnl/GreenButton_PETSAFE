@@ -8,10 +8,10 @@ DROP_BELOW_THRESHOLD = False
 THRESHOLD_VAL = 30
 
 DROP_HIGH = True
-PORTION_TO_DROP = 1 / 2
+PORTION_TO_DROP = 3/4
 
 KEEP_LARGEST_HIGH = True
-NUMBER_OF_LARGEST = 1
+NUMBER_OF_LARGEST = 5
 
 # Break data into cosine functions using DCT. Outputs an array of coefficients.
 def decompose(target_column):
@@ -49,7 +49,9 @@ def drop_coefficients(coefficients_array):
         if KEEP_LARGEST_HIGH == True:
             for i in range(0, NUMBER_OF_LARGEST):
                 value_to_keep = max(high_freqs)
-                keep_position = np.where(all_freqs == value_to_keep) # TODO: deal with duplicate maxes
+                # TODO: deal with duplicate maxes
+                high_freqs = np.delete(high_freqs, np.where(high_freqs == value_to_keep))
+                keep_position = np.where(all_freqs == value_to_keep)
                 print("Keeping", value_to_keep, "at", keep_position)
                 coefficients_array[keep_position] = value_to_keep
     print(coefficients_array)
