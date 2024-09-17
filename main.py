@@ -1,8 +1,11 @@
 import multiprocessing
 import pandas as pd
+import plotly.express as px
+import pickle
 
 import config
 import dct
+from list_files import list_files_in_dir
 
 # Building module-related imports
 from virtual_buildings import create_buildings as cb
@@ -19,6 +22,22 @@ def populate_database():
     popdb.loadDataLabels(config.DATABASE)
     popdb.populateAll()
     print("Records created.")
+
+def unpickle_buildings():
+    if config.OUTPUT_DIR[-1] != "/":
+        config.OUTPUT_DIR += "/"
+    filepath = config.OUTPUT_DIR + "buildings/"
+    buildings_frame = pd.DataFrame()
+    # Get all buildings from files and place in one big frame for processing
+    try:
+        for file in list_files_in_dir(filepath, append_path=True):
+            with open(file, "rb") as file:
+                building= pickle.load(file)
+            buildings_frame = pd.concat((buildings_frame, building))
+        return buildings_frame
+    except Exception as ex:
+        print("Could not unpickle buildings:", ex)
+        raise SystemExit # For now
 
 def main():
     TEST_QUERY = False
@@ -39,7 +58,24 @@ def main():
         cb.make_buildings(config.BUILDING_COUNT, pickle=True)
 
     if config.DCT == True:
-        pass
+        buildings = unpickle_buildings()
+        for id in buildings["building_id"].unique():
+            this_building = buildings[buildings["building_id"] == id]
+            dct_matrix = dct.decompose(this_building["real_power"])
+            #dct_matrix = dct.drop_coefficients(dct_matrix)
+            recomposed = dct.recompose(dct_matrix)
+
+            if config.GRAPH_DCT == True:
+                graphframe = pd.DataFrame()
+                graphframe = pd.concat((graphframe, pd.Series(data=recomposed)))
+                graphframe = graphframe.rename(columns={0: "recomposed"})
+                graphframe = pd.concat((graphframe, buildings["real_power"].reset_index()), axis=1)
+                graphframe = graphframe.set_index("timestamp")
+                print(graphframe)
+                fig = px.line(graphframe)
+                fig.update_traces(opacity=0.75)
+                fig.data[0].line.color = "#A9A9A9"
+                fig.show()
 
     if config.CREATE_STATISTICS == True:
         raise NotImplemented

@@ -1,11 +1,12 @@
 from os import listdir
-#import os.path
-#from config import ROOT_DATA_DIR
 
 # Lists all files in a directory
 # TODO: limit to data subdir! Stop path traversal attacks.
 # dir_path: directory to list
-def list_files_in_dir(dir_path, append_path):
+def list_files_in_dir(
+        dir_path: str, 
+        append_path: bool
+        ) -> list:
     try:
         files = listdir(dir_path)
         # Format files with directory in front

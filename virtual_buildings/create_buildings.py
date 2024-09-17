@@ -10,7 +10,7 @@ from math import floor
 #import processor.pullMains as pulldb
 from processor.commonDB import DBConn
 from logger_config import config_logger
-from config import DATABASE, SEED, ENCRYPT_COLS, PORTION_OF_CPU, ENCRYPT
+from config import DATABASE, SEED, ENCRYPT_COLS, PORTION_OF_CPU, ENCRYPT, OUTPUT_DIR
 
 # Setting copy on write for PANDAS as recommended here:
 # https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
@@ -21,13 +21,17 @@ logger = config_logger()
 # Initialize with seed
 randomizer = random.default_rng(SEED)
 
+# Ensure trailing slash
+if OUTPUT_DIR[-1] != "/":
+    OUTPUT_DIR += "/"
+
 # Building distribution
 from scipy.stats import rv_discrete, lognorm, halfcauchy
 class building_dist(rv_discrete):
-        def _pmf(self, x, loc1, scale1, loc2, scale2, s):
-            return halfcauchy.pdf(x, scale=scale1, loc=loc1) + lognorm.pdf(x, s, scale=scale2, loc=loc2)
-        def get_equation(x, s, loc1, scale1, loc2, scale2):
-            return halfcauchy.pdf(x, scale=scale1, loc=loc1) + lognorm.pdf(x, s, scale=scale2, loc=loc2)
+    def _pmf(self, x, loc1, scale1, loc2, scale2, s):
+        return halfcauchy.pdf(x, scale=scale1, loc=loc1) + lognorm.pdf(x, s, scale=scale2, loc=loc2)
+    def get_equation(x, s, loc1, scale1, loc2, scale2):
+        return halfcauchy.pdf(x, scale=scale1, loc=loc1) + lognorm.pdf(x, s, scale=scale2, loc=loc2)
 
 # Gets a set of random building ids; used to create buildings
 def choose_random_ids():
@@ -45,7 +49,7 @@ def choose_random_ids():
     # Get possible IDs to choose from
 
 # TEMP FOR QUICK ENCRYPTION/AGGREGATION TESTING
-    #count = 2
+    #count = 3
 # TEMP
 
     print("Selecting building IDs.")
@@ -90,6 +94,7 @@ class Building:
         self.__bid = building_id
         self.__encryption_enabled = encrypt
         self.__pickle = pickle
+        self.__OUTPUT_DIR = OUTPUT_DIR
 
         # Sanity check for id length
         if len(self.__ids) < 2:
@@ -362,9 +367,11 @@ class Building:
         # TODO: save building to table in database?
         # Right now, we pickle it
         filename = "Building-" + str(self.__bid) + ".pkl"
-        dirpath = "./output/buildings/"
+        # Set directory path of output- output directory in config + "buildings" subdirectory
+        dirpath = self.__OUTPUT_DIR + "/buildings/"
         if not exists(dirpath):
             makedirs(dirpath)
+        # Save as file to output dir
         self.__data.to_pickle(dirpath + filename)
 
     def get_data(self):
