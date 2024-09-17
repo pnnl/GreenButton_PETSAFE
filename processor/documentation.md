@@ -39,7 +39,7 @@
 | num | Column name               | Datatype            |
 |-----|---------------------------|---------------------|
 | 0   | building_id               | Int                 |
-| 1   | point_ids                 | Str (list of int)   |
+| 1   | point_id                  | Str "(tuple of int)"|
 | 2   | timestamp (index)         | Datetime            |
 | 3   | duration                  | Int                 |
 | 4   | real_power                | float               |
