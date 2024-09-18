@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import argparse
 import os
+from datetime import datetime, date, timedelta
 
 HE = Pyfhel()           # Creating empty Pyfhel object
 ckks_params = {
@@ -21,22 +22,42 @@ ckks_params = {
 HE.contextGen(**ckks_params)  # Generate context for ckks scheme
 HE.keyGen()             # Key Generation: generates a pair of public/secret keys
 HE.rotateKeyGen()
-NUMBER_OF_DAYS = 45 #Number of days worth of data allowed in a single ciphertext array.
+
+#print(HE.sizeof_public_key())
+#print(HE.sizeof_secret_key())
+
+##################################################################################
+# THESE CONSTANTS WILL BE SUPPLIED OR CALCULATED LATER IN THE PROGRAMS LIFECYCLE #
+##################################################################################
+NUMBER_OF_DAYS = 30 #Number of days worth of data allowed in a single ciphertext array.
+NUMBER_OF_DATAPOINTS = 96 #Number of data points in the CSV file.
+
 
 def extractCircuits(df, eeSites, siteID):
+    """
+    Extracts the electrical circuits that contain the string "heat" or "mains" anywhere in the circuit label.
+    Empty dictionaries for "dateRanges" for the electrical circuits are initialized.
+    
+    :param df: A Pandas dataframe obtained from reading a CSV file containing data about electrical circuits.
+    :type df: Pandas.DataFrame
+    :param eeSites: A dictionary containing data about the electrical circuits. The siteID is used as the keys.
+    :type eeSites: dict
+    :param siteID: The ID of the site to extract the electrical circuit data from.
+    :type siteID: str
+    """
+
     sitePoints = df.loc[df["ee_site_id"]  == int(siteID)]
-    #print("Extracting " + str(siteID) + " circuit data.")
+    print("Extracting " + str(siteID) + " circuit data.")
+
     for index, row in sitePoints.iterrows():
         circuitLabel = str(row['circuit_label']).lower()
 
         if "heat" in circuitLabel:
             eeSites[str(siteID)][str(row["regname"])] = {"circuit_label": circuitLabel}
-            eeSites[str(siteID)][str(row["regname"])]["dates"] = {}
-            eeSites[str(siteID)][str(row["regname"])]["ciphertexts"] = {}
+            eeSites[str(siteID)][str(row["regname"])]["dateRanges"] = {}
         elif "mains" in circuitLabel:
             eeSites[str(siteID)]["Mains"] = {"circuit_label": "Mains"}
-            eeSites[str(siteID)]["Mains"]["dates"] = {}
-            eeSites[str(siteID)]["Mains"]["ciphertexts"] = {}
+            eeSites[str(siteID)]["Mains"]["dateRanges"] = {}
 
     if len(eeSites[str(siteID)]) <= 1:
         print(str(siteID) + "\n")       
@@ -45,6 +66,21 @@ def extractCircuits(df, eeSites, siteID):
 
 
 def extractSites(pointsPathname, siteID):
+    """
+    Reads the CSV file with the given pathname in ``pointsPathname`` to obtain information about 
+    the electrical circuits at the site(s). If a siteID is not provided, all electrical circuit data
+    from all sites are obtained from the CSV file.
+
+    :param pointsPathname: The pathname to the file containing information about the circuits at
+                           each site.
+    :type pointsPathname: str
+    :param siteID: The ID of the site to extract information about.
+    :type siteID: str or None
+
+    :return: A dictionary containing information about all electrical circuits at the site(s).
+    :rtype: dict
+    """
+    
     df = pd.read_csv(pointsPathname)
     eeSites = {}
 
@@ -60,56 +96,130 @@ def extractSites(pointsPathname, siteID):
     return eeSites
 
 
-def sumMeasurements(eeSites, arrayLength):
+def sumMeasurements(eeSites):
     for site in eeSites:
         for circuit in eeSites[site]:
-            for date in eeSites[site][circuit]["dates"]:
-                print("Summing measurements for " + str(circuit) + " at " + str(site) + " on " + str(date))
-                ctxt = eeSites[site][circuit]["dates"][date]["data"]
-                ctxtCopy  = PyCtxt(copy_ctxt = ctxt)
-                ctxtCopy2  = PyCtxt(copy_ctxt = ctxt)
+            for dateRange in eeSites[site][circuit]["dateRanges"]:
+                originalCtxt = eeSites[site][circuit]["dateRanges"][dateRange]["ciphertext"]
+                ctxtCopy = PyCtxt(copy_ctxt = originalCtxt)
+                ctxtCopy2 = PyCtxt(copy_ctxt = originalCtxt)
 
-                for i in range(arrayLength - 1):
+                #[1, 2, 3]
+                #[2, 3, 1]
+
+                #[3, 5, 4]
+                #[3, 2, 1]
+
+                #[6, 7, 5]
+
+                for i in range(NUMBER_OF_DATAPOINTS):
                     ctxtCopy2.__ilshift__(1)
                     ctxtCopy += ctxtCopy2
 
-                eeSites[site][circuit]["dates"][date] = {"sum": ctxtCopy}
+                eeSites[site][circuit]["dateRanges"][dateRange]["sum"] = ctxtCopy
+
+                if circuit == "Mains":
+                    mainsSum = HE.decrypt(ctxtCopy)
+                    mainsSum = 1 / mainsSum
+                    circuitNP = np.array(mainsSum, dtype=np.float64)
+                    ptxt = HE.encodeFrac(circuitNP)
+                    eeSites[site]["Mains"]["dateRanges"][dateRange]["invertedSum"] = HE.encrypt(ptxt)
 
 
 def encryptMeasurements(eeSites):
+    """
+    Each electrical circuits data for the different date ranges are encrypted.
+
+    :param eeSites: A dictionary containing data about the electrical circuits. The siteID is used as the keys.
+    :type eeSites: dict
+    """
+
     for site in eeSites:
         for circuit in eeSites[site]:
-            dayCounter = 0
-            dataArr = []
+            for range in eeSites[site][circuit]["dateRanges"]:
+                dateRangeData = eeSites[site][circuit]["dateRanges"][range]
+                circuitNP = np.array(dateRangeData, dtype=np.float64)
+                ptxt = HE.encodeFrac(circuitNP)
+                eeSites[site][circuit]["dateRanges"][range] = {"ciphertext": HE.encrypt(ptxt),
+                                                               "sum": "",
+                                                               "invertedSum": ""
+                                                               }
+                
+
+def extractMultipleMeasurements(eeSites, datasetPathname):
+    """
+    Reads and extracts data from all the CSV files in the directory at ``datasetPathname``.
+    The data is stored in the eeSites dictionary.
+    
+    :param eeSites: A dictionary containing data about the electrical circuits. The siteID is used as the keys.
+    :type eeSites: dict
+    :param datasetPathname: The pathname to a directory containing multiple CSV files.
+    :type datasetPathname: str
+    """
+
+    fileList = sorted(os.listdir(datasetPathname))
+    counter = 0
+    startDate = ""
+    endDate = ""
+
+    for file in fileList:
+        newPathname = datasetPathname + "/" + file
+        df = pd.read_csv(newPathname)
+        print("Processing data for " + str(df['min_t'].head(1)) + ".")
+
+        if counter == NUMBER_OF_DAYS:
             startDate = ""
+            endDate = ""
+            counter = 0
 
-            for date in eeSites[site][circuit]["dates"]:
-                if dayCounter == 0:
-                    startDate = date
+        if counter == 0:
+            start = df['min_t'].head(1)
 
-                if dayCounter < NUMBER_OF_DAYS:
-                    dataArr += (eeSites[site][circuit]["dates"][date])
+            for i in start:
+                startDate = str(i)
+
+            end = datetime.strptime(startDate, "%Y-%m-%d")
+            end += timedelta(NUMBER_OF_DAYS - 1)
+            endDate = datetime.strftime(end, "%Y-%m-%d")
+            
+        for site in eeSites:
+            siteData = df.loc[df['ee_site_id'] == int(site)]
+
+            for circuit in eeSites[site]:
+                circuitData = siteData.loc[siteData['regname'] == str(circuit)]
+                circuitArr = []
+
+                print(circuit)
+                for index, row in circuitData.iterrows():
+                    if circuit == "Mains":
+                        try:
+                            circuitArr.append(1 / row['power'])
+                        except:
+                            circuitArr.append(0.0)
+                    else:       
+                        circuitArr.append(row['power'])
+                    
+                if counter == 0:
+                    eeSites[site][circuit]["dateRanges"][startDate + " - " + endDate] = circuitArr
                 else:
-                    circuitNP = np.array(dataArr, dtype=np.float64)
-                    ptxt = HE.encodeFrac(circuitNP)
-                    print(str(startDate) + " - " + str(date))
-                    eeSites[site][circuit]["ciphertexts"][startDate + " - " + date] = HE.encryptPtxt(ptxt)
-                    dayCounter = -1
-                    dataArr = []
+                    for entry in circuitArr:
+                        eeSites[site][circuit]["dateRanges"][startDate + " - " + endDate].append(entry)
+                    
+        counter += 1
 
-                dayCounter += 1
-
-"""
-def encryptMeasurements(date, eeSites, siteID, circuitName, circuitArr):
-    circuitNP = np.array(circuitArr, dtype=np.float64)
-    ptxt = HE.encodeFrac(circuitNP)   # plaintexts created from arrays shorter than 'n' are filled with zeros.
-    eeSites[siteID][circuitName]["dates"] = {date: {"data": HE.encryptPtxt(ptxt)}}
-    ptxt = ""
-"""
 
 def extractDailyMeasurements(eeSites, datasetPathname):
+    """
+    Reads and extracts data from a CSV containing a single day's worth of electrical circuit measurement data.
+    The data is stored in the eeSites dictionary.
+    
+    :param eeSites: A dictionary containing data about the electrical circuits. The siteID is used as the keys.
+    :type eeSites: dict
+    :param datasetPathname: The pathname to a CSV file containing a single day's worth of data.
+    :type datasetPathname: str
+    """
+
     df = pd.read_csv(datasetPathname)
-    arrayLength = 0
     startTime = df['min_t'].head(1)
     
     for i in startTime:
@@ -124,54 +234,88 @@ def extractDailyMeasurements(eeSites, datasetPathname):
 
             for index, row in circuitData.iterrows():
                 circuitArr.append(row['power'])
-            eeSites[site][circuit]["dates"][date] = circuitArr
+            
+            #[0.1, 0.2, 0.3]
+            #eeSites {491: {CIRCUIT_1: {"dateRanges": "09-18-2024": [0.1, 0.2, 0.3]} }}
+            eeSites[site][circuit]["dateRanges"][date] = circuitArr
 
-            ##encryptMeasurements(date, eeSites, site, circuit, circuitArr)
 
 
-def extractMeasurements(eeSites, datasetPathname):
-    if os.path.isfile(datasetPathname):
-        extractDailyMeasurements(eeSites, datasetPathname)
-    elif os.path.isdir(datasetPathname):
-        fileList = sorted(os.listdir(datasetPathname))
-
-        for file in fileList:
-            newPathname = datasetPathname + "/" + file
-            extractMeasurements(eeSites, newPathname)
+def calculateAverages(eeSites):
+    for site in eeSites:
+        for circuit in eeSites[site]:
+            if circuit != "Mains":
+                for dateRange in eeSites[site][circuit]["dateRanges"]:
+                    invMainsCtxt = eeSites[site]["Mains"]["dateRanges"][dateRange]["invertedSum"]
+                    circuitCtxt = eeSites[site][circuit]["dateRanges"][dateRange]["sum"]
+                    averageCtxt = PyCtxt(copy_ctxt = circuitCtxt)
+                    
 
 
 def calculateDailyAverages(eeSites):
     for site in eeSites:
         for circuit in eeSites[site]:
             counter = 1
-            for date in eeSites[site][circuit]["dates"]:
+            for date in eeSites[site][circuit]["dateRanges"]:
                 if counter == 1:
-                    mainsSumCtxt = eeSites[site]["Mains"]["dates"][date]["sum"]
+                    mainsSumCtxt = eeSites[site]["Mains"]["dateRanges"][date]["sum"]
                     mainsSum = HE.decrypt(mainsSumCtxt)
                     mainsSum = 1 / mainsSum
                     invertedMainsSumCtxt = HE.encrypt(mainsSum)
                     counter = 0
 
                 if circuit != "Mains":
-                    percentageOfMain = PyCtxt(copy_ctxt = eeSites[site][circuit]["dates"][date]["sum"])
+                    percentageOfMain = PyCtxt(copy_ctxt = eeSites[site][circuit]["dateRanges"][date]["sum"])
                     percentageOfMain *= invertedMainsSumCtxt
-                    eeSites[site][circuit]["dates"][date]["percentageOfMain"] = percentageOfMain
+                    eeSites[site][circuit]["dateRanges"][date]["percentageOfMain"] = percentageOfMain
 
-                    print(str(round(HE.decrypt(percentageOfMain), 3)) + "% of Mains")
-
-
-parser = argparse.ArgumentParser(prog='main', description='Performs statistics on encrypted data.')
-parser.add_argument("-d", "--directory", required=True)
-parser.add_argument("-p", "--points", required=True)
-parser.add_argument("-s", "--siteID")
-args = parser.parse_args()
+                    print(str((HE.decrypt(percentageOfMain)[0]) * 100) + "% of Mains")
 
 
+def main():
+    parser = argparse.ArgumentParser(prog='main', description='Performs statistics on encrypted data.')
+    parser.add_argument("-d", "--directory", required=True)
+    parser.add_argument("-p", "--points", required=True)
+    parser.add_argument("-s", "--siteID")
+    args = parser.parse_args()
 
-eeSites = extractSites(args.points, args.siteID)
-extractMeasurements(eeSites, args.directory)
-encryptMeasurements(eeSites)
-print("HE")
-#arrayLength = extractDailyMeasurements(eeSites, args.dataset)
-#sumMeasurements(eeSites, arrayLength)
-#calculateDailyAverages(eeSites)
+    arr = [0]*512
+    circuitNP = np.array(arr, dtype=np.float64)
+    ptxt = HE.encodeFrac(circuitNP)
+
+    eeSites = extractSites(args.points, args.siteID)
+    """
+    -------------------------
+    eeSites Dictionary Format
+    -------------------------
+
+    eeSites: {
+        EE_SITE_ID: {
+            REGNAME (example-CIRCUIT_1): {
+                "circuit_label": (Example: Water Heater),
+                "dateRanges": {
+                    (Example: 2024-01-01 - 2024-01-11): {
+                        "ciphertext": Ctxt ciphertext of the data from that range.,
+                        "sum": Ctxt ciphertext containing the sums of each date.,
+                        "invertedSum": Ctxt
+                        }
+                    }
+                }
+            }
+    """
+
+    if os.path.isfile(args.directory):
+        extractDailyMeasurements(eeSites, args.directory)
+    elif os.path.isdir(args.directory):
+        extractMultipleMeasurements(eeSites, args.directory)
+
+    encryptMeasurements(eeSites)
+    sumMeasurements(eeSites)
+    #calculateAverages(eeSites)
+    #arrayLength = extractDailyMeasurements(eeSites, args.dataset)
+    #sumMeasurements(eeSites, arrayLength)
+    calculateDailyAverages(eeSites)
+
+
+if __name__ == '__main__':
+    main()
