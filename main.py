@@ -36,8 +36,8 @@ def unpickle_buildings():
             with open(file, "rb") as file:
                 building= pickle.load(file)
             buildings_frame = pd.concat((buildings_frame, building))
-            dates = np.unique(buildings_frame.index.date) # timestamp is index
-            print("Buildings frame:", dates, "\n=========")
+            #dates = np.unique(buildings_frame.index.date) # timestamp is index
+            #print("Buildings frame:", dates, "\n=========")
         return buildings_frame
     except Exception as ex:
         print("Could not unpickle buildings:", ex)
@@ -78,6 +78,7 @@ def main():
     # Calculate DCT on data and perform any selected operations with it
     if config.DCT == True:
         buildings = unpickle_buildings()
+        #print(buildings[buildings["real_power"] > 0])
         # Normalize the database to values between 0 and 1.
         if config.NORMALIZE == True:
             buildings["real_power"] = norm.normalize(buildings["real_power"])
@@ -92,6 +93,7 @@ def main():
                 dct_matrix = dct.decompose(this_building["real_power"])
                 dct_matrix = dct.drop_coefficients(dct_matrix)
                 recomposed = dct.recompose(dct_matrix)
+                print(dct_matrix)
 
                 # Graph DCT values with original data to see visual changes
                 if config.GRAPH_DCT == True:
@@ -113,7 +115,7 @@ def main():
             else: # config.STORE_DCT != False
                 print("Preparing array of DCT coefficients for all days in data.")
                 dates = np.unique(this_building.index.date) # timestamp is index
-                print(dates)
+                #print(dates)
                 coefficients = np.empty(0, dtype=np.float64)
                 for day in dates:
                     # Get the day of data and do DCT on it
@@ -135,6 +137,8 @@ def main():
 
     if config.CREATE_STATISTICS == True:
         raise NotImplemented
+    
+    print("Done.\n========================================================")
 
 # Thanks, multiprocessing
 if __name__ == '__main__':

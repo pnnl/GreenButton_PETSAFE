@@ -7,7 +7,7 @@ CREATE_STATISTICS = False
 ENCRYPT = False
 
 DCT = True
-NORMALIZE = True
+NORMALIZE = False
 GRAPH_DCT = False
 STORE_DCT = True
 
@@ -47,7 +47,7 @@ END_DATE = "2022-01-01"
 # If processing multiple years for analysis, it's recommended to keep this value the same between years
 BUILDING_COUNT = 3
 # What building ID number to start at
-FIRST_BUILDING_ID = 3
+FIRST_BUILDING_ID = 0
 
 # Output directory for prepped data
 OUTPUT_DIR = "./output/"

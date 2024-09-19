@@ -1,4 +1,3 @@
-import pandas as pd
 from sklearn.preprocessing import minmax_scale
 
 # data should be a pandas frame column (series)

@@ -45,19 +45,19 @@ def choose_random_ids():
     count = -1 # Obviously invalid placeholder to initiate while loop
     dist = building_dist(name="building_dist")
     min_size = 2
-    max_size = 5
+    max_size = 3
     while count < min_size or count > max_size:
         count = int(dist.rvs(loc1=loc1, scale1=scale1, loc2=loc2, scale2=scale2, s=s, size=1)[0]) # Generate building size
     # Get possible IDs to choose from
 
     # Query times:
-    # 6 units (26444, 27168, 33342, 51837, 25838, 26836): 90 mins
-    # 4 units (35390, 33789, 25973, 25291): 30 mins
-    # 3 units (26620, 59489, 47757): 5 mins
-    # 2 units:
+    # 6 units (26444, 27168, 33342, 51837, 25838, 26836): ~90 mins
+    # 4 units (35390, 33789, 25973, 25291): ~30 mins
+    # 3 units (26620, 59489, 47757): 5-10 mins
+    # 2 units (35390, 33789): ~1-2 mins
 
 # TEMP FOR QUICK ENCRYPTION/AGGREGATION TESTING
-    count = 3
+    #count = 2
 # TEMP
 
     print("Selecting building IDs.")
@@ -110,6 +110,7 @@ class Building:
         else:
             self.__query_database()
             self.__data = self.aggregate("15min")
+            print(self.__data[self.__data["real_power"] > 0])
 
             # TODO: when changing resolution-
             # Make sure the aggregation interval is greater than the interval in the data-
@@ -305,7 +306,7 @@ class Building:
         # Fill in missing timestamps
         # timestamp should be index
         start_datetime = target.index[0]
-        end_datetime = start_datetime + pd.Timedelta(1, "d") # one day ahead for date_range to work properly
+        end_datetime = target.index[-1] + pd.Timedelta(1, "d") # one day ahead for date_range to work properly
         fifteen_min_increments = pd.date_range(start=start_datetime, end=end_datetime, freq="15min", normalize=True, inclusive="left")
         new_index = pd.Index(fifteen_min_increments, name="timestamp")
         target = target.reindex(new_index)
@@ -331,7 +332,7 @@ class Building:
                 #print("One week ago:", week_ago_date)
                 # Figure out what timestamp is supposed to be
 
-        target = target.fillna(0) # Catch anything the fill methods missed. TODO: Make sure to log this!
+            target = target.fillna(0) # Catch anything the fill methods missed. TODO: Make sure to log this!
         return target
 
     def change_resolution(self, resolution): # resolution should be a valid resample value

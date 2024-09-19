@@ -6,7 +6,7 @@ from typing import Optional
 DCT_TYPE = 2
 
 DROP_BELOW_THRESHOLD = True
-THRESHOLD_VAL = 30
+THRESHOLD_VAL = 1
 
 DROP_HIGH = False
 PORTION_TO_DROP = 3/4
