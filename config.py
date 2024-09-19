@@ -7,7 +7,7 @@ CREATE_STATISTICS = False
 ENCRYPT = False
 
 DCT = True
-NORMALIZE = False
+NORMALIZE = True
 GRAPH_DCT = False
 STORE_DCT = True
 

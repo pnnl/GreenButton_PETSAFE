@@ -32,7 +32,7 @@ def unpickle_buildings():
     # Get all buildings from files and place in one big frame for processing
     try:
         for file in list_files_in_dir(filepath, append_path=True):
-            print(file)
+            #print("Reading", file)
             with open(file, "rb") as file:
                 building= pickle.load(file)
             buildings_frame = pd.concat((buildings_frame, building))
@@ -81,8 +81,11 @@ def main():
         #print(buildings[buildings["real_power"] > 0])
         # Normalize the database to values between 0 and 1.
         if config.NORMALIZE == True:
+            subdir = "normalized" # used to save coefficients to file
             buildings["real_power"] = norm.normalize(buildings["real_power"])
             print(buildings["real_power"])
+        else:
+            subdir = "non-normalized"
 
         # DCT operations: calculating, zeroing coefficients, and recomposing afterwards
         # to get the data back into a usable form    
@@ -113,7 +116,7 @@ def main():
 
             # For each building, calculate and save DCT values for each day of data
             else: # config.STORE_DCT != False
-                print("Preparing array of DCT coefficients for all days in data.")
+                #print("Preparing array of DCT coefficients for all days in data.")
                 dates = np.unique(this_building.index.date) # timestamp is index
                 #print(dates)
                 coefficients = np.empty(0, dtype=np.float64)
@@ -128,7 +131,7 @@ def main():
                 filename = "Building-" + str(this_building["building_id"].iloc[0]) + "-coefficients.pkl"
                 print("Saving DCT coefficients to pickle file at", filename)
                 # Set directory path of output- output directory in config + "buildings" subdirectory
-                dirpath = config.OUTPUT_DIR + "coefficients/"
+                dirpath = config.OUTPUT_DIR + "/coefficients/" + subdir
                 if not exists(dirpath):
                     makedirs(dirpath)
                 # Save as file to output dir
