@@ -136,5 +136,8 @@ def populateAll():
                     elif len(row) != 8: # Handle misformatted data
                         print("Columns missing from row:", str(row))
             DBConn.insert_PowerRecords(conn, allRows)
+            createIndex = "CREATE INDEX index_point_id ON point_id"
+            cursor_obj.execute(createIndex)
+            cursor_obj.execute("PRAGMA optimize;")
             cursor_obj.close()
             print ("Done with", aFile)

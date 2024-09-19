@@ -2,9 +2,13 @@ import multiprocessing
 import pandas as pd
 import plotly.express as px
 import pickle
+import numpy as np
+from os.path import exists
+from os import makedirs
 
 import config
 import dct
+import normalization as norm
 from list_files import list_files_in_dir
 
 # Building module-related imports
@@ -12,9 +16,6 @@ from virtual_buildings import create_buildings as cb
 #from building_analysis.reader import Reader
 #from building_analysis.decryptor import Decryptor
 from processor.commonDB import DBConn
-
-# Output directory for prepped data
-OUTPUT_DIR = "./output/"
 
 def populate_database():
     import processor.populateRecords as popdb
@@ -31,9 +32,12 @@ def unpickle_buildings():
     # Get all buildings from files and place in one big frame for processing
     try:
         for file in list_files_in_dir(filepath, append_path=True):
+            print(file)
             with open(file, "rb") as file:
                 building= pickle.load(file)
             buildings_frame = pd.concat((buildings_frame, building))
+            dates = np.unique(buildings_frame.index.date) # timestamp is index
+            print("Buildings frame:", dates, "\n=========")
         return buildings_frame
     except Exception as ex:
         print("Could not unpickle buildings:", ex)
@@ -45,7 +49,7 @@ def main():
     if TEST_QUERY == True:
         print("Testing query (may take a while)")
         with DBConn.create_connection(config.DATABASE) as conn:
-            #columns = ['ee_site_id', 'point_id', 'timestamp', 'duration', 'real_power', 'apparent_power', 'pf']
+            columns = ['ee_site_id', 'point_id', 'timestamp', 'duration', 'real_power', 'apparent_power', 'pf']
             columns = ['timestamp']
             query = "SELECT * FROM POWER WHERE ee_site_id=491 AND timestamp=1585155600"
             query = "SELECT timestamp FROM POWER"
@@ -53,33 +57,81 @@ def main():
             data = results.fetchall()
             data = pd.DataFrame.from_records(data=data, columns=columns)
         print(data)
+        """
+            createIndex = "CREATE INDEX index_point_id ON POWER(point_id)"
+            cursor_obj = conn.cursor()
+            cursor_obj.execute(createIndex)
+            cursor_obj.execute("PRAGMA optimize;") # Collects statistics that speed up queries
+            cursor_obj.close()
+        """
         print("Query testing done.")
 
+    # Create the database. Required for any other operations.
     if config.READ_FILES == True:
         populate_database()
     
+    # Create buildings from the data. 
+    # Optionally, save them to a pickle file in OUTPUT_DIR/buildings/
     if config.CREATE_BUILDINGS == True:
         cb.make_buildings(config.BUILDING_COUNT, pickle=True)
 
+    # Calculate DCT on data and perform any selected operations with it
     if config.DCT == True:
         buildings = unpickle_buildings()
-        for id in buildings["building_id"].unique():
-            this_building = buildings[buildings["building_id"] == id]
-            dct_matrix = dct.decompose(this_building["real_power"])
-            dct_matrix = dct.drop_coefficients(dct_matrix)
-            recomposed = dct.recompose(dct_matrix)
+        # Normalize the database to values between 0 and 1.
+        if config.NORMALIZE == True:
+            buildings["real_power"] = norm.normalize(buildings["real_power"])
+            print(buildings["real_power"])
 
-            if config.GRAPH_DCT == True:
-                graphframe = pd.DataFrame()
-                graphframe = pd.concat((graphframe, pd.Series(data=recomposed)))
-                graphframe = graphframe.rename(columns={0: "recomposed"})
-                graphframe = pd.concat((graphframe, buildings["real_power"].reset_index()), axis=1)
-                graphframe = graphframe.set_index("timestamp")
-                #print(graphframe)
-                fig = px.line(graphframe)
-                fig.update_traces(opacity=0.75)
-                fig.data[0].line.color = "#A9A9A9"
-                fig.show()
+        # DCT operations: calculating, zeroing coefficients, and recomposing afterwards
+        # to get the data back into a usable form    
+        for id in buildings["building_id"].unique():
+            print("Performing DCT on building", id)
+            this_building = buildings[buildings["building_id"] == id]
+            if config.STORE_DCT == False:
+                dct_matrix = dct.decompose(this_building["real_power"])
+                dct_matrix = dct.drop_coefficients(dct_matrix)
+                recomposed = dct.recompose(dct_matrix)
+
+                # Graph DCT values with original data to see visual changes
+                if config.GRAPH_DCT == True:
+                    print("Preparing graph for building", id)
+                    graphframe = pd.DataFrame()
+                    graphframe = pd.concat((graphframe, pd.Series(data=recomposed)))
+                    graphframe = graphframe.rename(columns={0: "recomposed"})
+                    graphframe = pd.concat((graphframe, buildings["real_power"].reset_index()), axis=1)
+                    graphframe = graphframe.set_index("timestamp")
+                    #print(graphframe)
+                    fig = px.line(graphframe)
+                    fig.update_traces(opacity=0.75)
+                    fig.data[0].line.color = "red"
+                    fig.data[1].line.color = "#A9A9A9"
+                    print("Showing graph in web browser")
+                    fig.show()
+
+            # For each building, calculate and save DCT values for each day of data
+            else: # config.STORE_DCT != False
+                print("Preparing array of DCT coefficients for all days in data.")
+                dates = np.unique(this_building.index.date) # timestamp is index
+                print(dates)
+                coefficients = np.empty(0, dtype=np.float64)
+                for day in dates:
+                    # Get the day of data and do DCT on it
+                    day_data = this_building[this_building.index.date == day]
+                    day_dct_matrix = dct.decompose(day_data["real_power"], log=False)
+                    #day_dct_matrix = dct.drop_coefficients(day_dct_matrix)
+                    # TODO: consider nesting as 2D array instead to preserve daily association
+                    coefficients = np.concatenate((coefficients, day_dct_matrix))
+
+                filename = "Building-" + str(this_building["building_id"].iloc[0]) + "-coefficients.pkl"
+                print("Saving DCT coefficients to pickle file at", filename)
+                # Set directory path of output- output directory in config + "buildings" subdirectory
+                dirpath = config.OUTPUT_DIR + "coefficients/"
+                if not exists(dirpath):
+                    makedirs(dirpath)
+                # Save as file to output dir
+                with open(dirpath + filename, "wb") as outfile:
+                    pickle.dump(coefficients, outfile)
 
     if config.CREATE_STATISTICS == True:
         raise NotImplemented
@@ -90,7 +142,7 @@ if __name__ == '__main__':
     try:
         main()
     except KeyboardInterrupt:
-        print("Stopping.")
+        print("Stopping (please wait).")
 
     """
     if config.CREATE_STATISTICS == True:

@@ -1,21 +1,26 @@
 from scipy.fftpack import dct, idct
 from math import floor
 import numpy as np
+from typing import Optional
 
 DCT_TYPE = 2
 
-DROP_BELOW_THRESHOLD = False
+DROP_BELOW_THRESHOLD = True
 THRESHOLD_VAL = 30
 
-DROP_HIGH = True
+DROP_HIGH = False
 PORTION_TO_DROP = 3/4
 
-KEEP_LARGEST_HIGH = True
+KEEP_LARGEST_HIGH = False
 NUMBER_OF_LARGEST = 5
 
 # Break data into cosine functions using DCT. Outputs an array of coefficients.
-def decompose(target_column):
-    print("Decomposing into DCT coefficients.")
+def decompose(
+        target_column, # Pandas series to decompose
+        log: Optional[bool] = False # Whether to log decomposition to terminal
+        ):
+    if log == True:
+        print("Decomposing into DCT coefficients.")
     real_power = target_column.to_numpy()
     dct_real = dct(real_power, type=DCT_TYPE)
     return dct_real
@@ -45,16 +50,17 @@ def drop_coefficients(coefficients_array):
         # Drop high frequency values
         coefficients_array[-index_of_drop:] = 0
 
-        # Add back in the most significant high frequency coefficients
-        if KEEP_LARGEST_HIGH == True:
-            for i in range(0, NUMBER_OF_LARGEST):
-                value_to_keep = max(high_freqs)
-                # TODO: deal with duplicate maxes
-                high_freqs = np.delete(high_freqs, np.where(high_freqs == value_to_keep))
-                keep_position = np.where(all_freqs == value_to_keep)
-                print("Keeping", value_to_keep, "at", keep_position)
-                coefficients_array[keep_position] = value_to_keep
-    print(coefficients_array)
+    # Add back in the most significant high frequency coefficients
+    if KEEP_LARGEST_HIGH == True:
+        for i in range(0, NUMBER_OF_LARGEST):
+            value_to_keep = max(high_freqs)
+            # TODO: deal with duplicate maxes
+            high_freqs = np.delete(high_freqs, np.where(high_freqs == value_to_keep))
+            keep_position = np.where(all_freqs == value_to_keep)
+            print("Keeping", value_to_keep, "at", keep_position)
+            coefficients_array[keep_position] = value_to_keep
+
+    #print(coefficients_array)
     print("Coefficient adjustment done.")
     return coefficients_array
 
@@ -68,3 +74,17 @@ def recompose(coefficients_array):
     scalar = 66.432 / 0.346
     data = data / scalar
     return data
+
+# Add noise to coefficients for differential privacy
+# TODO: right now, noise is added the same way for all coefficients.
+# Would some coefficients benefit from more or less noise to balance privacy
+# with accuracy? It seems likely.
+def add_noise(coefficients_array):
+    location = 0
+    scale = 1 # TODO: figure out what to set this to
+    rng = np.random.default_rng()
+    for coefficient in coefficients_array:
+        noise = rng.laplace(location, scale)
+        noisy_coefficient = coefficient + noise
+        coefficients_array[coefficient] = noisy_coefficient
+    return coefficients_array

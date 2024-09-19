@@ -10,7 +10,7 @@ from math import floor
 #import processor.pullMains as pulldb
 from processor.commonDB import DBConn
 from logger_config import config_logger
-from config import DATABASE, SEED, ENCRYPT_COLS, PORTION_OF_CPU, ENCRYPT, OUTPUT_DIR
+from config import DATABASE, SEED, ENCRYPT_COLS, PORTION_OF_CPU, ENCRYPT, OUTPUT_DIR, FIRST_BUILDING_ID
 
 # Setting copy on write for PANDAS as recommended here:
 # https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
@@ -44,12 +44,20 @@ def choose_random_ids():
     s = 3.28533426
     count = -1 # Obviously invalid placeholder to initiate while loop
     dist = building_dist(name="building_dist")
-    while count < 2:
+    min_size = 2
+    max_size = 5
+    while count < min_size or count > max_size:
         count = int(dist.rvs(loc1=loc1, scale1=scale1, loc2=loc2, scale2=scale2, s=s, size=1)[0]) # Generate building size
     # Get possible IDs to choose from
 
+    # Query times:
+    # 6 units (26444, 27168, 33342, 51837, 25838, 26836): 90 mins
+    # 4 units (35390, 33789, 25973, 25291): 30 mins
+    # 3 units (26620, 59489, 47757): 5 mins
+    # 2 units:
+
 # TEMP FOR QUICK ENCRYPTION/AGGREGATION TESTING
-    #count = 3
+    count = 3
 # TEMP
 
     print("Selecting building IDs.")
@@ -72,7 +80,7 @@ def choose_random_ids():
     return building_ids
 
 def make_buildings(count, pickle: bool):
-    for i in range(0, count):
+    for i in range(FIRST_BUILDING_ID, FIRST_BUILDING_ID + count):
         ids = choose_random_ids()
         print("Creating building", i)
         building = Building(ids, encrypt=ENCRYPT, building_id=i, pickle=pickle)
