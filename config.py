@@ -49,7 +49,10 @@ END_DATE = "2022-01-01"
 # If processing multiple years for analysis, it's recommended to keep this value the same between years
 BUILDING_COUNT = 3
 # What building ID number to start at
-FIRST_BUILDING_ID = 0
+FIRST_BUILDING_ID = 3
+# Minimum and maximum count of units per building
+MIN_SIZE = 3
+MAX_SIZE = 5
 
 # Output directory for prepped data
 OUTPUT_DIR = "./output/"
@@ -67,4 +70,4 @@ POWER_DIR = ROOT_DATA_DIR + "power/"
 # Which columns to encrypt
 ENCRYPT_COLS = ["real_power", "apparent_power", "pf"]
 # Seed to use for building site randomization
-SEED = 176575734
+SEED = 1765757341

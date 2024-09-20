@@ -100,6 +100,6 @@ def analyze(coefficients_array):
     #data_distribution = data_distribution.set_index("Coefficient")
     print(data_distribution)
     # , x="Coefficient", y="count"
-    fig = px.bar(data_distribution, x="Coefficient", y="count")
+    fig = px.histogram(data_distribution, x="Coefficient", y="count", marginal="box")
     print("Showing graph in web browser")
     fig.show()

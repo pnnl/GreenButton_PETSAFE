@@ -73,7 +73,7 @@ def main():
     # Create buildings from the data. 
     # Optionally, save them to a pickle file in OUTPUT_DIR/buildings/
     if config.CREATE_BUILDINGS == True:
-        cb.make_buildings(config.BUILDING_COUNT, pickle=True)
+        cb.make_buildings(config.BUILDING_COUNT, pickle=True, seed=config.SEED)
 
     # Calculate DCT on data and perform any selected operations with it
     if config.PERFORM_DCT == True:
@@ -100,6 +100,7 @@ def main():
 
                 # Graph DCT values with original data to see visual changes
                 if config.GRAPH_DCT == True:
+                    import matplotlib as mpl
                     print("Preparing graph for building", id)
                     graphframe = pd.DataFrame()
                     graphframe = pd.concat((graphframe, pd.Series(data=recomposed)))

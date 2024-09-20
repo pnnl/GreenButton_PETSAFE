@@ -10,7 +10,7 @@ from math import floor
 #import processor.pullMains as pulldb
 from processor.commonDB import DBConn
 from logger_config import config_logger
-from config import DATABASE, SEED, ENCRYPT_COLS, PORTION_OF_CPU, ENCRYPT, OUTPUT_DIR, FIRST_BUILDING_ID
+from config import DATABASE, ENCRYPT_COLS, PORTION_OF_CPU, ENCRYPT, OUTPUT_DIR, FIRST_BUILDING_ID, MIN_SIZE, MAX_SIZE
 
 # Setting copy on write for PANDAS as recommended here:
 # https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
@@ -19,7 +19,9 @@ pd.options.mode.copy_on_write = True
 # Set up logger
 logger = config_logger()
 # Initialize with seed
-randomizer = random.default_rng(SEED)
+def set_seed(seed: Optional[str] = None):
+    randomizer = random.default_rng(seed)
+    return randomizer
 
 # Ensure trailing slash
 if OUTPUT_DIR[-1] != "/":
@@ -34,7 +36,8 @@ class building_dist(rv_discrete):
         return halfcauchy.pdf(x, scale=scale1, loc=loc1) + lognorm.pdf(x, s, scale=scale2, loc=loc2)
 
 # Gets a set of random building ids; used to create buildings
-def choose_random_ids():
+def choose_random_ids(seed: Optional[int] = None):
+    randomizer = set_seed(seed)
     print("Generating building size.")
     # Get the building size
     loc1 = 1.83202980
@@ -44,9 +47,7 @@ def choose_random_ids():
     s = 3.28533426
     count = -1 # Obviously invalid placeholder to initiate while loop
     dist = building_dist(name="building_dist")
-    min_size = 2
-    max_size = 3
-    while count < min_size or count > max_size:
+    while count < MIN_SIZE or count > MAX_SIZE:
         count = int(dist.rvs(loc1=loc1, scale1=scale1, loc2=loc2, scale2=scale2, s=s, size=1)[0]) # Generate building size
     # Get possible IDs to choose from
 
@@ -79,9 +80,12 @@ def choose_random_ids():
     building_ids = tuple([id[0] for id in building_ids])
     return building_ids
 
-def make_buildings(count, pickle: bool):
+def make_buildings(
+        count, 
+        pickle: bool,
+        seed: Optional[int] = None):
     for i in range(FIRST_BUILDING_ID, FIRST_BUILDING_ID + count):
-        ids = choose_random_ids()
+        ids = choose_random_ids(seed)
         print("Creating building", i)
         building = Building(ids, encrypt=ENCRYPT, building_id=i, pickle=pickle)
         print("Building", i, "created.")
