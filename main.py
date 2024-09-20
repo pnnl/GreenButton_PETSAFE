@@ -76,7 +76,7 @@ def main():
         cb.make_buildings(config.BUILDING_COUNT, pickle=True)
 
     # Calculate DCT on data and perform any selected operations with it
-    if config.DCT == True:
+    if config.PERFORM_DCT == True:
         buildings = unpickle_buildings()
         #print(buildings[buildings["real_power"] > 0])
         # Normalize the database to values between 0 and 1.
@@ -116,9 +116,7 @@ def main():
 
             # For each building, calculate and save DCT values for each day of data
             else: # config.STORE_DCT != False
-                #print("Preparing array of DCT coefficients for all days in data.")
                 dates = np.unique(this_building.index.date) # timestamp is index
-                #print(dates)
                 coefficients = np.empty(0, dtype=np.float64)
                 for day in dates:
                     # Get the day of data and do DCT on it
@@ -137,6 +135,29 @@ def main():
                 # Save as file to output dir
                 with open(dirpath + filename, "wb") as outfile:
                     pickle.dump(coefficients, outfile)
+
+    if config.RETRIEVE_DCT == True:
+            if config.OUTPUT_DIR[-1] != "/":
+                config.OUTPUT_DIR += "/"
+            filepath = config.OUTPUT_DIR + "coefficients/"
+            if config.NORMALIZE == True: # TODO: separate switch for reading vs writing normalized data?
+                filepath = filepath + "normalized/"
+            else:
+                filepath = filepath + "non-normalized/"
+            coefficients = np.empty(0, dtype=np.float64)
+            try:
+                for file in list_files_in_dir(filepath, append_path=True):
+                    with open(file, "rb") as file:
+                        building_coefficients = pickle.load(file)
+                    coefficients = np.append(coefficients, building_coefficients)
+            except Exception as ex:
+                print("Could not unpickle building coefficients:", ex)
+                raise SystemExit # For now
+            
+            if config.ANALYZE_DCT == True:
+                dct.analyze(coefficients)
+                
+
 
     if config.CREATE_STATISTICS == True:
         raise NotImplemented

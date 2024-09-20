@@ -6,10 +6,12 @@ CREATE_BUILDINGS = False
 CREATE_STATISTICS = False
 ENCRYPT = False
 
-DCT = True
-NORMALIZE = True
+PERFORM_DCT = False
+NORMALIZE = False
 GRAPH_DCT = False
 STORE_DCT = True
+RETRIEVE_DCT = True
+ANALYZE_DCT = True
 
 # Database file target
 DATABASE = "records.db"

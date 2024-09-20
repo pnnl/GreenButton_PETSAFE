@@ -2,6 +2,7 @@ from scipy.fftpack import dct, idct
 from math import floor
 import numpy as np
 from typing import Optional
+import pandas as pd
 
 DCT_TYPE = 2
 
@@ -88,3 +89,17 @@ def add_noise(coefficients_array):
         noisy_coefficient = coefficient + noise
         coefficients_array[coefficient] = noisy_coefficient
     return coefficients_array
+
+def analyze(coefficients_array):
+    import plotly.express as px
+    data = pd.DataFrame(data=coefficients_array)
+    data_distribution = pd.DataFrame(data.value_counts())
+    #print(data_distribution.index)
+    data_distribution = data_distribution.reset_index()
+    data_distribution = data_distribution.rename(columns={0: "Coefficient"})
+    #data_distribution = data_distribution.set_index("Coefficient")
+    print(data_distribution)
+    # , x="Coefficient", y="count"
+    fig = px.bar(data_distribution, x="Coefficient", y="count")
+    print("Showing graph in web browser")
+    fig.show()
