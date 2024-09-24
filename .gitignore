@@ -2,6 +2,8 @@ data/*
 __pycache__/*
 virtual_buildings/__pycache__/*
 building_analysis/__pycache__/*
+processor/__pycache__/*
+processor/.vscode/*
 output/old/*
 keys/*
 pickled-totals
