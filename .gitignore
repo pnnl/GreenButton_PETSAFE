@@ -2,7 +2,7 @@ data/*
 __pycache__/*
 virtual_buildings/__pycache__/*
 building_analysis/__pycache__/*
-output/*
+output/old/*
 keys/*
 pickled-totals
 tools/building-size-distribution.csv

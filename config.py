@@ -74,9 +74,9 @@ END_DATE = "2022-01-01"
 
 # ----- PROCESSING -----
 # How many virtual buildings to make
-BUILDING_COUNT = 5
+BUILDING_COUNT = 1
 # What building ID number to start at
-FIRST_BUILDING_ID = 0
+FIRST_BUILDING_ID = 5
 # Minimum and maximum count of units per building
 MIN_SIZE = 2
 MAX_SIZE = 4
@@ -99,4 +99,4 @@ POWER_DIR = ROOT_DATA_DIR + "power/"
 # ["real_power", "apparent_power", "pf"]
 ENCRYPT_COLS = ["real_power"]
 # Seed to use for building site randomization
-SEED = 176575734
+SEED = 17657573411

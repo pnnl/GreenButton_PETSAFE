@@ -55,7 +55,7 @@ def choose_random_ids(seed: Optional[int] = None):
     # Query times:
     # 6 units (26444, 27168, 33342, 51837, 25838, 26836): ~90 mins
     # 4 units (35390, 33789, 25973, 25291): ~30 mins
-    # 3 units (26620, 59489, 47757): 5-10 mins
+    # 3 units (26620, 59489, 47757); (26962, 33354, 51908): 5-10 mins, 22 w/encryption
     # 2 units (35390, 33789): ~1-2 mins
 
 # TEMP FOR QUICK ENCRYPTION/AGGREGATION TESTING
@@ -216,7 +216,6 @@ class Building:
             except KeyboardInterrupt:
                 pool.terminate()
         for result in encrypted_outputs:
-                print(result)
                 column = result[1]
                 data = result[0]
                 results[column] = data
