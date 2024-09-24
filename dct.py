@@ -4,6 +4,8 @@ import numpy as np
 from typing import Optional
 import pandas as pd
 
+import normalization as norm
+
 DCT_TYPE = 2
 
 DROP_BELOW_THRESHOLD = True
@@ -23,11 +25,20 @@ def decompose(
     if log == True:
         print("Decomposing into DCT coefficients.")
     real_power = target_column.to_numpy()
-    dct_real = dct(real_power, type=DCT_TYPE)
+    # Ortho norm ensures that inverse DCT gets the same values out that went in
+    dct_real = dct(real_power, type=DCT_TYPE, norm="ortho")
     return dct_real
 
 # Zero some coefficients to "smooth" data
-def drop_coefficients(coefficients_array):
+def drop_coefficients(
+        coefficients_array,
+        DROP_HIGH: Optional[bool] = DROP_HIGH,
+        PORTION_TO_DROP: Optional[float] = PORTION_TO_DROP,
+        KEEP_LARGEST_HIGH: Optional[bool] = KEEP_LARGEST_HIGH,
+        NUMBER_OF_LARGEST: Optional[int] = NUMBER_OF_LARGEST,
+        DROP_BELOW_THRESHOLD: Optional[bool] = DROP_BELOW_THRESHOLD,
+        THRESHOLD_VAL: Optional[int] = THRESHOLD_VAL
+        ):
     # Used to drop high values and/or add their max value(s) back in
     index_of_drop = floor(len(coefficients_array) * PORTION_TO_DROP)
 
@@ -61,19 +72,16 @@ def drop_coefficients(coefficients_array):
             print("Keeping", value_to_keep, "at", keep_position)
             coefficients_array[keep_position] = value_to_keep
 
+    else:
+        print("Keeping all coefficients.")
     #print(coefficients_array)
     print("Coefficient adjustment done.")
     return coefficients_array
 
 def recompose(coefficients_array):
     # Reconstruct the data from the coefficients array
-    data = idct(coefficients_array, type=DCT_TYPE)
-    # Problem: recomposition appears to be scaled up.
-    # Solution: divide by a scalar found by dividing the first two non-0 values in a frame
-    # Tested and it appears to hold firm for multiple frames
-    # TODO: why does this happen in the first place? Why this value/ratio?
-    scalar = 66.432 / 0.346
-    data = data / scalar
+    # Ortho norm ensures that inverse DCT gets the same values out that went in
+    data = idct(coefficients_array, type=DCT_TYPE, norm="ortho")
     return data
 
 # Add noise to coefficients for differential privacy
@@ -90,16 +98,102 @@ def add_noise(coefficients_array):
         coefficients_array[coefficient] = noisy_coefficient
     return coefficients_array
 
+# Graph the distribution of DCT coefficients to make it easier to choose
+# threshold values
 def analyze(coefficients_array):
     import plotly.express as px
     data = pd.DataFrame(data=coefficients_array)
     data_distribution = pd.DataFrame(data.value_counts())
-    #print(data_distribution.index)
     data_distribution = data_distribution.reset_index()
     data_distribution = data_distribution.rename(columns={0: "Coefficient"})
-    #data_distribution = data_distribution.set_index("Coefficient")
-    print(data_distribution)
-    # , x="Coefficient", y="count"
     fig = px.histogram(data_distribution, x="Coefficient", y="count", marginal="box")
     print("Showing graph in web browser")
     fig.show()
+
+def compare_averages(recomposed_data, original_data):
+    original_avg = original_data.sum() / original_data.size
+    dct_avg = recomposed_data.sum() / recomposed_data.size
+    avg_difference = dct_avg - original_avg
+    return avg_difference, dct_avg
+
+# Find best values to maintain accuracy of DCT data
+def fit_accuracy(
+        original_data, 
+        method: Optional[str] = None,
+        DROP_HIGH: Optional[bool] = DROP_HIGH,
+        PORTION_TO_DROP: Optional[float] = PORTION_TO_DROP,
+        KEEP_LARGEST_HIGH: Optional[bool] = KEEP_LARGEST_HIGH,
+        NUMBER_OF_LARGEST: Optional[int] = NUMBER_OF_LARGEST,
+        DROP_BELOW_THRESHOLD: Optional[bool] = DROP_BELOW_THRESHOLD,
+        THRESHOLD_VAL: Optional[int] = THRESHOLD_VAL):
+
+    def test_fit(
+            original_data,
+            DROP_HIGH: Optional[bool] = DROP_HIGH,
+            PORTION_TO_DROP: Optional[float] = PORTION_TO_DROP,
+            KEEP_LARGEST_HIGH: Optional[bool] = KEEP_LARGEST_HIGH,
+            NUMBER_OF_LARGEST: Optional[int] = NUMBER_OF_LARGEST,
+            DROP_BELOW_THRESHOLD: Optional[bool] = DROP_BELOW_THRESHOLD,
+            THRESHOLD_VAL: Optional[int] = THRESHOLD_VAL
+            ):
+        dct_matrix = decompose(original_data)
+        dct_matrix = drop_coefficients(dct_matrix, DROP_HIGH=DROP_HIGH, PORTION_TO_DROP=PORTION_TO_DROP, KEEP_LARGEST_HIGH=KEEP_LARGEST_HIGH,\
+                            NUMBER_OF_LARGEST=NUMBER_OF_LARGEST, DROP_BELOW_THRESHOLD=DROP_BELOW_THRESHOLD, THRESHOLD_VAL=THRESHOLD_VAL)
+        recomposed = recompose(dct_matrix)
+        print("Difference:", compare_averages(recomposed, original_data))
+        diff, dct_avg = compare_averages(recomposed, original_data)
+        return diff, dct_avg
+    
+    def check_best(value, avg_diff, dct_avg, current_best):
+        if avg_diff > current_best[1] and dct_avg > 0:
+            return (value, avg_diff)
+        else:
+            return best
+
+    original_data = pd.Series(data=norm.normalize(original_data))
+    best = (0, 0) # value, average
+    match method:
+        case "threshold":
+            DROP_BELOW_THRESHOLD = True
+            print("Fitting for 'drop below threshold.'")
+            min_to_test = 2
+            max_to_test = 100
+            for i in range(min_to_test, max_to_test + 1):
+                THRESHOLD_VAL = i
+                diff, dct_avg = test_fit(original_data, DROP_BELOW_THRESHOLD=DROP_BELOW_THRESHOLD, THRESHOLD_VAL=THRESHOLD_VAL)
+                best = check_best(i, diff, dct_avg, best)
+
+        case "drop high":
+            DROP_HIGH = True
+            print("Fitting for 'drop high'")
+            min_to_test = 10
+            max_to_test = 100
+            for i in range(min_to_test, max_to_test + 1):
+                PORTION_TO_DROP = i / 100
+                diff, dct_avg = test_fit(original_data, DROP_HIGH=DROP_HIGH, PORTION_TO_DROP=PORTION_TO_DROP)
+                best = check_best(i, diff, dct_avg, best)
+
+        case "drop high keep max":
+            KEEP_LARGEST_HIGH = True
+            print("Fitting for 'drop high, keep maximum value(s).'")
+            min_to_test = 2
+            max_to_test = 100
+            for i in range(min_to_test, max_to_test + 1):
+                PORTION_TO_DROP = i / 100
+                min_to_keep = 2
+                max_to_keep = 10
+                for i in range(min_to_keep, max_to_keep + 1):
+                    NUMBER_OF_LARGEST = i
+                    diff, dct_avg = test_fit(original_data, KEEP_LARGEST_HIGH=KEEP_LARGEST_HIGH, PORTION_TO_DROP=PORTION_TO_DROP, \
+                                    NUMBER_OF_LARGEST=NUMBER_OF_LARGEST)
+                    best = check_best(i, diff, dct_avg, best)
+        case __:
+            print("""Available methods for coefficient reduction:
+              "threshold"
+              "drop high"
+              "drop high keep large"
+              """)
+            return None
+
+    print("Best fit:", best[0], "with average difference of", best[1])
+    return best

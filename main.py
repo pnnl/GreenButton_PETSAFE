@@ -83,7 +83,7 @@ def main():
         if config.NORMALIZE == True:
             subdir = "normalized" # used to save coefficients to file
             buildings["real_power"] = norm.normalize(buildings["real_power"])
-            print(buildings["real_power"])
+            #print(buildings["real_power"])
         else:
             subdir = "non-normalized"
 
@@ -92,6 +92,9 @@ def main():
         for id in buildings["building_id"].unique():
             print("Performing DCT on building", id)
             this_building = buildings[buildings["building_id"] == id]
+            if config.FIT_DCT == True:
+                method = config.METHOD
+                best_fit = dct.fit_accuracy(this_building["real_power"], method)
             if config.STORE_DCT == False:
                 dct_matrix = dct.decompose(this_building["real_power"])
                 dct_matrix = dct.drop_coefficients(dct_matrix)
@@ -116,13 +119,16 @@ def main():
                     fig.show()
 
             # For each building, calculate and save DCT values for each day of data
-            else: # config.STORE_DCT != False
+            elif config.FIT_DCT == False: # config.STORE_DCT != False
                 dates = np.unique(this_building.index.date) # timestamp is index
                 coefficients = np.empty(0, dtype=np.float64)
                 for day in dates:
                     # Get the day of data and do DCT on it
                     day_data = this_building[this_building.index.date == day]
                     day_dct_matrix = dct.decompose(day_data["real_power"], log=False)
+                    if config.HIGH_ONLY == True:
+                        drop_index = int(config.HIGH_THRESHOLD * day_dct_matrix.size)
+                        day_dct_matrix = day_dct_matrix[drop_index:]
                     #day_dct_matrix = dct.drop_coefficients(day_dct_matrix)
                     # TODO: consider nesting as 2D array instead to preserve daily association
                     coefficients = np.concatenate((coefficients, day_dct_matrix))
@@ -130,7 +136,10 @@ def main():
                 filename = "Building-" + str(this_building["building_id"].iloc[0]) + "-coefficients.pkl"
                 print("Saving DCT coefficients to pickle file at", filename)
                 # Set directory path of output- output directory in config + "buildings" subdirectory
-                dirpath = config.OUTPUT_DIR + "/coefficients/" + subdir
+                dirpath = config.OUTPUT_DIR + "/coefficients/"
+                if config.HIGH_ONLY == True:
+                    dirpath = dirpath + "/top-" + str(config.HIGH_THRESHOLD) + "/"
+                dirpath = dirpath + subdir + "/"
                 if not exists(dirpath):
                     makedirs(dirpath)
                 # Save as file to output dir
@@ -141,10 +150,13 @@ def main():
             if config.OUTPUT_DIR[-1] != "/":
                 config.OUTPUT_DIR += "/"
             filepath = config.OUTPUT_DIR + "coefficients/"
+            if config.HIGH_ONLY == True:
+                filepath = filepath + "top-" + str(config.HIGH_THRESHOLD) + "/"
             if config.NORMALIZE == True: # TODO: separate switch for reading vs writing normalized data?
                 filepath = filepath + "normalized/"
             else:
                 filepath = filepath + "non-normalized/"
+            print(filepath)
             coefficients = np.empty(0, dtype=np.float64)
             try:
                 for file in list_files_in_dir(filepath, append_path=True):

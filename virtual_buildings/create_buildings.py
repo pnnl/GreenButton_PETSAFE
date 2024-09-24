@@ -6,6 +6,7 @@ import multiprocessing as mp
 from numpy import random
 from typing import Optional
 from math import floor
+from time import perf_counter
 
 #import processor.pullMains as pulldb
 from processor.commonDB import DBConn
@@ -84,12 +85,16 @@ def make_buildings(
         count, 
         pickle: bool,
         seed: Optional[int] = None):
+    timer_start = perf_counter()
     for i in range(FIRST_BUILDING_ID, FIRST_BUILDING_ID + count):
         ids = choose_random_ids(seed)
         print("Creating building", i)
         building = Building(ids, encrypt=ENCRYPT, building_id=i, pickle=pickle)
         print("Building", i, "created.")
         #print(building.get_data())
+    timer_end = perf_counter()
+    time_taken = timer_end - timer_start
+    print("Time taken to create", FIRST_BUILDING_ID + count, "buildings with encryption setting", ENCRYPT, ": ", time_taken, "seconds")
 
 # The building class
 class Building:
@@ -381,7 +386,11 @@ class Building:
         # Right now, we pickle it
         filename = "Building-" + str(self.__bid) + ".pkl"
         # Set directory path of output- output directory in config + "buildings" subdirectory
-        dirpath = self.__OUTPUT_DIR + "/buildings/"
+        # or "encrypted-buildings" if encryption enabled
+        if self.__encryption_enabled == False:
+            dirpath = self.__OUTPUT_DIR + "/buildings/"
+        else:
+            dirpath = self.__OUTPUT_DIR + "/encrypted-buildings/"
         if not exists(dirpath):
             makedirs(dirpath)
         # Save as file to output dir
