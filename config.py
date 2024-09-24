@@ -2,23 +2,25 @@
 
 # Actions to perform
 # For DCT-related actions, see next section
-READ_FILES = False
-CREATE_BUILDINGS = True
-CREATE_STATISTICS = False
-ENCRYPT = True
 
+# Read from CSV files into SQLite database
+READ_FILES = False
+# Create virtual buildings using database
+CREATE_BUILDINGS = True
 # Database file target
 DATABASE = "records.db"
 # Set to true if you want to encrypt data before saving to file
-ENCRYPT = False
-# Set to True if processing encrypted data
-DECRYPT = False
+ENCRYPT = True
 # Set to True if you'd prefer to save as pickle files, False for csv
 SAVE_AS_PICKLE = True
 # Fraction of CPU power to dedicate to processing, at most.
 # e.g. If you have 4 cores and set this to 0.5, then 2 cores will be used.
 PORTION_OF_CPU = 0.5
 
+# Process statistics from created buildings
+CREATE_STATISTICS = False
+# Set to True if processing encrypted data
+DECRYPT = False
 
 # ----- DCT PROCESSING -----
 # Use DCT to "smooth out" data, obscuring some transitional events
@@ -77,7 +79,7 @@ BUILDING_COUNT = 5
 FIRST_BUILDING_ID = 0
 # Minimum and maximum count of units per building
 MIN_SIZE = 2
-MAX_SIZE = 5
+MAX_SIZE = 4
 
 # Output directory for prepped data
 OUTPUT_DIR = "./output/"

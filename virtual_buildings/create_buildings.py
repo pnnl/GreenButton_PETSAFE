@@ -117,6 +117,7 @@ class Building:
         if len(self.__ids) < 2:
             print("Building must have at least two units.")
         else:
+            print("Encryption status:", str(self.__encryption_enabled))
             self.__query_database()
             self.__data = self.aggregate("15min")
             print(self.__data[self.__data["real_power"] > 0])
