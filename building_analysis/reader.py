@@ -88,9 +88,11 @@ class Reader:
                 # Work in chunks to preserve building IDs
                 for site in pd.unique(data["building_id"]):
                     chunk = data[data["building_id"] == site]
+                    chunk_site_ids = chunk["point_id"]
                     chunk_id = chunk["building_id"].iloc[0]
                     chunk = chunk.resample(resolution).sum()
                     chunk["building_id"] = chunk_id
+                    chunk["point_id"] = chunk_site_ids
                     frame = pd.concat([frame, chunk])
                 data = frame
                 data["pf"] = data["real_power"] / data["apparent_power"]
