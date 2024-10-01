@@ -13,7 +13,7 @@ from list_files import list_files_in_dir
 
 # Building module-related imports
 from virtual_buildings import create_buildings as cb
-#from building_analysis.reader import Reader
+from building_analysis.reader import Reader
 #from building_analysis.decryptor import Decryptor
 from processor.commonDB import DBConn
 
@@ -149,9 +149,21 @@ def main():
                 dct.analyze(coefficients)
                 
 
-
     if config.CREATE_STATISTICS == True:
-        raise NotImplemented
+        reader = Reader(config.START_DATE, config.END_DATE, resolution=config.STAT_TEMPORAL_RESOLUTION)
+        data = reader.get_data()
+        building_ids = reader.get_building_ids()
+        #building_id = 2
+        for building_id in building_ids:
+            power_sum_building = reader.get_building_power_sum(building_id)
+            power_avg_building = reader.get_building_power_avg(building_id)
+            print("__________")
+            print("Site IDs for building", building_id, ":", reader.get_building_site_ids(building_id))
+            print("Total power demand of building", building_id, "between", config.START_DATE, "and", config.END_DATE, ":", power_sum_building, "kW")
+            print("Power demand average of building", building_id, "between", config.START_DATE, "and", config.END_DATE, ":", power_avg_building, "kW")
+            # TODO: graph looks weird if resolution = time range provided (eg. day resolution and single day for date range)
+            #fig = reader.graph_building_power(building_id, config.STAT_TEMPORAL_RESOLUTION, show_graph=True)
+        #fig = reader.graph_building_power(1, config.STAT_TEMPORAL_RESOLUTION, show_graph=True)
     
     print("Done.\n========================================================")
 
@@ -164,22 +176,6 @@ if __name__ == '__main__':
         print("Stopping (please wait).")
 
     """
-    if config.CREATE_STATISTICS == True:
-        # TODO: read from pickle if available
-        reader = Reader(config.START_DATE, config.END_DATE, resolution=config.STAT_TEMPORAL_RESOLUTION)
-        data = reader.get_data()
-        ids = reader.get_ids()
-        #building_id = 2
-        for building_id in ids:
-            power_sum_building = reader.get_building_power_sum(building_id)
-            power_avg_building = reader.get_building_power_avg(building_id)
-            print("__________")
-            print("Total power demand of building", building_id, "between", config.START_DATE, "and", config.END_DATE, ":", power_sum_building, "kW")
-            print("Power demand average of building", building_id, "between", config.START_DATE, "and", config.END_DATE, ":", power_avg_building, "kW")
-            # TODO: graph looks weird if resolution = time range provided (eg. day resolution and single day for date range)
-            fig = reader.graph_building_power(building_id, config.STAT_TEMPORAL_RESOLUTION, show_graph=True)
-        #fig = reader.graph_building_power(1, config.STAT_TEMPORAL_RESOLUTION, show_graph=True)
-
         # Decryption testing
         try:
             test_value = data["power"].iloc[0]
@@ -189,11 +185,4 @@ if __name__ == '__main__':
                 print("Decrypted first value:", test_value)
         except Exception as error:
             print("Unable to retrieve values:", error)
-
-def unpickle_data():
-    if config.OUTPUT_DIR[-1] != "/":
-        config.OUTPUT_DIR += "/"
-    filename = config.OUTPUT_DIR + config.YEAR + "-" + config.STAT_TEMPORAL_RESOLUTION
-    with open(filename, "rb") as file:
-        return pickle.load(file)
     """

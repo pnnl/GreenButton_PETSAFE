@@ -6,11 +6,11 @@
 # Read from CSV files into SQLite database
 READ_FILES = False
 # Create virtual buildings using database
-CREATE_BUILDINGS = True
+CREATE_BUILDINGS = False
 # Database file target
 DATABASE = "records.db"
 # Set to true if you want to encrypt data before saving to file
-ENCRYPT = True
+ENCRYPT = False
 # Set to True if you'd prefer to save as pickle files, False for csv
 SAVE_AS_PICKLE = True
 # Fraction of CPU power to dedicate to processing, at most.
@@ -18,7 +18,7 @@ SAVE_AS_PICKLE = True
 PORTION_OF_CPU = 0.5
 
 # Process statistics from created buildings
-CREATE_STATISTICS = False
+CREATE_STATISTICS = True
 # Set to True if processing encrypted data
 DECRYPT = False
 
@@ -64,7 +64,7 @@ ANALYZE_DCT = True
 # "m": month
 # "y": year
 # Not yet re-implemented in full; use with caution
-STAT_TEMPORAL_RESOLUTION = "f"
+STAT_TEMPORAL_RESOLUTION = "d"
 
 # What date range to retrieve statistics for
 LIMIT_DATE = True

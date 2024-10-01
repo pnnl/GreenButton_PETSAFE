@@ -23,7 +23,7 @@ class Reader:
         self.__read_dir = read_dir
         # TODO: deal with None end datetime
         self.validate_date_range()
-        self.__data = self.unpickle_buildings()
+        self.data = self.unpickle_buildings()
         self.data = self.change_time_resolution(self.data, self.__resolution)
 
     # TODO: add more checks for privacy concerns
@@ -36,8 +36,14 @@ class Reader:
     def get_data(self):
         return self.data
     
-    def get_ids(self):
+    def get_all_site_ids(self):
         return pd.unique(self.data["point_id"])
+    
+    def get_building_site_ids(self, building_id):
+        return self.data[self.data["building_id"] == building_id]#["point_id"].iloc[0]
+    
+    def get_building_ids(self):
+        return pd.unique(self.data["building_id"])
     
     # Change input resolution string into a consistent format for use in resampling
     def check_resolution(
@@ -76,6 +82,7 @@ class Reader:
         resolution = self.check_resolution(resolution)
         if (resolution is not None) and (DECRYPT == False):
             # TODO SANITY CHECK: if encrypted w/partial HE, reject this
+            # TODO Original resolution IS saved. Check it. If it matches, do nothing to save time.
             try:
                 frame = pd.DataFrame()
                 # Work in chunks to preserve building IDs
@@ -86,7 +93,7 @@ class Reader:
                     chunk["building_id"] = chunk_id
                     frame = pd.concat([frame, chunk])
                 data = frame
-                data["pf"] = data["power"] / data["apparent_power"]
+                data["pf"] = data["real_power"] / data["apparent_power"]
             except Exception as error:
                 print("Could not change resolution:", error)
         elif DECRYPT == False:
@@ -99,7 +106,7 @@ class Reader:
         try:
             building = self.data[self.data["building_id"] == building_id]
             if building.empty:
-                raise Exception("Building has no data (empty frame).")
+                raise Exception("Building has no data or does not exist (empty frame).")
             return building
         except Exception as error:
             print("Building could not be retrieved:", error)
@@ -116,7 +123,7 @@ class Reader:
         building = self.get_building(building_id)
         building = self.change_time_resolution(building, resolution)
         title = "Real Power for Building " + str(building_id)
-        fig = px.line(building, y="power", title=title)
+        fig = px.line(building, y="real_power", title=title)
         if show_graph == True:
             fig.show()
         return fig
@@ -144,7 +151,7 @@ class Reader:
             ):
         building = self.get_building(building_id)
         # TODO: per time period instead of whole provided period
-        return round(building["power"].sum(), 4)
+        return round(building["real_power"].sum(), 4)
     
     # Gets average power usage for the selected time resolution
     # e.g. a resolution of 1 month returns average total usage for a month of time
@@ -155,7 +162,8 @@ class Reader:
             ):
         try:
             sum = self.get_building_power_sum(building_id)
-            site_count = len(tuple(pd.unique(self.data[self.data["building_id"] == building_id]["point_id"])))
+            site_count = len(tuple(pd.unique(self.data[self.data["building_id"] == building_id]["point_id"])[0].split()))
+            print(site_count)
             # Done with multiplication to allow it to be done homomorphically- plaintext scalars
             # are okay for multiplication, not division.
             avg = sum * 1/site_count # scale down to a "site" of usage
@@ -211,17 +219,18 @@ class Reader:
                     files[files.index(file)] = dir_path + file
                     # Remove directories, just in case
                     if not os.path.isfile(os.path.join(dir_path + file)):
-                        files.remove(file)
+                        files.remove(dir_path + file)
             return files
         # TODO: Catch specific exception for no files existing
-        except:
-            print("Could not list files.")
+        except Exception as ex:
+            print("Could not list files:", ex)
+            return None
 
     def unpickle_buildings(self):
         buildings_frame = pd.DataFrame()
         # Get all buildings from files and place in one big frame for processing
         try:
-            for file in self.__list_files_in_dir(self.__read_dir, append_path=True):
+            for file in self.__list_files_in_dir(self.__read_dir, prepend_path=True):
                 with open(file, "rb") as file:
                     building= pickle.load(file)
                 buildings_frame = pd.concat((buildings_frame, building))
