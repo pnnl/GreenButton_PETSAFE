@@ -146,12 +146,14 @@ def fit_accuracy(
     
     def check_best(value, avg_diff, dct_avg, current_best):
         if avg_diff > current_best[1] and dct_avg > 0:
-            return (value, avg_diff)
-        else:
-            return best
+            best["Average"] = (value, avg_diff)
+        return best
 
     original_data = pd.Series(data=norm.normalize(original_data))
     best = (0, 0) # value, average
+    best = {"Average": (0,0), \
+            "Min": (0,0), \
+            "Max": (0,0)}
     match method:
         case "threshold":
             DROP_BELOW_THRESHOLD = True
@@ -195,5 +197,5 @@ def fit_accuracy(
               """)
             return None
 
-    print("Best fit:", best[0], "with average difference of", best[1])
+    print("Best fit for weighted average:", best["Average"][0], "with average difference of", best["Average"][1])
     return best

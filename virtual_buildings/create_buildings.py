@@ -11,7 +11,7 @@ from time import perf_counter
 #import processor.pullMains as pulldb
 from processor.commonDB import DBConn
 from logger_config import config_logger
-from config import DATABASE, ENCRYPT_COLS, PORTION_OF_CPU, ENCRYPT, OUTPUT_DIR, FIRST_BUILDING_ID, MIN_SIZE, MAX_SIZE
+from config import DATABASE, ENCRYPT_COLS, PORTION_OF_CPU, ENCRYPT, OUTPUT_DIR, FIRST_BUILDING_ID, MIN_SIZE, MAX_SIZE, LIMIT_DATE, START_DATE, END_DATE
 
 # Setting copy on write for PANDAS as recommended here:
 # https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
@@ -19,6 +19,7 @@ pd.options.mode.copy_on_write = True
 
 # Set up logger
 logger = config_logger()
+
 # Initialize with seed
 def set_seed(seed: Optional[str] = None):
     randomizer = random.default_rng(seed)
@@ -27,6 +28,12 @@ def set_seed(seed: Optional[str] = None):
 # Ensure trailing slash
 if OUTPUT_DIR[-1] != "/":
     OUTPUT_DIR += "/"
+
+# Time to create 10 buildings with seed 976616126, no encryption,
+# and size 2-5: 382.36922200000845 seconds (6.37 minutes)
+
+# Time to create the same 10 buildings with seed 976616126, WITH encryption,
+# and size 2-5: 1836.1158292000182 seconds ( minutes)
 
 # Building distribution
 from scipy.stats import rv_discrete, lognorm, halfcauchy
@@ -68,6 +75,12 @@ def choose_random_ids(seed: Optional[int] = None):
         # TODO: Buildings have different reading start dates; this needs to be accounted for
         # TODO: Add optional time range selection to limit output size
         query = "SELECT DISTINCT point_id FROM LABELS WHERE LABELS.circuit_label_type_id IN (15,16)" # Only mains
+        if LIMIT_DATE == True:
+            # Buildings don't always start on the first available day. Only include those that do start
+            # before or on the start date to avoid large missing chunks of data
+            # TODO: deal with provided date being before any data exists
+            query = query + f" AND day_zero_dt <= '{START_DATE}'"
+        query = query + ";"
         results = conn.execute(query)
         ids = results.fetchall()
         cursor_obj = conn.cursor()
@@ -106,6 +119,7 @@ class Building:
         building_id: Optional[int] = 0, # Building ID, used for saving to file
         pickle: Optional[bool] = False # Whether to pickle the building to its own individual file
     ):
+        # Set up variables
         self.__ids = ids
         self.__database = database
         self.__bid = building_id
@@ -113,23 +127,38 @@ class Building:
         self.__pickle = pickle
         self.__OUTPUT_DIR = OUTPUT_DIR
 
-        # Sanity check for id length
+        # Check if we're limiting the date range for data retrieval;
+        # if yes, prep for that and sanity check the date range provided
+        if LIMIT_DATE == True:
+            self.__limit_date = True
+            # TODO: More involved sanity checks, such as "end date is after start date"
+            if START_DATE != END_DATE:
+                self.__start_date = START_DATE
+                self.__end_date = END_DATE
+        else:
+            self.__limit_date = False
+
+        # Sanity check for id list length (makes no sense to aggregate <2 buildings; there's
+        # nothing to aggregate for size = 1, and 0 or negative sizes should not be possible
+        # for this use-case)
         if len(self.__ids) < 2:
             print("Building must have at least two units.")
         else:
             print("Encryption status:", str(self.__encryption_enabled))
-            self.__query_database()
-            self.__data = self.aggregate("15min")
-            print(self.__data[self.__data["real_power"] > 0])
+            self.__query_database() # Get data from the database
+            self.__data = self.aggregate("15min") # Ensure we have all data in 15min intervals
+            print(self.__data[self.__data["real_power"] > 0]) # Show proof that it worked
 
             # TODO: when changing resolution-
             # Make sure the aggregation interval is greater than the interval in the data-
             # reference duration column
 
+            # If requested, encrypt the building.
             if self.__encryption_enabled == True:
-                self.__keys = self.__setup_encryption()
-                self.__data = self.encrypt_building()
+                self.__keys = self.__setup_encryption() # Make or retrieve keys
+                self.__data = self.encrypt_building() # Perform encryption
 
+            # If requested, save the building to a pickle/binary file (.pkl)
             if self.__pickle == True:
                 self.save_data()
                 print("Building", self.__bid, "saved to pickle file.")
@@ -137,9 +166,9 @@ class Building:
     def __str__(self):
         return self.__data.to_string(max_rows=20)
 
-    # Sets up and exports encryption keys; returns
-    # a LightPHE Keys object
-    def __setup_encryption(self):
+    # Sets up and exports or retrieves encryption keys;
+    # returns a LightPHE Keys object
+    def __setup_encryption(self) -> object:
         # Value obtained from print(str(logging.ERROR))
         environ['LIGHTPHE_LOG_LEVEL'] = "40" # Errors and critical only
         # Set encryption parameters
@@ -166,10 +195,14 @@ class Building:
             print("Key generation failure. Aborting.")
             raise SystemExit
         
+    # Used to encrypt values; because we're doing this with multiprocessing to speed up
+    # multi-column encryption, we need a worker process to encrypt each column.
     def worker(self, column):
+        # The function used to encrypt a single value; needs to exist so that
+        # pandas apply() can be used for better efficiency
         def encrypt_value(
             target # the value to encrypt
-            ):
+            ) -> int:
             if type(target) == int or type(target) == float:
             # HE doesn't always play nicely with floats; conversion to INT is needed
             # This conversion will be removed if we switch to CKKS
@@ -234,7 +267,15 @@ class Building:
             # We only need to query each id once. Convert to set to get unique.
             print("Building IDs:", self.__ids)
             unique_ids = tuple(set(self.__ids))
-            query = f"SELECT * FROM POWER WHERE point_id IN {unique_ids};"
+            query = f"SELECT * FROM POWER WHERE point_id IN {unique_ids}"
+            if self.__limit_date == True:
+                from datetime import datetime
+                # Convert provided times to unix timestamps to match database format
+                self.__start_date = datetime.strptime(self.__start_date, '%Y-%m-%d').timestamp()
+                self.__end_date = datetime.strptime(self.__end_date, '%Y-%m-%d').timestamp()
+                # Only retrieve values between the provided timestamps
+                query = query + f" AND timestamp BETWEEN '{self.__start_date}' AND '{self.__end_date}'"
+            query = query + ";"
             results = conn.execute(query)
             # TODO: figure out why parameterized query gets no results
             # in_statement = str(set(self.__ids))[1:-1]
@@ -293,8 +334,6 @@ class Building:
                     self.__data = pd.concat((self.__data, dupesite))
         # Timestamps need to be datetime for resample to work for aggregation
         self.__data['timestamp'] = pd.to_datetime(self.__data['timestamp'],unit='s')
-        # TODO: Save the site IDs so they can be identified later
-        # TODO: account for different start dates when including site IDs in rows
         return self.__data
 
     # Run after functions that change power factor (sum functions); recalculates it to be correct

@@ -27,7 +27,7 @@ DECRYPT = False
 # Enables all other DCT processing switches
 PERFORM_DCT = False
 # Test different methods of reducing DCT coefficients
-FIT_DCT = True
+FIT_DCT = False
 # Method used for fitting. Options:
 # "threshold"
 # "drop high"
@@ -67,19 +67,19 @@ ANALYZE_DCT = True
 STAT_TEMPORAL_RESOLUTION = "f"
 
 # What date range to retrieve statistics for
-# Currently nonfunctional
-START_DATE = "2022-01-01"
-END_DATE = "2022-01-01"
+LIMIT_DATE = True
+START_DATE = "2021-01-01"
+END_DATE = "2021-12-31"
 
 
 # ----- PROCESSING -----
 # How many virtual buildings to make
-BUILDING_COUNT = 1
+BUILDING_COUNT = 10
 # What building ID number to start at
-FIRST_BUILDING_ID = 5
+FIRST_BUILDING_ID = 0
 # Minimum and maximum count of units per building
 MIN_SIZE = 2
-MAX_SIZE = 4
+MAX_SIZE = 5
 
 # Output directory for prepped data
 OUTPUT_DIR = "./output/"
@@ -99,4 +99,4 @@ POWER_DIR = ROOT_DATA_DIR + "power/"
 # ["real_power", "apparent_power", "pf"]
 ENCRYPT_COLS = ["real_power"]
 # Seed to use for building site randomization
-SEED = 17657573411
+SEED = 976616126 #176575734 # Randomly generated
