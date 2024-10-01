@@ -29,11 +29,11 @@ def set_seed(seed: Optional[str] = None):
 if OUTPUT_DIR[-1] != "/":
     OUTPUT_DIR += "/"
 
+# All buildings created for the year of 2021 only.
 # Time to create 10 buildings with seed 976616126, no encryption,
 # and size 2-5: 382.36922200000845 seconds (6.37 minutes)
-
 # Time to create the same 10 buildings with seed 976616126, WITH encryption,
-# and size 2-5: 1836.1158292000182 seconds ( minutes)
+# and size 2-5: 1836.1158292000182 seconds (30.60 minutes)
 
 # Building distribution
 from scipy.stats import rv_discrete, lognorm, halfcauchy

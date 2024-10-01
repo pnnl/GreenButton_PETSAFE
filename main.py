@@ -44,28 +44,6 @@ def unpickle_buildings():
         raise SystemExit # For now
 
 def main():
-    TEST_QUERY = False
-    # Test query, about 75sec
-    if TEST_QUERY == True:
-        print("Testing query (may take a while)")
-        with DBConn.create_connection(config.DATABASE) as conn:
-            columns = ['ee_site_id', 'point_id', 'timestamp', 'duration', 'real_power', 'apparent_power', 'pf']
-            columns = ['timestamp']
-            query = "SELECT * FROM POWER WHERE ee_site_id=491 AND timestamp=1585155600"
-            query = "SELECT timestamp FROM POWER"
-            results = conn.execute(query)
-            data = results.fetchall()
-            data = pd.DataFrame.from_records(data=data, columns=columns)
-        print(data)
-        """
-            createIndex = "CREATE INDEX index_point_id ON POWER(point_id)"
-            cursor_obj = conn.cursor()
-            cursor_obj.execute(createIndex)
-            cursor_obj.execute("PRAGMA optimize;") # Collects statistics that speed up queries
-            cursor_obj.close()
-        """
-        print("Query testing done.")
-
     # Create the database. Required for any other operations.
     if config.READ_FILES == True:
         populate_database()
