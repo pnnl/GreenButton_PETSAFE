@@ -386,7 +386,7 @@ class Building:
         # Duplicate entries that are listed more than once in ids
         id_counts = pd.Series(data=ids).value_counts() # Find how many times IDs are duplicated
         all_ids = list(unique_ids) # Needs to be separate so we can append without affecting for loop
-        for id in unique_ids:
+        for id in all_ids:
             if id_counts[id] > 1:
                 print(id, "is duplicated", id_counts[id], "times.")
                 for i in range(1, id_counts[id]):
@@ -408,8 +408,8 @@ class Building:
         building["pf"] = building["real_power"] / building["apparent_power"]
         return building
     
-    def __impute(
-            self,
+    @staticmethod
+    def impute(
             target, # The frame to impute on
             outage_threshold: Optional[int] = 6 # Minimum # of missed consecutive readings to consider it an outage, not a meter failure
             ):
@@ -474,7 +474,7 @@ class Building:
         mains = mains.resample(resolution, on="timestamp").sum()
         mains = mains.groupby(by="timestamp").sum()
         # Fill in missing timestamps now that timestamps are unique
-        mains = self.__impute(mains)
+        mains = self.impute(mains)
         #print(mains[mains["point_id"] == 0])
         # Set ID columns
         # point_id is repurposed to hold a tuple of point_ids in the building

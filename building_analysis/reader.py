@@ -40,7 +40,7 @@ class Reader:
         return pd.unique(self.data["point_id"])
     
     def get_building_site_ids(self, building_id):
-        return self.data[self.data["building_id"] == building_id]#["point_id"].iloc[0]
+        return self.data[self.data["building_id"] == building_id]["point_id"].iloc[0]
     
     def get_building_ids(self):
         return pd.unique(self.data["building_id"])
@@ -138,22 +138,32 @@ class Reader:
     ):
         from virtual_buildings.create_buildings import Building
         from config import DATABASE, START_DATE, END_DATE
-        print("Preparing to graph building", building_id, "against sites. This may take several minutes.")
+        print("________\nPreparing to graph building", building_id, "against sites. This may take several minutes.")
         # TODO: Check that data is decrypted; graphing encrypted data makes no sense
         # TODO: if resolution = supplied data, graphing won't work as expected
         building = self.get_building(building_id)
         building = self.change_time_resolution(building, resolution)
-        ids = building["point_id"][0] # For now. TODO: eventually site ids will be per row. Account for that.
+        graph_frame = building[["real_power"]].copy().rename(columns={"real_power": "Building Aggregate"})
+        ids = building["point_id"].iloc[0].split(", ") # TODO: eventually site ids will be per row. Account for that.
+        ids[0] = ids[0][1:] # Remove parentheses from string
+        ids[-1] = ids[-1][0:-1] # Remove parentheses from string
         sites = Building.query_for_sites(database_path=DATABASE, ids=ids, start_date=START_DATE, end_date=END_DATE)
-        site_ids = pd.unique(sites["point_id"])[0]
-        for site in site_ids:
-            site_power = sites[sites["point_id"] == site]["real_power"]
-            colname = "Site " + site
-            building[colname] = site_power
-        print(building)
+        sites = sites.set_index(["timestamp"])
+        for site_id in pd.unique(sites["point_id"]):
+            site_power = sites[sites["point_id"] == site_id]
+            if site_power.empty:
+                print("Site", site_id, "has no records.")
+            else:
+                site_power = Building.impute(site_power)
+                site_power = site_power.rename(columns={"ee_site_id": "building_id"})
+                site_power = self.change_time_resolution(site_power, resolution)
+            colname = "Site " + str(site_id)
+            print(graph_frame)
+            graph_frame[colname] = site_power["real_power"].groupby(by="timestamp").sum()
+        #print(graph_frame)
         title = "Real Power for Building " + str(building_id) + " vs Site Real Power"
 
-        fig = px.line(building, y="power", title=title)
+        fig = px.line(graph_frame, title=title)
         if show_graph == True:
             fig.show()
         return fig
