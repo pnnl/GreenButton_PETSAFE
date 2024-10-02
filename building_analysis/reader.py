@@ -136,11 +136,23 @@ class Reader:
             resolution: str, # the resolution to graph at.
             show_graph: Optional[bool] = True # whether to show the graph
     ):
+        from virtual_buildings.create_buildings import Building
+        from config import DATABASE, START_DATE, END_DATE
+        print("Preparing to graph building", building_id, "against sites. This may take several minutes.")
         # TODO: Check that data is decrypted; graphing encrypted data makes no sense
         # TODO: if resolution = supplied data, graphing won't work as expected
         building = self.get_building(building_id)
         building = self.change_time_resolution(building, resolution)
-        title = "Real Power for Building " + str(building_id)
+        ids = building["point_id"][0] # For now. TODO: eventually site ids will be per row. Account for that.
+        sites = Building.query_for_sites(database_path=DATABASE, ids=ids, start_date=START_DATE, end_date=END_DATE)
+        site_ids = pd.unique(sites["point_id"])[0]
+        for site in site_ids:
+            site_power = sites[sites["point_id"] == site]["real_power"]
+            colname = "Site " + site
+            building[colname] = site_power
+        print(building)
+        title = "Real Power for Building " + str(building_id) + " vs Site Real Power"
+
         fig = px.line(building, y="power", title=title)
         if show_graph == True:
             fig.show()

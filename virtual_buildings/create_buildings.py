@@ -139,7 +139,7 @@ class Building:
             print("Building must have at least two units.")
         else:
             print("Encryption status:", str(self.__encryption_enabled))
-            self.__query_database() # Get data from the database
+            self.query_database() # Get data from the database
             self.__data = self.aggregate("15min") # Ensure we have all data in 15min intervals
             print(self.__data[self.__data["real_power"] > 0]) # Show proof that it worked
 
@@ -255,7 +255,7 @@ class Building:
     # Retrieves data for component sites via SQL query
     # stores in self.__data
     # returns updated self.__data
-    def __query_database(self):
+    def query_database(self):
         with DBConn.create_connection(self.__database) as conn:
             print("Connected to database.")
             # We only need to query each id once. Convert to set to get unique.
@@ -301,7 +301,6 @@ class Building:
                 cursor_obj.close()
             except KeyboardInterrupt:
                 cursor_obj.close()
-
         # Needed to concatenate frames properly because from_records() needs a list of columns
         columns = ['ee_site_id', 'point_id', 'timestamp', 'duration', 'real_power', 'apparent_power', 'pf'] # used for frame creation
         # Transfer records into a data frame for easier processing
@@ -329,6 +328,79 @@ class Building:
         # Timestamps need to be datetime for resample to work for aggregation
         self.__data['timestamp'] = pd.to_datetime(self.__data['timestamp'],unit='s')
         return self.__data
+
+    # Staticmethod version of the query sites method
+    @staticmethod
+    def query_for_sites(database_path, ids, start_date, end_date):
+        with DBConn.create_connection(database_path) as conn:
+            print("Connected to database.")
+            # We only need to query each id once. Convert to set to get unique.
+            print("Building IDs:", ids)
+            unique_ids = tuple(set(ids))
+            query = f"SELECT * FROM POWER WHERE point_id IN {unique_ids}"
+            from datetime import datetime
+            # Convert provided times to unix timestamps to match database format
+            start_date = datetime.strptime(start_date, '%Y-%m-%d').timestamp()
+            end_date = datetime.strptime(end_date, '%Y-%m-%d').timestamp()
+            # Only retrieve values between the provided timestamps
+            query = query + f" AND timestamp BETWEEN '{start_date}' AND '{end_date}';"
+            results = conn.execute(query)
+            # TODO: figure out why parameterized query gets no results
+            # in_statement = str(set(self.__ids))[1:-1]
+            # print("Building IDs:", in_statement)
+            # Parameterized query mitigates injection vector as per Python docs
+            #query = "SELECT * FROM POWER WHERE point_id IN (?);"
+            #results = conn.execute(query, (in_statement,))
+            print("Query done. Retrieving (this may take a while)...")
+            data = []
+            cursor_obj = conn.cursor()
+            # Retrieve the rows queried. This is the relative slow step in querying; it runs quickly
+            # for 2 units but slows down as more units are added to the building and more rows must be
+            # retrieved.
+            # TODO: Test values for best speed. 10000 better than 100000; will smaller help even more?
+            cursor_obj.arraysize = 10000 # May speed up retrieval; sets how many rows are fetched by fetchmany()
+            while True:
+                # Fetchmany allows both performance improvements over fetchall() and prevents MemoryError for invalid id values
+                chunk = results.fetchmany()
+                if chunk == []: # fetchmany returns empty list if there are no more results
+                    break
+                else:
+                    data = data + chunk # Append to list of records
+            # "it is recommended that applications run "PRAGMA optimize" (with no arguments) 
+            # just before closing each database connection." This should be very fast or a no-op.
+            # https://www.sqlite.org/pragma.html#pragma_optimize
+            print("Retrieved. Cleaning up (do not interrupt)...")
+            try:
+                cursor_obj.execute("PRAGMA optimize;")
+                cursor_obj.close()
+            except KeyboardInterrupt:
+                cursor_obj.close()
+        # Needed to concatenate frames properly because from_records() needs a list of columns
+        columns = ['ee_site_id', 'point_id', 'timestamp', 'duration', 'real_power', 'apparent_power', 'pf'] # used for frame creation
+        # Transfer records into a data frame for easier processing
+        if 'bdata' not in locals(): # Frame does not exist yet
+            bdata = pd.DataFrame.from_records(data=data, columns=columns)
+        else: # Frame exists; add new data to existing frame
+            newframe = pd.DataFrame.from_records(data=data, columns=columns)
+            bdata = pd.concat([bdata, newframe])
+        # Duplicate entries that are listed more than once in ids
+        id_counts = pd.Series(data=ids).value_counts() # Find how many times IDs are duplicated
+        all_ids = list(unique_ids) # Needs to be separate so we can append without affecting for loop
+        for id in unique_ids:
+            if id_counts[id] > 1:
+                print(id, "is duplicated", id_counts[id], "times.")
+                for i in range(1, id_counts[id]):
+                    # Duplicate ID into a new fake site
+                    dupesite = bdata[bdata["point_id"] == id]
+                    # Point ID of dupe needs to be changed; index must be unique
+                    while id in unique_ids:
+                        id += 1
+                    all_ids = all_ids.append(id)
+                    dupesite["point_id"] = id
+                    bdata = pd.concat((bdata, dupesite))
+        # Timestamps need to be datetime for resample to work for aggregation
+        bdata['timestamp'] = pd.to_datetime(bdata['timestamp'],unit='s')
+        return bdata
 
     # Run after functions that change power factor (sum functions); recalculates it to be correct
     def __correct_power_factor(self, building):

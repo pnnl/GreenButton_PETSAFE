@@ -163,7 +163,7 @@ def main():
             print("Power demand average of building", building_id, "between", config.START_DATE, "and", config.END_DATE, ":", power_avg_building, "kW")
             # TODO: graph looks weird if resolution = time range provided (eg. day resolution and single day for date range)
             #fig = reader.graph_building_power(building_id, config.STAT_TEMPORAL_RESOLUTION, show_graph=True)
-        #fig = reader.graph_building_power(1, config.STAT_TEMPORAL_RESOLUTION, show_graph=True)
+        fig = reader.graph_building_power_with_sites(0, config.STAT_TEMPORAL_RESOLUTION, show_graph=True)
     
     print("Done.\n========================================================")
 
