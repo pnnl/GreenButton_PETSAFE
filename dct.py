@@ -22,12 +22,92 @@ def decompose(
         target_column, # Pandas series to decompose
         log: Optional[bool] = False # Whether to log decomposition to terminal
         ):
+    # From SciPy codebase:
+    # For a single dimension array ``x``, ``dct(x, norm='ortho')`` is equal to
+    # MATLAB ``dct(x)``.
+
+    # **Type II**
+    # There are several definitions of the DCT-II; we use the following
+    # (for ``norm=None``)
+
+    # .. math::
+
+    #    y_k = 2 \sum_{n=0}^{N-1} x_n \cos\left(\frac{\pi k(2n+1)}{2N} \right)
+
+    # If ``norm='ortho'``, ``y[k]`` is multiplied by a scaling factor ``f``
+
+    # .. math::
+    #    f = \begin{cases}
+    #    \sqrt{\frac{1}{4N}} & \text{if }k=0, \\
+    #    \sqrt{\frac{1}{2N}} & \text{otherwise} \end{cases}
+
+    # which makes the corresponding matrix of coefficients orthonormal
+    # (``O @ O.T = np.eye(N)``).
+    # return _pocketfft.dct(x, type, n, axis, norm, overwrite_x)
+    # -->
+    # def dct(x, type=2, n=None, axis=-1, norm=None,
+    #     overwrite_x=False, workers=None, orthogonalize=None):
+    #     return _execute(_pocketfft.dct, x, type, n, axis, norm, 
+    #                 overwrite_x, workers, orthogonalize)
+    # -->
+    # def _execute(pocketfft_func, x, type, s, axes, norm, 
+    #     overwrite_x, workers, orthogonalize):
+    #     xp = array_namespace(x)
+    #     x = np.asarray(x)
+    #     y = pocketfft_func(x, type, s, axes, norm,
+    #             overwrite_x=overwrite_x, workers=workers,
+    #             orthogonalize=orthogonalize)
+    #     return xp.asarray(y)
+    # -->
+    # dct = functools.partial(_r2r, True, pfft.dct)
+    # dct.__name__ = 'dct'
+    # -->
+    # import functools
+    # AND -->
+    # THE ACTUAL DCT PART.
+    # def _r2r(forward, transform, x, type=2, n=None, axis=-1, norm=None,
+    #      overwrite_x=False, workers=None, orthogonalize=None):
+    # """Forward or backward 1-D DCT/DST
+    # 
+    # Parameters
+    # ----------
+    # forward : bool
+    #     Transform direction (determines type and normalisation)
+    # transform : {pypocketfft.dct, pypocketfft.dst}
+    #     The transform to perform
+    # """
+    # tmp = _asfarray(x)
+    # overwrite_x = overwrite_x or _datacopied(tmp, x)
+    # norm = _normalization(norm, forward)
+    # workers = _workers(workers)
+    # 
+    # if not forward:
+    #     if type == 2:
+    #         type = 3
+    #     elif type == 3:
+    #         type = 2
+    # 
+    # if n is not None:
+    #     tmp, copied = _fix_shape_1d(tmp, n, axis)
+    #     overwrite_x = overwrite_x or copied
+    # elif tmp.shape[axis] < 1:
+    #     raise ValueError(f"invalid number of data points ({tmp.shape[axis]}) specified")
+    # 
+    # out = (tmp if overwrite_x else None)
+    # 
+    # For complex input, transform real and imaginary components separably
+    # if np.iscomplexobj(x):
+    #     out = np.empty_like(tmp) if out is None else out
+    #     transform(tmp.real, type, (axis,), norm, out.real, workers)
+    #     transform(tmp.imag, type, (axis,), norm, out.imag, workers)
+    #     return out
+    # 
+    # return transform(tmp, type, (axis,), norm, out, workers, orthogonalize)
+
     if log == True:
         print("Decomposing into DCT coefficients.")
-    real_power = target_column.to_numpy()
     # Ortho norm ensures that inverse DCT gets the same values out that went in
-    dct_real = dct(real_power, type=DCT_TYPE, norm="ortho")
-    return dct_real
+    return dct(target_column.to_numpy(), type=DCT_TYPE, norm="ortho")
 
 # Zero some coefficients to "smooth" data
 def drop_coefficients(
@@ -109,6 +189,33 @@ def analyze(coefficients_array):
     fig = px.histogram(data_distribution, x="Coefficient", y="count", marginal="box")
     print("Showing graph in web browser")
     fig.show()
+
+def analyze_per_building(coefficients_2d_array):
+    print("Generating graph (this will take a few minutes)...")
+    import plotly.express as px
+    i = 0 # Used to name buildings in rows
+    top_coefficient_index = 50
+    for building in coefficients_2d_array:
+        j = 1 # Used to determine which coefficient is which
+        print("Preparing building", str(i))
+        for coefficient in building:
+            record = pd.DataFrame([[j, coefficient, "Building " + str(i)]], columns=["Coefficient", "Magnitude", "Building"])
+            #record = record.fillna(0)
+            j += 1
+            if "data" not in locals():
+                data = record
+            else:
+                if j <= top_coefficient_index: # 1-indexed, so "equal to" is included
+                    data = pd.concat([data, record])
+                else:
+                    break
+        print("Building", i, "done (", j, "coefficients).")
+        i += 1
+    fig = px.scatter(data, x="Coefficient", y="Magnitude") # color="Building"
+    print("Showing graph in web browser")
+    print(data)
+    fig.show()
+    return data
 
 def compare_averages(recomposed_data, original_data):
     original_avg = original_data.sum() / original_data.size

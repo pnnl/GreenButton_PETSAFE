@@ -135,17 +135,30 @@ def main():
             else:
                 filepath = filepath + "non-normalized/"
             print(filepath)
-            coefficients = np.empty(0, dtype=np.float64)
+            if config.ANALYZE_DCT_PER_BUILDING == True:
+                coefficients = []
+            else:
+                coefficients = np.empty(0, dtype=np.float64)
             try:
                 for file in list_files_in_dir(filepath, append_path=True):
                     with open(file, "rb") as file:
                         building_coefficients = pickle.load(file)
-                    coefficients = np.append(coefficients, building_coefficients)
+                    if config.ANALYZE_DCT_PER_BUILDING == True:
+                        coefficients.append(building_coefficients)
+                    else:
+                        coefficients = np.append(coefficients, building_coefficients)
             except Exception as ex:
                 print("Could not unpickle building coefficients:", ex)
                 raise SystemExit # For now
             
-            if config.ANALYZE_DCT == True:
+            if config.ANALYZE_DCT_PER_BUILDING == True:
+                building_coefficients = dct.analyze_per_building(coefficients)
+                if config.OUTPUT_DIR[-1] != "/":
+                    config.OUTPUT_DIR += "/"
+                dirpath = config.OUTPUT_DIR + "coefficients/coefficients-per-building.pkl"
+                with open(dirpath, "wb") as outfile:
+                    pickle.dump(building_coefficients, outfile)
+            elif config.ANALYZE_DCT == True:
                 dct.analyze(coefficients)
                 
 

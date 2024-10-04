@@ -18,7 +18,7 @@ SAVE_AS_PICKLE = True
 PORTION_OF_CPU = 0.5
 
 # Process statistics from created buildings
-CREATE_STATISTICS = True
+CREATE_STATISTICS = False
 # Set to True if processing encrypted data
 DECRYPT = False
 
@@ -34,7 +34,7 @@ FIT_DCT = False
 # "drop high keep max"
 METHOD = "threshold"
 # Normalize data to be between 0 and 1 before calculating DCT
-NORMALIZE = False
+NORMALIZE = True
 # Graph the original data against the DCT-processed data before saving it
 GRAPH_DCT = False
 # Save DCT coefficients to pickle files
@@ -48,10 +48,12 @@ HIGH_THRESHOLD = 0.75
 
 # ----- DCT OPERATIONS -----
 # Retrieve saved DCT values for analysis or further use
-# Enables all other post-processing switches
-RETRIEVE_DCT = False
+# Enables all other post-processing/operations switches
+RETRIEVE_DCT = True
 # Graph the distribution of DCT coefficients
-ANALYZE_DCT = True
+ANALYZE_DCT = False
+# Graph the distribution of DCT coefficients per building
+ANALYZE_DCT_PER_BUILDING = True
 
 
 # ----- TEMPORAL RESOLUTION -----
