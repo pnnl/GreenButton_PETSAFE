@@ -11,7 +11,8 @@ from time import perf_counter
 #import processor.pullMains as pulldb
 from processor.commonDB import DBConn
 from logger_config import config_logger
-from config import DATABASE, ENCRYPT_COLS, PORTION_OF_CPU, ENCRYPT, OUTPUT_DIR, FIRST_BUILDING_ID, MIN_SIZE, MAX_SIZE, LIMIT_DATE, START_DATE, END_DATE
+from config import DATABASE, ENCRYPT_COLS, PORTION_OF_CPU, ENCRYPT, \
+    OUTPUT_DIR, FIRST_BUILDING_ID, MIN_SIZE, MAX_SIZE, LIMIT_DATE, START_DATE, END_DATE
 
 # Setting copy on write for PANDAS as recommended here:
 # https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
@@ -22,6 +23,9 @@ logger = config_logger()
 
 # Initialize with seed
 def set_seed(seed: Optional[str] = None):
+    if seed == None:
+        seed = random.randint(100000000, 999999999)
+        print("Random seed generated. Seed:", seed)
     randomizer = random.default_rng(seed)
     return randomizer
 
@@ -38,8 +42,7 @@ class building_dist(rv_discrete):
         return halfcauchy.pdf(x, scale=scale1, loc=loc1) + lognorm.pdf(x, s, scale=scale2, loc=loc2)
 
 # Gets a set of random building ids; used to create buildings
-def choose_random_ids(seed: Optional[int] = None):
-    randomizer = set_seed(seed)
+def choose_random_ids(randomizer: Optional[int] = None):
     print("Generating building size.")
     # Get the building size
     loc1 = 1.83202980
@@ -85,20 +88,20 @@ def choose_random_ids(seed: Optional[int] = None):
         cursor_obj.close()
     # Select a random set from the results
     building_ids = randomizer.choice(ids, count, replace=True)
-    building_ids = tuple([id[0] for id in building_ids])
-    return building_ids
+    building_ids = tuple([id[0] for id in building_ids]) # Format the selections into a tuple of ids
+    return building_ids, randomizer
 
 def make_buildings(
         count, 
         pickle: bool,
         seed: Optional[int] = None):
     timer_start = perf_counter()
+    randomizer = set_seed(seed)
     for i in range(FIRST_BUILDING_ID, FIRST_BUILDING_ID + count):
-        ids = choose_random_ids(seed)
+        ids, randomizer = choose_random_ids(randomizer)
         print("Creating building", i)
         building = Building(ids, encrypt=ENCRYPT, building_id=i, pickle=pickle)
         print("Building", i, "created.")
-        #print(building.get_data())
     timer_end = perf_counter()
     time_taken = timer_end - timer_start
     print("Time taken to create", FIRST_BUILDING_ID + count, "buildings with encryption setting", ENCRYPT, ": ", time_taken, "seconds")
@@ -414,6 +417,9 @@ class Building:
             outage_threshold: Optional[int] = 6 # Minimum # of missed consecutive readings to consider it an outage, not a meter failure
             ):
         print("Imputing missing data.") # TODO: only display after checking this is necessary
+        if target.empty:
+            print("Cannot impute on an empty frame.")
+            return target
         # We need to zero any N/A PF values; many of these should be zero to begin with, but for those corresponding
         # to outages, it'll be recalculated after real and apparent power are imputed. We don't want the
         # should-be-zero PF values to be included when finding N/A rows.
@@ -471,7 +477,7 @@ class Building:
         print("Aggregating.")
         mains = self.__data
         # For each timestamp in the ids list, sum all values
-        mains = mains.resample(resolution, on="timestamp").sum()
+        #mains = mains.resample(resolution, on="timestamp").sum()
         mains = mains.groupby(by="timestamp").sum()
         # Fill in missing timestamps now that timestamps are unique
         mains = self.impute(mains)

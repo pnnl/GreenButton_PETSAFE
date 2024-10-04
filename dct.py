@@ -211,7 +211,7 @@ def analyze_per_building(coefficients_2d_array):
                     break
         print("Building", i, "done (", j, "coefficients).")
         i += 1
-    fig = px.scatter(data, x="Coefficient", y="Magnitude") # color="Building"
+    fig = px.scatter(data, x="Coefficient", y="Magnitude", color="Building") # color="Building"
     print("Showing graph in web browser")
     print(data)
     fig.show()

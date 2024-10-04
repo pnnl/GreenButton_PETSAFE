@@ -5,6 +5,7 @@ import pickle
 import numpy as np
 from os.path import exists
 from os import makedirs
+from time import perf_counter
 
 import config
 import dct
@@ -14,7 +15,7 @@ from list_files import list_files_in_dir
 # Building module-related imports
 from virtual_buildings import create_buildings as cb
 from building_analysis.reader import Reader
-#from building_analysis.decryptor import Decryptor
+from building_analysis.decryptor import Decryptor
 from processor.commonDB import DBConn
 
 def populate_database():
@@ -75,7 +76,7 @@ def main():
                 best_fit = dct.fit_accuracy(this_building["real_power"], method)
             if config.STORE_DCT == False:
                 dct_matrix = dct.decompose(this_building["real_power"])
-                dct_matrix = dct.drop_coefficients(dct_matrix)
+                #dct_matrix = dct.drop_coefficients(dct_matrix)
                 recomposed = dct.recompose(dct_matrix)
                 print(dct_matrix)
 
@@ -163,20 +164,38 @@ def main():
                 
 
     if config.CREATE_STATISTICS == True:
-        reader = Reader(config.START_DATE, config.END_DATE, resolution=config.STAT_TEMPORAL_RESOLUTION)
+        if config.DECRYPT == True:
+            reader = Reader(config.START_DATE, config.END_DATE, resolution=config.STAT_TEMPORAL_RESOLUTION, read_dir=config.OUTPUT_DIR + "encrypted-buildings/")
+        else:
+            reader = Reader(config.START_DATE, config.END_DATE, resolution=config.STAT_TEMPORAL_RESOLUTION)
         data = reader.get_data()
         building_ids = reader.get_building_ids()
         #building_id = 2
         for building_id in building_ids:
+            print("Calculating statistics.")
             power_sum_building = reader.get_building_power_sum(building_id)
             power_avg_building = reader.get_building_power_avg(building_id)
+            if config.DECRYPT == True:
+                start_time = perf_counter()
+                decryptor = Decryptor()
+                print("Decrypting statistics.")
+                power_sum_building = decryptor.decrypt_target(power_sum_building)
+                print("Decrypted sum.")
+                power_avg_building = decryptor.decrypt_target(power_avg_building)
+                print("Decrypted average.")
+                end_time = perf_counter()
+                print("Time to decrypt:", end_time - start_time, "seconds")
+            # Round for legibility
+            power_sum_building = round(power_sum_building, 4)
+            power_avg_building = round(power_avg_building, 4)
             print("__________")
             print("Site IDs for building", building_id, ":", reader.get_building_site_ids(building_id))
             print("Total power demand of building", building_id, "between", config.START_DATE, "and", config.END_DATE, ":", power_sum_building, "kW")
             print("Power demand average of building", building_id, "between", config.START_DATE, "and", config.END_DATE, ":", power_avg_building, "kW")
             # TODO: graph looks weird if resolution = time range provided (eg. day resolution and single day for date range)
             #fig = reader.graph_building_power(building_id, config.STAT_TEMPORAL_RESOLUTION, show_graph=True)
-        fig = reader.graph_building_power_with_sites(0, config.STAT_TEMPORAL_RESOLUTION, show_graph=True)
+        if config.DECRYPT == False: # Graphing encrypted not implemented; need to decrypt first for that
+            fig = reader.graph_building_power_with_sites(0, config.STAT_TEMPORAL_RESOLUTION, show_graph=True)
     
     print("Done.\n========================================================")
 

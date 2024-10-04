@@ -17,6 +17,7 @@
 
 ### No encryption, one year of data
 - Time to create 10 buildings: 382.36922200000845 seconds (6.37 minutes)
+- Another run of 10 on a different seed: 123.93 seconds (2 minutes)
 - Time to create statistics:
 - Time to decrypt: N/A
 

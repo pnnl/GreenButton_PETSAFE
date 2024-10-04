@@ -10,17 +10,17 @@ CREATE_BUILDINGS = False
 # Database file target
 DATABASE = "records.db"
 # Set to true if you want to encrypt data before saving to file
-ENCRYPT = False
-# Set to True if you'd prefer to save as pickle files, False for csv
+ENCRYPT = True
+# Set to True if you'd prefer to save as pickle files
 SAVE_AS_PICKLE = True
 # Fraction of CPU power to dedicate to processing, at most.
 # e.g. If you have 4 cores and set this to 0.5, then 2 cores will be used.
 PORTION_OF_CPU = 0.5
 
 # Process statistics from created buildings
-CREATE_STATISTICS = False
+CREATE_STATISTICS = True
 # Set to True if processing encrypted data
-DECRYPT = False
+DECRYPT = True
 
 # ----- DCT PROCESSING -----
 # Use DCT to "smooth out" data, obscuring some transitional events
@@ -34,7 +34,7 @@ FIT_DCT = False
 # "drop high keep max"
 METHOD = "threshold"
 # Normalize data to be between 0 and 1 before calculating DCT
-NORMALIZE = True
+NORMALIZE = False
 # Graph the original data against the DCT-processed data before saving it
 GRAPH_DCT = False
 # Save DCT coefficients to pickle files
@@ -49,7 +49,7 @@ HIGH_THRESHOLD = 0.75
 # ----- DCT OPERATIONS -----
 # Retrieve saved DCT values for analysis or further use
 # Enables all other post-processing/operations switches
-RETRIEVE_DCT = True
+RETRIEVE_DCT = False
 # Graph the distribution of DCT coefficients
 ANALYZE_DCT = False
 # Graph the distribution of DCT coefficients per building
@@ -101,4 +101,4 @@ POWER_DIR = ROOT_DATA_DIR + "power/"
 # ["real_power", "apparent_power", "pf"]
 ENCRYPT_COLS = ["real_power"]
 # Seed to use for building site randomization
-SEED = 976616126 #176575734 # Randomly generated
+SEED = 176575734

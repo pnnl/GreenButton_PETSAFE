@@ -56,6 +56,7 @@ class Decryptor:
             # Came up when trying to decrypt non-encrypted data
             # TODO: return the data instead so everything still works
             print("Could not decrypt. Are you passing unencrypted data?")
+            return target
         except Exception as error:
             print("Decryption failed:", error)
             return target

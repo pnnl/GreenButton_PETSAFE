@@ -175,7 +175,7 @@ class Reader:
             ):
         building = self.get_building(building_id)
         # TODO: per time period instead of whole provided period
-        return round(building["real_power"].sum(), 4)
+        return building["real_power"].sum()
     
     # Gets average power usage for the selected time resolution
     # e.g. a resolution of 1 month returns average total usage for a month of time
@@ -187,11 +187,11 @@ class Reader:
         try:
             sum = self.get_building_power_sum(building_id)
             site_count = len(tuple(pd.unique(self.data[self.data["building_id"] == building_id]["point_id"])[0].split()))
-            print(site_count)
             # Done with multiplication to allow it to be done homomorphically- plaintext scalars
             # are okay for multiplication, not division.
-            avg = sum * 1/site_count # scale down to a "site" of usage
-            avg = round(avg, 4) # Keep size reasonable for output
+            scalar = 1/site_count
+            avg = sum * scalar # scale down to a "site" of usage
+            #avg = round(avg, 4) # Keep size reasonable for output
             return avg
         except IndexError:
             print("Cannot average: building", building_id, "does not exist.")
