@@ -49,8 +49,7 @@ def unpickle_resample_buildings():
     try:
         reader = Reader(config.START_DATE, config.END_DATE, resolution=config.STAT_TEMPORAL_RESOLUTION, read_dir=filepath)
         buildings = reader.get_data()
-        print("Entries:", buildings.size)
-        print(buildings)
+        #print("Entries:", buildings.size)
         return buildings
     except Exception as ex:
         print(ex)
@@ -72,12 +71,10 @@ def main():
             buildings = unpickle_resample_buildings()
         else:
             buildings = unpickle_buildings()
-        #print(buildings[buildings["real_power"] > 0])
         # Normalize the database to values between 0 and 1.
         if config.NORMALIZE == True:
             subdir = "normalized" # used to save coefficients to file
             buildings["real_power"] = norm.normalize(buildings["real_power"])
-            #print(buildings["real_power"])
         else:
             subdir = "non-normalized"
 
@@ -236,7 +233,7 @@ def main():
             # TODO: graph looks weird if resolution = time range provided (eg. day resolution and single day for date range)
             #fig = reader.graph_building_power(building_id, config.STAT_TEMPORAL_RESOLUTION, show_graph=True)
         if config.DECRYPT == False: # Graphing encrypted not implemented; need to decrypt first for that
-            fig = reader.graph_building_power_with_sites(2, config.STAT_TEMPORAL_RESOLUTION, show_graph=True)
+            fig = reader.graph_building_power_with_sites(7, config.STAT_TEMPORAL_RESOLUTION, show_graph=True)
     
     print("Done.\n========================================================")
 

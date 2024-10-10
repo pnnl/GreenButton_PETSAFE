@@ -177,7 +177,7 @@ class Reader:
         for line in fig.data[1:]:
             line.line.color = "#A9A9A9" # Gray
         # Lines of sites of interest go here
-        fig.data[1].line.color = "blue"
+        #fig.data[1].line.color = "blue"
         if show_graph == True:
             fig.show()
         return fig
