@@ -11,6 +11,7 @@
 
 ### Query times for all data available (5 years)
 - 6 units (26444, 27168, 33342, 51837, 25838, 26836): ~90 mins
+- 5 units:
 - 4 units (35390, 33789, 25973, 25291): ~30 mins
 - 3 units (26620, 59489, 47757); (26962, 33354, 51908): 5-10 mins, 22 w/encryption
 - 2 units (35390, 33789): ~1-2 mins
@@ -26,7 +27,17 @@
 - Time to create statistics:
 - Time to decrypt:
 
+### No encryption, one year, one building
+- 5 units:
+- 4 units:
+- 3 units:
+- 2 units:
 
+### With encryption, one year, one building
+- 5 units:
+- 4 units:
+- 3 units:
+- 2 units:
 
 # Accuracy
 ## Results

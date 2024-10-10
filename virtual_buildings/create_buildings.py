@@ -340,6 +340,7 @@ class Building:
             # We only need to query each id once. Convert to set to get unique.
             print("Building IDs:", ids)
             unique_ids = tuple(set(ids))
+            print("Unique IDs:", unique_ids)
             query = f"SELECT * FROM POWER WHERE point_id IN {unique_ids}"
             from datetime import datetime
             # Convert provided times to unix timestamps to match database format

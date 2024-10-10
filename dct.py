@@ -194,7 +194,7 @@ def analyze_per_building(coefficients_2d_array):
     print("Generating graph (this will take a few minutes)...")
     import plotly.express as px
     i = 0 # Used to name buildings in rows
-    top_coefficient_index = 50
+    top_coefficient_index = 5000 #50
     for building in coefficients_2d_array:
         j = 1 # Used to determine which coefficient is which
         print("Preparing building", str(i))

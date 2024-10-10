@@ -80,8 +80,7 @@ class Reader:
             resolution: str # the resolution to resample to
     ):
         resolution = self.check_resolution(resolution)
-        if (resolution is not None) and (DECRYPT == False):
-            # TODO SANITY CHECK: if encrypted w/partial HE, reject this
+        if resolution is not None:
             # TODO Original resolution IS saved. Check it. If it matches, do nothing to save time.
             try:
                 frame = pd.DataFrame()
@@ -95,13 +94,17 @@ class Reader:
                     chunk["point_id"] = chunk_site_ids
                     frame = pd.concat([frame, chunk])
                 data = frame
-                data["pf"] = data["real_power"] / data["apparent_power"]
+                if DECRYPT == False:
+                    # This doesn't work under partial HE
+                    data["pf"] = data["real_power"] / data["apparent_power"]
+                else:
+                    # Let the user know this needs to be recalculated to be useful
+                    print("If resolution is changed on encrypted data, then the power factor (pf) will be inaccurate if decrypted.")
+                    print("Please recalculate by dividing real power by apparent power.")
             except Exception as error:
                 print("Could not change resolution:", error)
-        elif DECRYPT == False:
-            print("Resolution not implemented.")
         else:
-            print("Resolution not implemented or data encrypted.")
+            print("Resolution not implemented.")
         return data
     
     def get_building(self, building_id):
@@ -146,24 +149,31 @@ class Reader:
         graph_frame = building[["real_power"]].copy().rename(columns={"real_power": "Building Aggregate"})
         ids = building["point_id"].iloc[0].split(", ") # TODO: eventually site ids will be per row. Account for that.
         ids[0] = ids[0][1:] # Remove parentheses from string
-        ids[-1] = ids[-1][0:-1] # Remove parentheses from string
+        ids[-1] = ids[-1][:-1] # Remove parentheses from string
         sites = Building.query_for_sites(database_path=DATABASE, ids=ids, start_date=START_DATE, end_date=END_DATE)
         sites = sites.set_index(["timestamp"])
+        print(pd.unique(sites["point_id"]))
+        # pd.unique(sites["point_id"])
         for site_id in pd.unique(sites["point_id"]):
             site_power = sites[sites["point_id"] == site_id]
             if site_power.empty:
                 print("Site", site_id, "has no records.")
             else:
+                # TODO: deal with duplicate sites
                 site_power = Building.impute(site_power)
                 site_power = site_power.rename(columns={"ee_site_id": "building_id"})
                 site_power = self.change_time_resolution(site_power, resolution)
             colname = "Site " + str(site_id)
-            print(graph_frame)
             graph_frame[colname] = site_power["real_power"].groupby(by="timestamp").sum()
-        #print(graph_frame)
-        title = "Real Power for Building " + str(building_id) + " vs Site Real Power"
+        print(graph_frame)
+        title = "Daily Real Power for Building " + str(building_id) + " vs Site Real Power"
 
-        fig = px.line(graph_frame, title=title)
+        fig = px.line(graph_frame, title=title, labels={"value": "Real Power", "timestamp": "Date"})
+        fig.data[0].line.color = "red"
+        for line in fig.data[1:]:
+            line.line.color = "#A9A9A9" # Gray
+        # Lines of sites of interest go here
+        fig.data[1].line.color = "blue"
         if show_graph == True:
             fig.show()
         return fig

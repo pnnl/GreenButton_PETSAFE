@@ -18,9 +18,9 @@ SAVE_AS_PICKLE = True
 PORTION_OF_CPU = 0.5
 
 # Process statistics from created buildings
-CREATE_STATISTICS = True
+CREATE_STATISTICS = False
 # Set to True if processing encrypted data
-DECRYPT = True
+DECRYPT = False
 
 # ----- DCT PROCESSING -----
 # Use DCT to "smooth out" data, obscuring some transitional events
@@ -34,7 +34,7 @@ FIT_DCT = False
 # "drop high keep max"
 METHOD = "threshold"
 # Normalize data to be between 0 and 1 before calculating DCT
-NORMALIZE = False
+NORMALIZE = True
 # Graph the original data against the DCT-processed data before saving it
 GRAPH_DCT = False
 # Save DCT coefficients to pickle files
@@ -49,7 +49,7 @@ HIGH_THRESHOLD = 0.75
 # ----- DCT OPERATIONS -----
 # Retrieve saved DCT values for analysis or further use
 # Enables all other post-processing/operations switches
-RETRIEVE_DCT = False
+RETRIEVE_DCT = True
 # Graph the distribution of DCT coefficients
 ANALYZE_DCT = False
 # Graph the distribution of DCT coefficients per building
@@ -76,7 +76,7 @@ END_DATE = "2021-12-31"
 
 # ----- PROCESSING -----
 # How many virtual buildings to make
-BUILDING_COUNT = 10
+BUILDING_COUNT = 30
 # What building ID number to start at
 FIRST_BUILDING_ID = 0
 # Minimum and maximum count of units per building
