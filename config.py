@@ -25,7 +25,12 @@ DECRYPT = False
 # ----- DCT PROCESSING -----
 # Use DCT to "smooth out" data, obscuring some transitional events
 # Enables all other DCT processing switches
-PERFORM_DCT = False
+PERFORM_DCT = True
+# Aggregate data to temporal resolution specified by STAT_TEMPORAL_RESOLUTION
+# before performing DCT
+AGGREGATE_BEFORE_DCT = True
+# Perform DCT for one day instead of on the entire time period
+DCT_ONE_DAY = False
 # Test different methods of reducing DCT coefficients
 FIT_DCT = False
 # Method used for fitting. Options:
@@ -49,11 +54,13 @@ HIGH_THRESHOLD = 0.75
 # ----- DCT OPERATIONS -----
 # Retrieve saved DCT values for analysis or further use
 # Enables all other post-processing/operations switches
-RETRIEVE_DCT = True
+RETRIEVE_DCT = False
+# Print the dataframe of coefficients
+SHOW_DCT = False
 # Graph the distribution of DCT coefficients
 ANALYZE_DCT = False
 # Graph the distribution of DCT coefficients per building
-ANALYZE_DCT_PER_BUILDING = True
+ANALYZE_DCT_PER_BUILDING = False
 
 
 # ----- TEMPORAL RESOLUTION -----

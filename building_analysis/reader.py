@@ -46,8 +46,8 @@ class Reader:
         return pd.unique(self.data["building_id"])
     
     # Change input resolution string into a consistent format for use in resampling
+    @staticmethod
     def check_resolution(
-            self,
             resolution: str # the resolution string
     ):
         resolution = resolution.replace(" ", "").lower() # remove spacing/case differences
@@ -84,14 +84,18 @@ class Reader:
             # TODO Original resolution IS saved. Check it. If it matches, do nothing to save time.
             try:
                 frame = pd.DataFrame()
-                # Work in chunks to preserve building IDs
+                # Work in chunks to preserve building IDs; one building at a time
                 for site in pd.unique(data["building_id"]):
-                    chunk = data[data["building_id"] == site]
+                    chunk = data[data["building_id"] == site] # Get the building to work on
+                    # Get information that needs to stay constant (no summing it!)
                     chunk_site_ids = chunk["point_id"]
                     chunk_id = chunk["building_id"].iloc[0]
+                    # Resample to new time frame
                     chunk = chunk.resample(resolution).sum()
+                    # Replace columns that should not change
                     chunk["building_id"] = chunk_id
                     chunk["point_id"] = chunk_site_ids
+                    # Add to the processed frame
                     frame = pd.concat([frame, chunk])
                 data = frame
                 if DECRYPT == False:
@@ -266,7 +270,7 @@ class Reader:
         try:
             for file in self.__list_files_in_dir(self.__read_dir, prepend_path=True):
                 with open(file, "rb") as file:
-                    building= pickle.load(file)
+                    building = pickle.load(file)
                 buildings_frame = pd.concat((buildings_frame, building))
             return buildings_frame
         except Exception as ex:

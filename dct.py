@@ -190,7 +190,15 @@ def analyze(coefficients_array):
     print("Showing graph in web browser")
     fig.show()
 
+def analyze_daily_buildings(coefficients_frame):
+    print("Generating graphs (this will take a few minutes)...")
+    import plotly.express as px
+    fig = px.scatter(coefficients_frame)
+    print("Showing graph in web browser")
+    fig.show()
+
 def analyze_per_building(coefficients_2d_array):
+    # A list of numpy arrays; one array per day of data
     print("Generating graph (this will take a few minutes)...")
     import plotly.express as px
     i = 0 # Used to name buildings in rows

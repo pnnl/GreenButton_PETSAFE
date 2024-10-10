@@ -35,14 +35,26 @@ def unpickle_buildings():
         for file in list_files_in_dir(filepath, append_path=True):
             #print("Reading", file)
             with open(file, "rb") as file:
-                building= pickle.load(file)
+                building = pickle.load(file)
             buildings_frame = pd.concat((buildings_frame, building))
-            #dates = np.unique(buildings_frame.index.date) # timestamp is index
-            #print("Buildings frame:", dates, "\n=========")
         return buildings_frame
     except Exception as ex:
         print("Could not unpickle buildings:", ex)
         raise SystemExit # For now
+    
+def unpickle_resample_buildings():
+    if config.OUTPUT_DIR[-1] != "/":
+        config.OUTPUT_DIR += "/"
+    filepath = config.OUTPUT_DIR + "buildings/"
+    try:
+        reader = Reader(config.START_DATE, config.END_DATE, resolution=config.STAT_TEMPORAL_RESOLUTION, read_dir=filepath)
+        buildings = reader.get_data()
+        print("Entries:", buildings.size)
+        print(buildings)
+        return buildings
+    except Exception as ex:
+        print(ex)
+        raise SystemExit
 
 def main():
     # Create the database. Required for any other operations.
@@ -56,7 +68,10 @@ def main():
 
     # Calculate DCT on data and perform any selected operations with it
     if config.PERFORM_DCT == True:
-        buildings = unpickle_buildings()
+        if config.AGGREGATE_BEFORE_DCT == True:
+            buildings = unpickle_resample_buildings()
+        else:
+            buildings = unpickle_buildings()
         #print(buildings[buildings["real_power"] > 0])
         # Normalize the database to values between 0 and 1.
         if config.NORMALIZE == True:
@@ -99,23 +114,37 @@ def main():
 
             # For each building, calculate and save DCT values for each day of data
             elif config.FIT_DCT == False: # config.STORE_DCT != False
-                dates = np.unique(this_building.index.date) # timestamp is index
-                coefficients = np.empty(0, dtype=np.float64)
-                for day in dates:
-                    # Get the day of data and do DCT on it
-                    day_data = this_building[this_building.index.date == day]
-                    day_dct_matrix = dct.decompose(day_data["real_power"], log=False)
-                    if config.HIGH_ONLY == True:
-                        drop_index = int(config.HIGH_THRESHOLD * day_dct_matrix.size)
-                        day_dct_matrix = day_dct_matrix[drop_index:]
-                    #day_dct_matrix = dct.drop_coefficients(day_dct_matrix)
-                    # TODO: consider nesting as 2D array instead to preserve daily association
-                    coefficients = np.concatenate((coefficients, day_dct_matrix))
+                coefficients = []
+                if config.AGGREGATE_BEFORE_DCT == False:
+                    dates = np.unique(this_building.index.date) # timestamp is index
+                    for day in dates:
+                        # Get the day of data and do DCT on it
+                        day_data = this_building[this_building.index.date == day]
+                        day_dct_matrix = dct.decompose(day_data["real_power"], log=False)
+                        if config.HIGH_ONLY == True:
+                            drop_index = int(config.HIGH_THRESHOLD * day_dct_matrix.size)
+                            day_dct_matrix = day_dct_matrix[drop_index:]
+                        #day_dct_matrix = dct.drop_coefficients(day_dct_matrix)
+                        # TODO: consider nesting as 2D array instead to preserve daily association
+                        #if config.DCT_DAILY == True:
+                        #    coefficients = np.concatenate((tuple(coefficients), day_dct_matrix))
+                        #else:
+                        coefficients.append(day_dct_matrix)
+                        if config.DCT_ONE_DAY == True:
+                            break
+                elif config.ANALYZE_DCT_PER_BUILDING == True:
+                    coefficients = dct.decompose(this_building["real_power"], log=False)
+                else:
+                    print("No operation chosen.")
 
                 filename = "Building-" + str(this_building["building_id"].iloc[0]) + "-coefficients.pkl"
                 print("Saving DCT coefficients to pickle file at", filename)
                 # Set directory path of output- output directory in config + "buildings" subdirectory
                 dirpath = config.OUTPUT_DIR + "/coefficients/"
+                if config.DCT_ONE_DAY == True:
+                    dirpath = dirpath + "/one-day/"
+                if config.ANALYZE_DCT_PER_BUILDING == True:
+                    dirpath = dirpath + "/resampled-buildings/"
                 if config.HIGH_ONLY == True:
                     dirpath = dirpath + "/top-" + str(config.HIGH_THRESHOLD) + "/"
                 dirpath = dirpath + subdir + "/"
@@ -126,9 +155,14 @@ def main():
                     pickle.dump(coefficients, outfile)
 
     if config.RETRIEVE_DCT == True:
+            # Get path to retrieve from
             if config.OUTPUT_DIR[-1] != "/":
                 config.OUTPUT_DIR += "/"
             filepath = config.OUTPUT_DIR + "coefficients/"
+            if config.DCT_ONE_DAY == True:
+                filepath = filepath + "one-day/"
+            if config.ANALYZE_DCT_PER_BUILDING == True:
+                filepath = filepath + "resampled-buildings/"
             if config.HIGH_ONLY == True:
                 filepath = filepath + "top-" + str(config.HIGH_THRESHOLD) + "/"
             if config.NORMALIZE == True: # TODO: separate switch for reading vs writing normalized data?
@@ -136,16 +170,20 @@ def main():
             else:
                 filepath = filepath + "non-normalized/"
             print(filepath)
+
             if config.ANALYZE_DCT_PER_BUILDING == True:
-                coefficients = []
+                coefficients = pd.DataFrame()
             else:
                 coefficients = np.empty(0, dtype=np.float64)
             try:
                 for file in list_files_in_dir(filepath, append_path=True):
                     with open(file, "rb") as file:
                         building_coefficients = pickle.load(file)
+                        # This will be a list of numpy arrays; one array per day of data
+                    if config.SHOW_DCT == True:
+                        print(building_coefficients)
                     if config.ANALYZE_DCT_PER_BUILDING == True:
-                        coefficients.append(building_coefficients)
+                        coefficients[str(file)[79:-19]] = pd.Series(building_coefficients)
                     else:
                         coefficients = np.append(coefficients, building_coefficients)
             except Exception as ex:
@@ -153,12 +191,15 @@ def main():
                 raise SystemExit # For now
             
             if config.ANALYZE_DCT_PER_BUILDING == True:
-                building_coefficients = dct.analyze_per_building(coefficients)
-                if config.OUTPUT_DIR[-1] != "/":
-                    config.OUTPUT_DIR += "/"
-                dirpath = config.OUTPUT_DIR + "coefficients/coefficients-per-building.pkl"
-                with open(dirpath, "wb") as outfile:
-                    pickle.dump(building_coefficients, outfile)
+                dct.analyze_daily_buildings(coefficients)
+
+            #if config.ANALYZE_DCT_PER_BUILDING == True:
+            #    building_coefficients = dct.analyze_per_building(coefficients)
+            #    if config.OUTPUT_DIR[-1] != "/":
+            #        config.OUTPUT_DIR += "/"
+            #    dirpath = config.OUTPUT_DIR + "coefficients/coefficients-per-building.pkl"
+            #    with open(dirpath, "wb") as outfile:
+            #        pickle.dump(building_coefficients, outfile)
             elif config.ANALYZE_DCT == True:
                 dct.analyze(coefficients)
                 
