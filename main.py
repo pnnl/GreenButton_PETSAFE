@@ -83,9 +83,9 @@ def main():
         for id in buildings["building_id"].unique():
             print("Performing DCT on building", id)
             this_building = buildings[buildings["building_id"] == id]
-            if config.FIT_DCT == True:
-                method = config.METHOD
-                best_fit = dct.fit_accuracy(this_building["real_power"], method)
+            #if config.FIT_DCT == True:
+            #    method = config.METHOD
+            #    best_fit = dct.fit_accuracy(this_building["real_power"], method)
             if config.STORE_DCT == False:
                 dct_matrix = dct.decompose(this_building["real_power"])
                 #dct_matrix = dct.drop_coefficients(dct_matrix)
@@ -112,23 +112,28 @@ def main():
             # For each building, calculate and save DCT values for each day of data
             elif config.FIT_DCT == False: # config.STORE_DCT != False
                 coefficients = []
-                if config.AGGREGATE_BEFORE_DCT == False:
+                # Day by day coefficients
+                if config.AGGREGATE_BEFORE_DCT == False and config.DAILY_DCT_GRAPH == True:
+                    coefficients = pd.DataFrame()
                     dates = np.unique(this_building.index.date) # timestamp is index
                     for day in dates:
                         # Get the day of data and do DCT on it
                         day_data = this_building[this_building.index.date == day]
                         day_dct_matrix = dct.decompose(day_data["real_power"], log=False)
+
                         if config.HIGH_ONLY == True:
                             drop_index = int(config.HIGH_THRESHOLD * day_dct_matrix.size)
                             day_dct_matrix = day_dct_matrix[drop_index:]
                         #day_dct_matrix = dct.drop_coefficients(day_dct_matrix)
-                        # TODO: consider nesting as 2D array instead to preserve daily association
-                        #if config.DCT_DAILY == True:
-                        #    coefficients = np.concatenate((tuple(coefficients), day_dct_matrix))
-                        #else:
-                        coefficients.append(day_dct_matrix)
+
+                        #coefficients[str(day)] = day_dct_matrix
+                        # Concat is used to stop frame fragmentation warnings
+                        day_dct_matrix = pd.DataFrame(day_dct_matrix).rename(columns={0: str(day)})
+                        coefficients = pd.concat([coefficients, day_dct_matrix], axis=1)
+
                         if config.DCT_ONE_DAY == True:
                             break
+
                 elif config.ANALYZE_DCT_PER_BUILDING == True:
                     coefficients = dct.decompose(this_building["real_power"], log=False)
                 else:
@@ -140,6 +145,8 @@ def main():
                 dirpath = config.OUTPUT_DIR + "/coefficients/"
                 if config.DCT_ONE_DAY == True:
                     dirpath = dirpath + "/one-day/"
+                if config.DAILY_DCT_GRAPH == True:
+                    dirpath = dirpath + "/daily-coefficients/"
                 if config.ANALYZE_DCT_PER_BUILDING == True:
                     dirpath = dirpath + "/resampled-buildings/"
                 if config.HIGH_ONLY == True:
@@ -158,6 +165,8 @@ def main():
             filepath = config.OUTPUT_DIR + "coefficients/"
             if config.DCT_ONE_DAY == True:
                 filepath = filepath + "one-day/"
+            if config.DAILY_DCT_GRAPH == True:
+                filepath = filepath + "daily-coefficients/"
             if config.ANALYZE_DCT_PER_BUILDING == True:
                 filepath = filepath + "resampled-buildings/"
             if config.HIGH_ONLY == True:
@@ -168,7 +177,7 @@ def main():
                 filepath = filepath + "non-normalized/"
             print(filepath)
 
-            if config.ANALYZE_DCT_PER_BUILDING == True:
+            if config.ANALYZE_DCT_PER_BUILDING == True or config.DAILY_DCT_GRAPH == True:
                 coefficients = pd.DataFrame()
             else:
                 coefficients = np.empty(0, dtype=np.float64)
@@ -179,7 +188,22 @@ def main():
                         # This will be a list of numpy arrays; one array per day of data
                     if config.SHOW_DCT == True:
                         print(building_coefficients)
-                    if config.ANALYZE_DCT_PER_BUILDING == True:
+                    if config.DAILY_DCT_GRAPH == True:
+                        coefficients = building_coefficients
+                        print("Generating graphs (this will take a few minutes)...")
+                        import plotly.express as px
+                        scatter = False
+                        box = True
+                        if scatter == True:
+                            fig = px.scatter(coefficients)
+                            print("Showing scatter plot in web browser")
+                            fig.show()
+                        if box == True:
+                            fig = px.box(coefficients, x=coefficients.index, y=coefficients.columns, title="Coefficient Magnitude by Day", color=coefficients.columns) # points=False
+                            print("Showing box plot in web browser")
+                            fig.show()
+                        break
+                    elif config.ANALYZE_DCT_PER_BUILDING == True:
                         coefficients[str(file)[79:-19]] = pd.Series(building_coefficients)
                     else:
                         coefficients = np.append(coefficients, building_coefficients)

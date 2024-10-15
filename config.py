@@ -26,9 +26,11 @@ DECRYPT = False
 # Use DCT to "smooth out" data, obscuring some transitional events
 # Enables all other DCT processing switches
 PERFORM_DCT = False
+# Get DCT values for each day, then graph them.
+DAILY_DCT_GRAPH = True
 # Aggregate data to temporal resolution specified by STAT_TEMPORAL_RESOLUTION
 # before performing DCT
-AGGREGATE_BEFORE_DCT = True
+AGGREGATE_BEFORE_DCT = False
 # Perform DCT for one day instead of on the entire time period
 DCT_ONE_DAY = False
 # Test different methods of reducing DCT coefficients
@@ -60,7 +62,7 @@ SHOW_DCT = False
 # Graph the distribution of DCT coefficients
 ANALYZE_DCT = False
 # Graph the distribution of DCT coefficients per building
-ANALYZE_DCT_PER_BUILDING = True
+ANALYZE_DCT_PER_BUILDING = False
 
 
 # ----- TEMPORAL RESOLUTION -----
