@@ -6,11 +6,11 @@
 # Read from CSV files into SQLite database
 READ_FILES = False
 # Create virtual buildings using database
-CREATE_BUILDINGS = False
+CREATE_BUILDINGS = True
 # Database file target
 DATABASE = "records.db"
 # Set to true if you want to encrypt data before saving to file
-ENCRYPT = True
+ENCRYPT = False
 # Set to True if you'd prefer to save as pickle files
 SAVE_AS_PICKLE = True
 # Fraction of CPU power to dedicate to processing, at most.
@@ -56,7 +56,7 @@ HIGH_THRESHOLD = 0.75
 # ----- DCT OPERATIONS -----
 # Retrieve saved DCT values for analysis or further use
 # Enables all other post-processing/operations switches
-RETRIEVE_DCT = True
+RETRIEVE_DCT = False
 # Print the dataframe of coefficients
 SHOW_DCT = False
 # Graph the distribution of DCT coefficients
@@ -75,7 +75,7 @@ ANALYZE_DCT_PER_BUILDING = False
 # "m": month
 # "y": year
 # Not yet re-implemented in full; use with caution
-STAT_TEMPORAL_RESOLUTION = "d"
+STAT_TEMPORAL_RESOLUTION = "f"
 
 # What date range to retrieve statistics for
 LIMIT_DATE = True
@@ -85,15 +85,15 @@ END_DATE = "2021-12-31"
 
 # ----- PROCESSING -----
 # How many virtual buildings to make
-BUILDING_COUNT = 30
+BUILDING_COUNT = 10
 # What building ID number to start at
 FIRST_BUILDING_ID = 0
 # Minimum and maximum count of units per building
-MIN_SIZE = 2
+MIN_SIZE = 5
 MAX_SIZE = 5
 
 # Output directory for prepped data
-OUTPUT_DIR = "./output/"
+OUTPUT_DIR = "./output/paper/"
 
 # Where to log actions and issues
 LOG_FILE = OUTPUT_DIR + 'building_processing.log'
@@ -108,6 +108,6 @@ POWER_DIR = ROOT_DATA_DIR + "power/"
 
 # Which columns to encrypt
 # ["real_power", "apparent_power", "pf"]
-ENCRYPT_COLS = ["real_power"]
+ENCRYPT_COLS = ["real_power", "apparent_power", "pf"] #["real_power"]
 # Seed to use for building site randomization
 SEED = 176575734

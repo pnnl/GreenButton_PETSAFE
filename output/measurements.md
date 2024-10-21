@@ -55,3 +55,5 @@
 - Min: Not possible with Elliptic Curve ElGamal (may be possible with homomorphic DP? Testing needed.)
 - Max: Not possible with Elliptic Curve ElGamal
 - Outage periods: can be calculated IF a ciphertext of 0 is provided
+
+### RMSE between sites and building average

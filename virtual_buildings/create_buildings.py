@@ -104,7 +104,7 @@ def make_buildings(
         print("Building", i, "created.")
     timer_end = perf_counter()
     time_taken = timer_end - timer_start
-    print("Time taken to create", FIRST_BUILDING_ID + count, "buildings with encryption setting", ENCRYPT, ": ", time_taken, "seconds")
+    print("Time taken to create", count, "buildings with encryption setting", ENCRYPT, ": ", time_taken, "seconds")
 
 # The building class
 class Building:
