@@ -8,3 +8,11 @@ output/old/*
 keys/*
 pickled-totals
 tools/building-size-distribution.csv
+.conda/*
+openfhe-python/*
+openfhe-development/*
+build/*
+output/old/*
+output/backup-encrypted/*
+output/paper/*
+tools/datasets/*

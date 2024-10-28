@@ -6,7 +6,7 @@
 # Read from CSV files into SQLite database
 READ_FILES = False
 # Create virtual buildings using database
-CREATE_BUILDINGS = True
+CREATE_BUILDINGS = False
 # Database file target
 DATABASE = "records.db"
 # Set to true if you want to encrypt data before saving to file
@@ -18,7 +18,7 @@ SAVE_AS_PICKLE = True
 PORTION_OF_CPU = 0.5
 
 # Process statistics from created buildings
-CREATE_STATISTICS = False
+CREATE_STATISTICS = True
 # Set to True if processing encrypted data
 DECRYPT = False
 
@@ -93,7 +93,7 @@ MIN_SIZE = 5
 MAX_SIZE = 5
 
 # Output directory for prepped data
-OUTPUT_DIR = "./output/paper/"
+OUTPUT_DIR = "./output/"
 
 # Where to log actions and issues
 LOG_FILE = OUTPUT_DIR + 'building_processing.log'

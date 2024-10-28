@@ -58,14 +58,24 @@ def main():
         data = reader.get_data()
         building_ids = reader.get_building_ids()
         #building_id = 2
+        building_rmses = []
         for building_id in building_ids:
             print("Calculating statistics.")
             power_sum_building = reader.get_building_power_sum(building_id)
             power_avg_building = reader.get_building_power_avg(building_id)
+            
             RMSE = True
-
             if RMSE == True:
-                pass
+                building_with_sites = reader.get_building_with_sites(building_id, "15min")
+                # Transform into the average for comparison
+                building_with_sites["Building Aggregate"] = building_with_sites["Building Aggregate"]
+                for column in building_with_sites.columns:
+                    if column != "Building Aggregate":
+                        building_with_sites[column] = building_with_sites["Building Aggregate"] - building_with_sites[column]
+                        numerator = building_with_sites[column].sum()
+                        sample_size = building_with_sites[column].size
+                        site_rmse = numerator / (sample_size - 1)
+                        building_rmses.append(site_rmse)
 
             if config.DECRYPT == True:
                 start_time = perf_counter()
@@ -88,7 +98,16 @@ def main():
             # TODO: graph looks weird if resolution = time range provided (eg. day resolution and single day for date range)
             #fig = reader.graph_building_power(building_id, config.STAT_TEMPORAL_RESOLUTION, show_graph=True)
         if config.DECRYPT == False: # Graphing encrypted not implemented; need to decrypt first for that
-            fig = reader.graph_building_power_with_sites(7, config.STAT_TEMPORAL_RESOLUTION, show_graph=True)
+            #fig = reader.graph_building_power_with_sites(7, config.STAT_TEMPORAL_RESOLUTION, show_graph=True)
+            pass
+        if RMSE == True:
+            rmse_series = pd.Series(building_rmses)
+            rmse_average = rmse_series.sum() / rmse_series.size
+            rmse_min = rmse_series.min()
+            rmse_worst = rmse_series[rmse_series == rmse_series.abs().max()].max()
+            print("RMSE min:", rmse_min)
+            print("RMSE average:", rmse_average)
+            print("RMSE worst:", rmse_worst)
     
     print("Done.\n========================================================")
 

@@ -137,27 +137,23 @@ class Reader:
             fig.show()
         return fig
     
-    def graph_building_power_with_sites(
+    def get_building_with_sites(
             self,
             building_id: int, # The integer ID of the building to work with
             resolution: str, # the resolution to graph at.
-            show_graph: Optional[bool] = True # whether to show the graph
     ):
         from virtual_buildings.create_buildings import Building
         from config import DATABASE, START_DATE, END_DATE
-        print("________\nPreparing to graph building", building_id, "against sites. This may take several minutes.")
-        # TODO: Check that data is decrypted; graphing encrypted data makes no sense
-        # TODO: if resolution = supplied data, graphing won't work as expected
+        print("________\nRetrieving sites for", building_id, ". This may take several minutes.")
         building = self.get_building(building_id)
         building = self.change_time_resolution(building, resolution)
-        graph_frame = building[["real_power"]].copy().rename(columns={"real_power": "Building Aggregate"})
+        building_and_sites = building[["real_power"]].copy().rename(columns={"real_power": "Building Aggregate"})
         ids = building["point_id"].iloc[0].split(", ") # TODO: eventually site ids will be per row. Account for that.
         ids[0] = ids[0][1:] # Remove parentheses from string
         ids[-1] = ids[-1][:-1] # Remove parentheses from string
         sites = Building.query_for_sites(database_path=DATABASE, ids=ids, start_date=START_DATE, end_date=END_DATE)
         sites = sites.set_index(["timestamp"])
         print(pd.unique(sites["point_id"]))
-        # pd.unique(sites["point_id"])
         for site_id in pd.unique(sites["point_id"]):
             site_power = sites[sites["point_id"] == site_id]
             if site_power.empty:
@@ -168,7 +164,16 @@ class Reader:
                 site_power = site_power.rename(columns={"ee_site_id": "building_id"})
                 site_power = self.change_time_resolution(site_power, resolution)
             colname = "Site " + str(site_id)
-            graph_frame[colname] = site_power["real_power"].groupby(by="timestamp").sum()
+            building_and_sites[colname] = site_power["real_power"].groupby(by="timestamp").sum()
+        return building_and_sites
+    
+    def graph_building_power_with_sites(
+            self,
+            building_id: int, # The integer ID of the building to work with
+            resolution: str, # the resolution to graph at.
+            show_graph: Optional[bool] = True # whether to show the graph
+    ):
+        graph_frame = self.get_building_with_sites(building_id, resolution)
         print(graph_frame)
         title = "Daily Real Power for Building " + str(building_id) + " vs Site Real Power"
 
