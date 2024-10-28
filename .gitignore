@@ -9,8 +9,6 @@ keys/*
 pickled-totals
 tools/building-size-distribution.csv
 .conda/*
-openfhe-python
-openfhe-development
 openfhe-python/*
 openfhe-development/*
 build/*
