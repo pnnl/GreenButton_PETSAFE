@@ -1,5 +1,8 @@
 import pandas as pd
-from lightphe import LightPHE
+
+from openfhe import *
+
+#from lightphe import LightPHE
 from os.path import exists
 from os import makedirs, environ
 import multiprocessing as mp
@@ -152,7 +155,7 @@ class Building:
 
             # If requested, encrypt the building.
             if self.__encryption_enabled == True:
-                self.__keys = self.__setup_encryption() # Make or retrieve keys
+                self.__cc, self.__keys = self.__setup_encryption() # Make or retrieve keys
                 self.__data = self.encrypt_building() # Perform encryption
 
             # If requested, save the building to a pickle/binary file (.pkl)
@@ -165,32 +168,89 @@ class Building:
 
     # Sets up and exports or retrieves encryption keys;
     # returns a LightPHE Keys object
-    def __setup_encryption(self) -> object:
-        # Value obtained from print(str(logging.ERROR))
-        environ['LIGHTPHE_LOG_LEVEL'] = "40" # Errors and critical only
-        # Set encryption parameters
-        self.__ALGORITHM = "EllipticCurve-ElGamal"
-        self.__KEY_LENGTH = 521
+    def __setup_encryption(self):
         self.__KEY_LOCATION = "./keys/"
-        # Make and export keys
-        try:
-            if "keys" not in globals() and not exists(self.__KEY_LOCATION + "public.txt"):
-                keys = LightPHE(algorithm_name = self.__ALGORITHM, key_size = self.__KEY_LENGTH)
-                try:
-                    keys.export_keys(target_file = self.__KEY_LOCATION + "public.txt", public = True)
-                    keys.export_keys(target_file = self.__KEY_LOCATION + "private.txt", public = False)
-                except Exception as ex:
-                    print("Unable to export keys. Decryption may fail. Reason: " + str(ex))
-                return keys
-            elif exists(self.__KEY_LOCATION + "private.txt"):
-                privkey = LightPHE(algorithm_name = self.__ALGORITHM, key_file=self.__KEY_LOCATION + "private.txt")
-                return privkey
+        # Set parameters
+        parameters = CCParamsCKKSRNS()
+        parameters.SetMultiplicativeDepth(3)
+        parameters.SetScalingModSize(50)
+        # TODO: SET BATCH SIZE DYNAMICALLY
+        batchSize = 1024 # Smallest power of 2 that contains a week of data
+        parameters.SetBatchSize(batchSize)
+
+        # Enable relevant features
+        cc = GenCryptoContext(parameters)
+        cc.Enable(PKE)
+        cc.Enable(KEYSWITCH)
+        cc.Enable(LEVELEDSHE)
+        cc.Enable(ADVANCEDSHE)
+        cc.Enable(MULTIPARTY)
+        # TODO: retrieve keys if they already exist
+        # Generate keys
+        keypairs = {}
+        multkeys = {}
+        sumkeys = {}
+        for meter in self.__ids:
+            if meter == self.__ids[0]:
+                # Leader meter generates key independently
+                keypair = cc.KeyGen()
+                keypairs[meter] = keypair
+                # Evalmult key init
+                evalMultKey = cc.KeySwitchGen(keypair.secretKey, keypair.secretKey)
+                multkeys[meter] = evalMultKey
+                # Evalsum key init
+                cc.EvalSumKeyGen(keypair.secretKey)
+                evalSumKeys = cc.GetEvalSumKeyMap(keypair.secretKey.GetKeyTag())
+                sumkeys[meter] = evalSumKeys
+            else: # Follower meters behave differently from leader meter
+                # Generate key using prev meter key as input
+                keypair = cc.MultipartyKeyGen(keypairs[prev_meter].publicKey)
+                # Generate multkey
+                multkeys[meter] = cc.MultiKeySwitchGen(keypair.secretKey, keypair.secretKey, evalMultKey)
+                # Generate sumkey
+                sumkeys[meter] = cc.MultiEvalSumKeyGen(keypair.secretKey, evalSumKeys, keypair.publicKey.GetKeyTag())
+            # Setup for next meter
+            prev_meter = meter
+
+        # Generate the combined EvalMult key
+        for meter in self.__ids:
+            # Multkey round 1: MultiAdd
+            meter_key = keypairs[meter]
+            meter_multkey = multkeys[meter]
+            if meter == self.__ids[0]:
+                wip_multkey = meter_multkey
             else:
-                print("Encryption setup failed.")
-                raise SystemExit
-        except:
-            print("Key generation failure. Aborting.")
-            raise SystemExit
+                wip_multkey = cc.MultiAddEvalKeys(wip_multkey, meter_multkey, meter_key.publicKey.GetKeyTag())
+        # Multkey round 2: MultiMult
+        multimult_keys = []
+        for meter in self.__ids:
+            meter_key = keypairs[meter]
+            wip_multkey = cc.MultiMultEvalKey(meter_key.secretKey, wip_multkey, meter_key.publicKey.GetKeyTag())
+            multimult_keys.append(wip_multkey)
+        # Round 3: MultiAdd all the MultiMults together
+        for key in multimult_keys:
+            if final_multikey not in locals():
+                final_multikey = key
+            else:
+                final_multikey = cc.MultiAddEvalMultKeys(key, final_multikey, key.GetKeyTag())
+        # Multkey generation done
+        cc.InsertEvalMultKey([final_multikey])
+
+        # Generate the combined EvalSum key
+        eval_sum_keys = []
+        # Round 1: Add the keys together
+        for meter in self.__ids:
+            # Multkey round 1: MultiAdd
+            meter_key = keypairs[meter]
+            meter_sumkey = sumkeys[meter]
+            if meter == self.__ids[0]:
+                final_sumkey = meter_sumkey
+            else:
+                final_sumkey = cc.MultiAddEvalSumKeys(final_sumkey, meter_sumkey, meter_key.publicKey.GetKeyTag())
+        # Sumkey done
+        cc.InsertEvalSumKey(final_sumkey)
+        return cc, keypairs
+              
         
     # Used to encrypt values; because we're doing this with multiprocessing to speed up
     # multi-column encryption, we need a worker process to encrypt each column.
