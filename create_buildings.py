@@ -1,10 +1,9 @@
-import pandas as pd
-
 from openfhe import *
 
 #from lightphe import LightPHE
+import pandas as pd
 from os.path import exists
-from os import makedirs, environ
+from os import makedirs
 import multiprocessing as mp
 from numpy import random
 from typing import Optional
@@ -14,8 +13,8 @@ from time import perf_counter
 #import processor.pullMains as pulldb
 from processor.commonDB import DBConn
 from logger_config import config_logger
-from config import DATABASE, ENCRYPT_COLS, PORTION_OF_CPU, ENCRYPT, \
-    OUTPUT_DIR, FIRST_BUILDING_ID, MIN_SIZE, MAX_SIZE, LIMIT_DATE, START_DATE, END_DATE
+from config import DATABASE, ENCRYPT_COLS, ENCRYPT, OUTPUT_DIR, FIRST_BUILDING_ID, \
+    MIN_SIZE, MAX_SIZE, LIMIT_DATE, START_DATE, END_DATE
 
 # Setting copy on write for PANDAS as recommended here:
 # https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
@@ -145,6 +144,7 @@ class Building:
             print("Building must have at least two units.")
         else:
             print("Encryption status:", str(self.__encryption_enabled))
+            self.__ids = [id.item() for id in self.__ids] # Fix from numpy to native ints
             self.query_database() # Get data from the database
             self.__data = self.aggregate("15min") # Ensure we have all data in 15min intervals
             print(self.__data[self.__data["real_power"] > 0]) # Show proof that it worked
@@ -175,7 +175,7 @@ class Building:
         parameters.SetMultiplicativeDepth(3)
         parameters.SetScalingModSize(50)
         # TODO: SET BATCH SIZE DYNAMICALLY
-        batchSize = 1024 # Smallest power of 2 that contains a week of data
+        batchSize = 2 # Smallest power of 2 that contains a point (1024 would be a full week)
         parameters.SetBatchSize(batchSize)
 
         # Enable relevant features
@@ -191,6 +191,7 @@ class Building:
         multkeys = {}
         sumkeys = {}
         for meter in self.__ids:
+            print("Preparing keys for meter", meter)
             if meter == self.__ids[0]:
                 # Leader meter generates key independently
                 keypair = cc.KeyGen()
@@ -205,6 +206,7 @@ class Building:
             else: # Follower meters behave differently from leader meter
                 # Generate key using prev meter key as input
                 keypair = cc.MultipartyKeyGen(keypairs[prev_meter].publicKey)
+                keypairs[meter] = keypair
                 # Generate multkey
                 multkeys[meter] = cc.MultiKeySwitchGen(keypair.secretKey, keypair.secretKey, evalMultKey)
                 # Generate sumkey
@@ -229,7 +231,7 @@ class Building:
             multimult_keys.append(wip_multkey)
         # Round 3: MultiAdd all the MultiMults together
         for key in multimult_keys:
-            if final_multikey not in locals():
+            if "final_multikey" not in locals():
                 final_multikey = key
             else:
                 final_multikey = cc.MultiAddEvalMultKeys(key, final_multikey, key.GetKeyTag())
@@ -249,70 +251,41 @@ class Building:
                 final_sumkey = cc.MultiAddEvalSumKeys(final_sumkey, meter_sumkey, meter_key.publicKey.GetKeyTag())
         # Sumkey done
         cc.InsertEvalSumKey(final_sumkey)
+        # Save to object
+        self.__cc = cc
+        self.__keypairs = keypairs
         return cc, keypairs
-              
-        
-    # Used to encrypt values; because we're doing this with multiprocessing to speed up
-    # multi-column encryption, we need a worker process to encrypt each column.
-    def worker(self, column):
-        # The function used to encrypt a single value; needs to exist so that
-        # pandas apply() can be used for better efficiency
+                        
+    # Encrypt all sensitive columns defined in config
+    def encrypt_building(self):
+        # Used for pandas.apply() to speed the process
         def encrypt_value(
-            target # the value to encrypt
+            target, # the value to encrypt
+            keys # The keypair to use
             ) -> int:
             if type(target) == int or type(target) == float:
-            # HE doesn't always play nicely with floats; conversion to INT is needed
-            # This conversion will be removed if we switch to CKKS
-                decimal_places = 8 # How many decimal places to keep; needs to be the same when decrypted
-                CONVERSION_SCALAR = 10**decimal_places
                 if target not in self.__value_map: # Encrypt and add to value map
-                    encrypted_value = self.__keys.encrypt(int(float(target) * CONVERSION_SCALAR))
-                    self.__value_map[target] = encrypted_value
-                    return encrypted_value
+                    plaintext = self.__cc.MakeCKKSPackedPlaintext(target)
+                    ciphertext = self.__cc.Encrypt(keys.publicKey, plaintext)
+
+                    self.__value_map[target] = ciphertext
+                    return ciphertext
                 else: # We've encrypted this value already. Return it.
                     return self.__value_map[target]
             else:
                 raise TypeError("Column to encrypt must only contain floats and/or integers.")
-            
-        # Worker main function starts here
-        try:
-            if column in ENCRYPT_COLS and column in self.__data.columns:
-                print("Encrypting", column)
-                encrypted_column = self.__data[column].apply(encrypt_value)
-                return (encrypted_column, column)
-            elif column in ENCRYPT_COLS:
-                print("Column", column, "does not exist in data frame.")
-                return ("Column does not exist:  " + column, column)
-            elif column in self.__data.columns:
-                print(column, "not in list of columns to encrypt.")
-                return (self.__data[column], column)
-            else:
-                print("No columns to encrypt and/or column", column, "not in data frame.")
-                return ("Encryption failed for " + column, column)
-        except Exception as ex:
-            print("Could not encrypt", column + ":", ex)
-            return ("Encryption failed for " + column, column)
-                        
-    # Encrypt all sensitive columns defined in config
-    def encrypt_building(self):
-        # Took about 90 mins for 4 sites over whole time period
-        processors = mp.cpu_count()
-        processors = floor(processors * PORTION_OF_CPU)
-        results = {}
-        self.__value_map = {} # Used to speed encryption by only encrypting each value once
-        with mp.Pool(processes=processors) as pool:
-            try:
-                encrypted_outputs = pool.map(self.worker, self.__data.columns)
-            except KeyboardInterrupt:
-                pool.terminate()
-        for result in encrypted_outputs:
-                column = result[1]
-                data = result[0]
-                results[column] = data
-        for column in results:
-            self.__data[column] = results[column]
+        # The main function
+        for meter in self.__ids:
+            self.__value_map = {} # Used to speed encryption by only encrypting each value once
+            meter_keys = self.__keypairs[meter]
+            meter_data = self.__data[self.__data["point_id"] == meter]
+            for column in meter_data.columns:
+                if column in ENCRYPT_COLS and column in self.__data.columns:
+                    print("Encrypting", column)
+                    meter_data[column] = meter_data[column].apply(encrypt_value, keys=meter_keys)
+            del self.__value_map
+            self.__data[self.__data["point_id"] == meter] = meter_data
         print(self.__data)
-        del self.__value_map
         return self.__data
             
     # Retrieves data for component sites via SQL query
@@ -571,3 +544,7 @@ class Building:
     def get_data(self):
         return self.__data
 
+
+if __name__ == "__main__":
+    from config import BUILDING_COUNT, SEED
+    make_buildings(BUILDING_COUNT, pickle=False, seed=SEED)

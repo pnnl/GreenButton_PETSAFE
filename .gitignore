@@ -14,7 +14,4 @@ output/old/*
 output/backup-encrypted/*
 output/paper/*
 tools/datasets/*
-deprecated HElib Implementation
-deprecated HElib Implementation/*
-statistics_with_pyfhel
-statistics_with_pyfhel/*
+*/.vscode
