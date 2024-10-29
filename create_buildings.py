@@ -13,8 +13,8 @@ from time import perf_counter
 #import processor.pullMains as pulldb
 from processor.commonDB import DBConn
 from logger_config import config_logger
-from config import DATABASE, ENCRYPT_COLS, ENCRYPT, OUTPUT_DIR, FIRST_BUILDING_ID, \
-    MIN_SIZE, MAX_SIZE, LIMIT_DATE, START_DATE, END_DATE
+from config import DATABASE, ENCRYPT_COLS, PORTION_OF_CPU, ENCRYPT, \
+    OUTPUT_DIR, FIRST_BUILDING_ID, MIN_SIZE, MAX_SIZE, LIMIT_DATE, START_DATE, END_DATE
 
 # Setting copy on write for PANDAS as recommended here:
 # https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
@@ -146,17 +146,18 @@ class Building:
             print("Encryption status:", str(self.__encryption_enabled))
             self.__ids = [id.item() for id in self.__ids] # Fix from numpy to native ints
             self.query_database() # Get data from the database
-            self.__data = self.aggregate("15min") # Ensure we have all data in 15min intervals
-            print(self.__data[self.__data["real_power"] > 0]) # Show proof that it worked
-
-            # TODO: when changing resolution-
-            # Make sure the aggregation interval is greater than the interval in the data-
-            # reference duration column
 
             # If requested, encrypt the building.
             if self.__encryption_enabled == True:
                 self.__cc, self.__keys = self.__setup_encryption() # Make or retrieve keys
                 self.__data = self.encrypt_building() # Perform encryption
+
+            self.__data = self.aggregate("15min") # Ensure we have all data in 15min intervals
+            #print(self.__data[self.__data["real_power"] > 0]) # Show proof that it worked
+
+            # TODO: when changing resolution-
+            # Make sure the aggregation interval is greater than the interval in the data-
+            # reference duration column
 
             # If requested, save the building to a pickle/binary file (.pkl)
             if self.__pickle == True:
@@ -265,15 +266,15 @@ class Building:
             ) -> int:
             if type(target) == int or type(target) == float:
                 if target not in self.__value_map: # Encrypt and add to value map
-                    plaintext = self.__cc.MakeCKKSPackedPlaintext(target)
+                    plaintext = self.__cc.MakeCKKSPackedPlaintext([target])
                     ciphertext = self.__cc.Encrypt(keys.publicKey, plaintext)
-
                     self.__value_map[target] = ciphertext
                     return ciphertext
                 else: # We've encrypted this value already. Return it.
                     return self.__value_map[target]
             else:
                 raise TypeError("Column to encrypt must only contain floats and/or integers.")
+            
         # The main function
         for meter in self.__ids:
             self.__value_map = {} # Used to speed encryption by only encrypting each value once
@@ -285,7 +286,7 @@ class Building:
                     meter_data[column] = meter_data[column].apply(encrypt_value, keys=meter_keys)
             del self.__value_map
             self.__data[self.__data["point_id"] == meter] = meter_data
-        print(self.__data)
+            #print(meter_data)
         return self.__data
             
     # Retrieves data for component sites via SQL query
