@@ -146,6 +146,14 @@ class Building:
             print("Encryption status:", str(self.__encryption_enabled))
             self.__ids = [id.item() for id in self.__ids] # Fix from numpy to native ints
             self.query_database() # Get data from the database
+            print(self.__data)
+
+            # Fill in missing data
+            for meter in self.__ids:
+                print(meter)
+                meter_data = self.__data[self.__data["point_id"] == int(meter)]
+                meter_data = self.impute(meter_data)
+                print(meter_data)
 
             # If requested, encrypt the building.
             if self.__encryption_enabled == True:
@@ -458,8 +466,13 @@ class Building:
         # We need to zero any N/A PF values; many of these should be zero to begin with, but for those corresponding
         # to outages, it'll be recalculated after real and apparent power are imputed. We don't want the
         # should-be-zero PF values to be included when finding N/A rows.
+        # Used to replace 0 values later- target should always have the same point_id, which is always
+        # associated with the same ee_site_id
+        ee_site_id = target["ee_site_id"].iloc[0]
+        point_id = target["point_id"].iloc[0]
         # Fill in missing timestamps
         # timestamp should be index
+        target = target.set_index("timestamp")
         start_datetime = target.index[0]
         end_datetime = target.index[-1] + pd.Timedelta(1, "d") # one day ahead for date_range to work properly
         fifteen_min_increments = pd.date_range(start=start_datetime, end=end_datetime, freq="15min", normalize=True, inclusive="left")
@@ -476,8 +489,8 @@ class Building:
         # Find any remaining rows containing N/A that need more involved imputation
         na_rows = target.loc[pd.isna(target["real_power"]), :].index
         if not na_rows.empty: # If we have N/A rows
-            for row in na_rows:
-                pass
+            #for row in na_rows:
+                #pass
                 # Get similar data from one week ago
                 # TODO: expand to check other potentially similar days in the recent past- same day of week, similar temp, season, etc.
                 # Procedural way to know this?
@@ -488,6 +501,9 @@ class Building:
                 # Figure out what timestamp is supposed to be
 
             target = target.fillna(0) # Catch anything the fill methods missed. TODO: Make sure to log this!
+            # Fix ID columns for added rows
+            target["ee_site_id"] = ee_site_id
+            target["point_id"] = point_id
         return target
 
     def change_resolution(self, resolution): # resolution should be a valid resample value
@@ -513,10 +529,22 @@ class Building:
         mains = self.__data
         # For each timestamp in the ids list, sum all values
         #mains = mains.resample(resolution, on="timestamp").sum()
-        mains = mains.groupby(by="timestamp").sum()
-        # Fill in missing timestamps now that timestamps are unique
-        mains = self.impute(mains)
-        #print(mains[mains["point_id"] == 0])
+
+        """
+        batchSize = 2
+        for timestamp in mains["timestamp"].unique():
+            if timestamp == mains["timestamp"].unique()[0]:
+                aggregate = mains[mains["timestamp"] == timestamp] # one per building
+            else:
+                aggregate = cc.EvalAdd(aggregate, ciphertext2)
+            ciphertextAdd12 = cc.EvalAdd(ciphertext1, ciphertext2)
+            ciphertextSum = cc.EvalSum(ciphertextAdd12, batchSize)
+        """
+        if self.__encryption_enabled == False:
+            mains = mains.groupby(by="timestamp").sum()
+        else:
+            # Aggregating is harder
+            pass
         # Set ID columns
         # point_id is repurposed to hold a tuple of point_ids in the building
         # ee_site_id is renamed to building_id and repurposed for that in case it winds up
