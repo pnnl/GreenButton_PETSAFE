@@ -107,6 +107,7 @@ def make_buildings(
     timer_end = perf_counter()
     time_taken = timer_end - timer_start
     print("Time taken to create", count, "buildings with encryption setting", ENCRYPT, ": ", time_taken, "seconds")
+    print("Average time:", time_taken / BUILDING_COUNT)
 
 # The building class
 class Building:
@@ -146,14 +147,15 @@ class Building:
             print("Encryption status:", str(self.__encryption_enabled))
             self.__ids = [id.item() for id in self.__ids] # Fix from numpy to native ints
             self.query_database() # Get data from the database
-            print(self.__data)
 
             # Fill in missing data
+            imputed_data = pd.DataFrame()
             for meter in self.__ids:
-                print(meter)
                 meter_data = self.__data[self.__data["point_id"] == int(meter)]
                 meter_data = self.impute(meter_data)
-                print(meter_data)
+                imputed_data = pd.concat([imputed_data, meter_data])
+            self.__data = imputed_data
+            raise SystemExit
 
             # If requested, encrypt the building.
             if self.__encryption_enabled == True:
@@ -294,7 +296,6 @@ class Building:
                     meter_data[column] = meter_data[column].apply(encrypt_value, keys=meter_keys)
             del self.__value_map
             self.__data[self.__data["point_id"] == meter] = meter_data
-            #print(meter_data)
         return self.__data
             
     # Retrieves data for component sites via SQL query
@@ -477,33 +478,16 @@ class Building:
         end_datetime = target.index[-1] + pd.Timedelta(1, "d") # one day ahead for date_range to work properly
         fifteen_min_increments = pd.date_range(start=start_datetime, end=end_datetime, freq="15min", normalize=True, inclusive="left")
         new_index = pd.Index(fifteen_min_increments, name="timestamp")
-        target = target.reindex(new_index)
-        target["pf"] = target["pf"].fillna(0)
-        # Simple fills first: chains of less than the outage_threshold can be forward or backward filled.
-        max_fills = floor(outage_threshold / 2)
-        target = target.infer_objects(copy=False)
-        target = target.ffill(limit=max_fills)
-        target = target.bfill(limit=max_fills)
+        target = target.reindex(index=new_index, method="nearest", limit=outage_threshold)
         # TODO: log that fills took place
         # TODO: Account for missing starts and ends; sites do not always have the same start/end dates
         # Find any remaining rows containing N/A that need more involved imputation
-        na_rows = target.loc[pd.isna(target["real_power"]), :].index
-        if not na_rows.empty: # If we have N/A rows
-            #for row in na_rows:
-                #pass
-                # Get similar data from one week ago
-                # TODO: expand to check other potentially similar days in the recent past- same day of week, similar temp, season, etc.
-                # Procedural way to know this?
-                #week_ago_date = (target["timestamp"].iloc[row] - pd.Timedelta(7, "d")).date()
-                #week_ago_data = target[target["timestamp"] == week_ago_date]
-                # TODO: Fill with prev data from year if available
-                #print("One week ago:", week_ago_date)
-                # Figure out what timestamp is supposed to be
-
-            target = target.fillna(0) # Catch anything the fill methods missed. TODO: Make sure to log this!
-            # Fix ID columns for added rows
-            target["ee_site_id"] = ee_site_id
-            target["point_id"] = point_id
+        #na_rows = target.loc[pd.isna(target["real_power"]), :].index
+        target = target.fillna(0) # Catch anything the fill methods missed. TODO: Make sure to log this!
+        # Fix ID columns for added rows
+        target["ee_site_id"] = ee_site_id
+        target["point_id"] = point_id
+        print(target)
         return target
 
     def change_resolution(self, resolution): # resolution should be a valid resample value
