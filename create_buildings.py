@@ -155,7 +155,6 @@ class Building:
                 meter_data = self.impute(meter_data)
                 imputed_data = pd.concat([imputed_data, meter_data])
             self.__data = imputed_data
-            raise SystemExit
 
             # If requested, encrypt the building.
             if self.__encryption_enabled == True:
