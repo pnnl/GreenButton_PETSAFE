@@ -178,11 +178,12 @@ class Reader:
         title = "Daily Real Power for Building " + str(building_id) + " vs Site Real Power"
 
         fig = px.line(graph_frame, title=title, labels={"value": "Real Power", "timestamp": "Date"})
+        fig = fig.update_layout(font_size= 24, font_family="Times New Roman")
         fig.data[0].line.color = "red"
         for line in fig.data[1:]:
             line.line.color = "#A9A9A9" # Gray
         # Lines of sites of interest go here
-        #fig.data[1].line.color = "blue"
+        fig.data[1].line.color = "blue"
         if show_graph == True:
             fig.show()
         return fig

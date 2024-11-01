@@ -8,7 +8,7 @@ from list_files import list_files_in_dir
 import dct_main
 
 # Building module-related imports
-from virtual_buildings import create_buildings as cb
+import create_buildings as cb
 from building_analysis.reader import Reader
 from building_analysis.decryptor import Decryptor
 
@@ -96,9 +96,9 @@ def main():
             print("Total power demand of building", building_id, "between", config.START_DATE, "and", config.END_DATE, ":", power_sum_building, "kW")
             print("Power demand average of building", building_id, "between", config.START_DATE, "and", config.END_DATE, ":", power_avg_building, "kW")
             # TODO: graph looks weird if resolution = time range provided (eg. day resolution and single day for date range)
-            #fig = reader.graph_building_power(building_id, config.STAT_TEMPORAL_RESOLUTION, show_graph=True)
         if config.DECRYPT == False: # Graphing encrypted not implemented; need to decrypt first for that
-            #fig = reader.graph_building_power_with_sites(7, config.STAT_TEMPORAL_RESOLUTION, show_graph=True)
+            #fig = reader.graph_building_power(building_id, config.STAT_TEMPORAL_RESOLUTION, show_graph=True)
+            fig = reader.graph_building_power_with_sites(7, config.STAT_TEMPORAL_RESOLUTION, show_graph=True)
             pass
         if RMSE == True:
             rmse_series = pd.Series(building_rmses)

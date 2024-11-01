@@ -7,7 +7,7 @@ from os import makedirs
 import multiprocessing as mp
 from numpy import random
 from typing import Optional
-from math import floor
+import numpy as np
 from time import perf_counter
 
 #import processor.pullMains as pulldb
@@ -78,19 +78,57 @@ def choose_random_ids(randomizer: Optional[int] = None):
             # Buildings don't always start on the first available day. Only include those that do start
             # before or on the start date to avoid large missing chunks of data
             # TODO: deal with provided date being before any data exists
+            # TODO: deal with date being after data ends
+            # TODO: parameterized query, not fstring
             query = query + f" AND day_zero_dt <= '{START_DATE}'"
         query = query + ";"
         results = conn.execute(query)
         ids = results.fetchall()
         cursor_obj = conn.cursor()
+        # Select a random set from the results
+        building_ids = randomizer.choice(ids, count, replace=True)
+        # Verify that chosen IDs have results
+        building_ids = list([id[0] for id in building_ids])
+        valid_ids = []
+        print(building_ids)
+        while len(valid_ids) < count:
+            for id in building_ids:
+                try:
+                    # TODO: parameterized query, not fstring
+                    # Check if data exists for this site
+                    query = f"SELECT P REAL FROM POWER WHERE point_id = {id}" 
+                    if LIMIT_DATE == True:
+                        # We checked start date above with the day_zero_dt check; this checks if it exists for long enough
+                        query = query + f" AND timestamp >= {END_DATE}"
+                    query = query + ";"
+                    results = conn.execute(query)
+                    testresult = results.fetchone()
+                    if testresult == [] or testresult == None or testresult == "None": # AKA: no data for that point in this time period
+                        raise Exception
+                    else:
+                        valid_ids.append(id)
+                        print(id, testresult)
+                except Exception: # Replace with new site at end so it'll be checked the same way
+                    new_id = randomizer.choice(ids, 1, replace=True)[0][0]
+                    del building_ids[building_ids.index(id)]
+                    try:
+                        if id in ids:
+                            del ids[ids.index(id)]
+                        else:
+                            pass
+                    except Exception as ex:
+                        print("No valid ids:", ex)
+                        print(valid_ids)
+                        print(building_ids)
+                        raise SystemExit
+                    building_ids.append(new_id)
+                    print(id, "replaced with", new_id)
         # "it is recommended that applications run "PRAGMA optimize" (with no arguments) 
         # just before closing each database connection."
         # https://www.sqlite.org/pragma.html#pragma_optimize
         cursor_obj.execute("PRAGMA optimize;")
         cursor_obj.close()
-    # Select a random set from the results
-    building_ids = randomizer.choice(ids, count, replace=True)
-    building_ids = tuple([id[0] for id in building_ids]) # Format the selections into a tuple of ids
+    building_ids = tuple(valid_ids) # Format the selections into a tuple of ids
     return building_ids, randomizer
 
 def make_buildings(
@@ -151,7 +189,7 @@ class Building:
             # Fill in missing data
             imputed_data = pd.DataFrame()
             for meter in self.__ids:
-                meter_data = self.__data[self.__data["point_id"] == int(meter)]
+                meter_data = self.__data[self.__data["point_id"] == meter]
                 meter_data = self.impute(meter_data)
                 imputed_data = pd.concat([imputed_data, meter_data])
             self.__data = imputed_data
@@ -374,7 +412,10 @@ class Building:
         self.__data['timestamp'] = pd.to_datetime(self.__data['timestamp'],unit='s')
         return self.__data
 
-    # Staticmethod version of the query sites method
+    # Staticmethod version of the query sites method;
+    # here temporarily until I either no longer need to run the query outside of Building
+    # or until it's established enough to become the main method for this.
+    # Final should probably have only one.
     @staticmethod
     def query_for_sites(database_path, ids, start_date, end_date):
         with DBConn.create_connection(database_path) as conn:
@@ -486,7 +527,6 @@ class Building:
         # Fix ID columns for added rows
         target["ee_site_id"] = ee_site_id
         target["point_id"] = point_id
-        print(target)
         return target
 
     def change_resolution(self, resolution): # resolution should be a valid resample value

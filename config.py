@@ -6,9 +6,9 @@
 # Read from CSV files into SQLite database
 READ_FILES = False
 # Create virtual buildings using database
-CREATE_BUILDINGS = False
+CREATE_BUILDINGS = True
 # Database file target
-DATABASE = "records.db"
+DATABASE = "data/records.db"
 # Set to true if you want to encrypt data before saving to file
 ENCRYPT = False
 # Set to True if you'd prefer to save as pickle files
@@ -75,7 +75,7 @@ ANALYZE_DCT_PER_BUILDING = False
 # "m": month
 # "y": year
 # Not yet re-implemented in full; use with caution
-STAT_TEMPORAL_RESOLUTION = "f"
+STAT_TEMPORAL_RESOLUTION = "d"
 
 # What date range to retrieve statistics for
 LIMIT_DATE = True
@@ -85,12 +85,12 @@ END_DATE = "2021-12-31"
 
 # ----- PROCESSING -----
 # How many virtual buildings to make
-BUILDING_COUNT = 10
+BUILDING_COUNT = 1
 # What building ID number to start at
-FIRST_BUILDING_ID = 0
+FIRST_BUILDING_ID = 10
 # Minimum and maximum count of units per building
-MIN_SIZE = 5
-MAX_SIZE = 5
+MIN_SIZE = 3
+MAX_SIZE = 3
 
 # Output directory for prepped data
 OUTPUT_DIR = "./output/"
