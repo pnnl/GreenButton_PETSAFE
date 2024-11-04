@@ -4,16 +4,15 @@ from openfhe import *
 import pandas as pd
 from os.path import exists
 from os import makedirs
-import multiprocessing as mp
 from numpy import random
 from typing import Optional
-import numpy as np
-from time import perf_counter
+from time import perf_counter, mktime
+from datetime import datetime
 
 #import processor.pullMains as pulldb
 from processor.commonDB import DBConn
 from logger_config import config_logger
-from config import DATABASE, ENCRYPT_COLS, PORTION_OF_CPU, ENCRYPT, \
+from config import DATABASE, ENCRYPT_COLS, ENCRYPT, \
     OUTPUT_DIR, FIRST_BUILDING_ID, MIN_SIZE, MAX_SIZE, LIMIT_DATE, START_DATE, END_DATE
 
 # Setting copy on write for PANDAS as recommended here:
@@ -91,38 +90,36 @@ def choose_random_ids(randomizer: Optional[int] = None):
         building_ids = list([id[0] for id in building_ids])
         valid_ids = []
         print(building_ids)
+        # Used to validate that data exists for period
+        end = mktime(datetime.strptime(END_DATE, '%Y-%m-%d').timetuple())
+        # Validate that data exists for period
         while len(valid_ids) < count:
             for id in building_ids:
-                try:
                     # TODO: parameterized query, not fstring
                     # Check if data exists for this site
-                    query = f"SELECT P REAL FROM POWER WHERE point_id = {id}" 
+                    query = f"SELECT P REAL FROM POWER WHERE point_id={id}" 
                     if LIMIT_DATE == True:
                         # We checked start date above with the day_zero_dt check; this checks if it exists for long enough
-                        query = query + f" AND timestamp >= {END_DATE}"
+                        query = query + f" AND timestamp<={end}" # BETWEEN {START_DATE} AND {END_DATE}"
                     query = query + ";"
                     results = conn.execute(query)
                     testresult = results.fetchone()
                     if testresult == [] or testresult == None or testresult == "None": # AKA: no data for that point in this time period
-                        raise Exception
+                        new_id = randomizer.choice(ids, 1, replace=True)[0][0]
+                        del building_ids[building_ids.index(id)] # ID is invalid for period; drop it from options
+                        try:
+                            if id in ids:
+                                del ids[ids.index(id)]
+                            building_ids.append(new_id)
+                            print(id, "replaced with", new_id)
+                        except Exception as ex:
+                            print("No valid ids for time period:", ex)
+                            print(valid_ids)
+                            print(building_ids)
+                            raise SystemExit
                     else:
                         valid_ids.append(id)
                         print(id, testresult)
-                except Exception: # Replace with new site at end so it'll be checked the same way
-                    new_id = randomizer.choice(ids, 1, replace=True)[0][0]
-                    del building_ids[building_ids.index(id)]
-                    try:
-                        if id in ids:
-                            del ids[ids.index(id)]
-                        else:
-                            pass
-                    except Exception as ex:
-                        print("No valid ids:", ex)
-                        print(valid_ids)
-                        print(building_ids)
-                        raise SystemExit
-                    building_ids.append(new_id)
-                    print(id, "replaced with", new_id)
         # "it is recommended that applications run "PRAGMA optimize" (with no arguments) 
         # just before closing each database connection."
         # https://www.sqlite.org/pragma.html#pragma_optimize
@@ -287,7 +284,6 @@ class Building:
         cc.InsertEvalMultKey([final_multikey])
 
         # Generate the combined EvalSum key
-        eval_sum_keys = []
         # Round 1: Add the keys together
         for meter in self.__ids:
             # Multkey round 1: MultiAdd
@@ -379,6 +375,7 @@ class Building:
             # just before closing each database connection." This should be very fast or a no-op.
             # https://www.sqlite.org/pragma.html#pragma_optimize
             print("Retrieved. Cleaning up (do not interrupt)...")
+            print(data)
             try:
                 cursor_obj.execute("PRAGMA optimize;")
                 cursor_obj.close()
