@@ -91,6 +91,7 @@ def choose_random_ids(randomizer: Optional[int] = None):
         valid_ids = []
         print(building_ids)
         # Used to validate that data exists for period
+        start = mktime(datetime.strptime(START_DATE, '%Y-%m-%d').timetuple())
         end = mktime(datetime.strptime(END_DATE, '%Y-%m-%d').timetuple())
         # Validate that data exists for period
         while len(valid_ids) < count:
@@ -100,7 +101,7 @@ def choose_random_ids(randomizer: Optional[int] = None):
                     query = f"SELECT P REAL FROM POWER WHERE point_id={id}" 
                     if LIMIT_DATE == True:
                         # We checked start date above with the day_zero_dt check; this checks if it exists for long enough
-                        query = query + f" AND timestamp<={end}" # BETWEEN {START_DATE} AND {END_DATE}"
+                        query = query + f" AND timestamp BETWEEN {start} AND {end}" # BETWEEN {START_DATE} AND {END_DATE}"
                     query = query + ";"
                     results = conn.execute(query)
                     testresult = results.fetchone()
@@ -600,4 +601,3 @@ class Building:
 
 if __name__ == "__main__":
     from config import BUILDING_COUNT, SEED
-    make_buildings(BUILDING_COUNT, pickle=False, seed=SEED)
