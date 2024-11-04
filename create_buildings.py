@@ -53,8 +53,11 @@ def choose_random_ids(randomizer: Optional[int] = None):
     s = 3.28533426
     count = -1 # Obviously invalid placeholder to initiate while loop
     dist = building_dist(name="building_dist")
-    while count < MIN_SIZE or count > MAX_SIZE:
-        count = int(dist.rvs(loc1=loc1, scale1=scale1, loc2=loc2, scale2=scale2, s=s, size=1)[0]) # Generate building size
+    if MIN_SIZE == MAX_SIZE:
+        count = MIN_SIZE
+    else:
+        while count < MIN_SIZE or count > MAX_SIZE:
+            count = int(dist.rvs(loc1=loc1, scale1=scale1, loc2=loc2, scale2=scale2, s=s, size=1)[0]) # Generate building size
     # Get possible IDs to choose from
 
     # Query times:
@@ -89,7 +92,6 @@ def choose_random_ids(randomizer: Optional[int] = None):
         # Verify that chosen IDs have results
         building_ids = list([id[0] for id in building_ids])
         valid_ids = []
-        print(building_ids)
         # Used to validate that data exists for period
         start = mktime(datetime.strptime(START_DATE, '%Y-%m-%d').timetuple())
         end = mktime(datetime.strptime(END_DATE, '%Y-%m-%d').timetuple())
@@ -115,17 +117,18 @@ def choose_random_ids(randomizer: Optional[int] = None):
                             print(id, "replaced with", new_id)
                         except Exception as ex:
                             print("No valid ids for time period:", ex)
-                            print(valid_ids)
-                            print(building_ids)
                             raise SystemExit
                     else:
-                        valid_ids.append(id)
-                        print(id, testresult)
+                        if len(valid_ids) < count:
+                            valid_ids.append(id)
+                        else:
+                            break
         # "it is recommended that applications run "PRAGMA optimize" (with no arguments) 
         # just before closing each database connection."
         # https://www.sqlite.org/pragma.html#pragma_optimize
         cursor_obj.execute("PRAGMA optimize;")
         cursor_obj.close()
+    print("Valid IDs:", valid_ids)
     building_ids = tuple(valid_ids) # Format the selections into a tuple of ids
     return building_ids, randomizer
 
@@ -353,7 +356,6 @@ class Building:
                 # Only retrieve values between the provided timestamps
                 query = query + f" AND timestamp BETWEEN '{self.__start_date}' AND '{self.__end_date}'"
             query = query + ";"
-            print(query)
             results = conn.execute(query)
             # TODO: figure out why parameterized query gets no results
             # in_statement = str(set(self.__ids))[1:-1]
@@ -601,3 +603,4 @@ class Building:
 
 if __name__ == "__main__":
     from config import BUILDING_COUNT, SEED
+    make_buildings(BUILDING_COUNT, pickle=False, seed=SEED)
