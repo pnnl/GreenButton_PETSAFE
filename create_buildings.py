@@ -234,6 +234,7 @@ class Building:
         cc.Enable(LEVELEDSHE)
         cc.Enable(ADVANCEDSHE)
         cc.Enable(MULTIPARTY)
+        
         # TODO: retrieve keys if they already exist
         # Generate keys
         keypairs = {}
@@ -330,12 +331,16 @@ class Building:
             for column in meter_data.columns:
                 if column in ENCRYPT_COLS and column in self.__data.columns:
                     print("Encrypting", column)
-                    meter_data[column] = meter_data[column].apply(encrypt_value, keys=meter_keys)
+                    if type(meter_data[column].iloc[0]) not in [Ciphertext, "object", object]: # Deals with duplicate sites
+                        meter_data[column] = meter_data[column].apply(float)
+                        meter_data[column] = meter_data[column].apply(encrypt_value, keys=meter_keys)
             del self.__value_map
             self.__data[self.__data["point_id"] == meter] = meter_data
         return self.__data
             
     # Retrieves data for component sites via SQL query
+    # TODO: either eliminate this or eliminate need for static version.
+    # Let's not duplicate a whole function unnecessarily
     # stores in self.__data
     # returns updated self.__data
     def query_database(self):
@@ -399,7 +404,6 @@ class Building:
         # Duplicate entries that are listed more than once in ids
         id_counts = pd.Series(data=self.__ids).value_counts() # Find how many times IDs are duplicated
         all_ids = list(unique_ids) # Needs to be separate so we can append without affecting for loop
-        print(all_ids)
         for id in unique_ids:
             if id_counts[id] > 1:
                 print(id, "is duplicated", id_counts[id], "times.")
@@ -553,10 +557,7 @@ class Building:
     def aggregate(self, resolution):
         # For each matching timestamp, sum values at all sites
         print("Aggregating.")
-        mains = self.__data
         # For each timestamp in the ids list, sum all values
-        #mains = mains.resample(resolution, on="timestamp").sum()
-
         """
         batchSize = 2
         for timestamp in mains["timestamp"].unique():
@@ -568,18 +569,31 @@ class Building:
             ciphertextSum = cc.EvalSum(ciphertextAdd12, batchSize)
         """
         if self.__encryption_enabled == False:
-            mains = mains.groupby(by="timestamp").sum()
+            aggregated_data = self.__data.groupby(by="timestamp").sum()
         else:
-            # Aggregating is harder
-            pass
+            # Aggregating encrypted data requires the use of EvalAdd
+            aggregated_data = pd.DataFrame()
+            for timestamp in pd.unique(self.__data.index):
+                interval_records = self.__data[self.__data.index == timestamp]
+                print(interval_records)
+                for record in range(0, interval_records["point_id"].size):
+                    if "real_power" not in locals():
+                        print(record)
+                        real_power = interval_records["real_power"].iloc[record]
+                        apparent_power = interval_records["apparent_power"].iloc[record]
+                    else:
+                        real_power = self.__cc.EvalAdd(real_power, interval_records["real_power"].iloc[record])
+                        apparent_power = self.__cc.EvalAdd(apparent_power, interval_records["apparent_power"].iloc[record])
+                    # TODO Power factor needs to be recalculated here
+                    # TODO build record for aggregated frame from this
         # Set ID columns
         # point_id is repurposed to hold a tuple of point_ids in the building
         # ee_site_id is renamed to building_id and repurposed for that in case it winds up
         # in a frame with other buildings
-        mains["point_id"] = str(self.__ids) # TODO: assign per row based on presence in aggregation?
-        mains = mains.rename(columns={"ee_site_id": "building_id"}) 
-        mains["building_id"] = self.__bid
-        return mains
+        aggregated_data["point_id"] = str(self.__ids) # TODO: assign per row based on presence in aggregation?
+        aggregated_data = aggregated_data.rename(columns={"ee_site_id": "building_id"}) 
+        aggregated_data["building_id"] = self.__bid
+        return aggregated_data
     
 
     def save_data(self):
