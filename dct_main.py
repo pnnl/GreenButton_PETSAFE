@@ -8,7 +8,7 @@ from os import makedirs
 from time import perf_counter
 
 import config
-import dct
+import building_analysis.dct as dct
 import normalization as norm
 from list_files import list_files_in_dir
 
