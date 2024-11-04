@@ -340,7 +340,10 @@ class Building:
             # We only need to query each id once. Convert to set to get unique.
             print("Building IDs:", self.__ids)
             unique_ids = tuple(set(self.__ids))
-            query = f"SELECT * FROM POWER WHERE point_id IN {unique_ids}"
+            if len(unique_ids) == 1:
+                query = f"SELECT * FROM POWER WHERE point_id = {unique_ids[0]}"
+            else:
+                query = f"SELECT * FROM POWER WHERE point_id IN {unique_ids}"
             if self.__limit_date == True:
                 from datetime import datetime
                 # Convert provided times to unix timestamps to match database format
@@ -349,6 +352,7 @@ class Building:
                 # Only retrieve values between the provided timestamps
                 query = query + f" AND timestamp BETWEEN '{self.__start_date}' AND '{self.__end_date}'"
             query = query + ";"
+            print(query)
             results = conn.execute(query)
             # TODO: figure out why parameterized query gets no results
             # in_statement = str(set(self.__ids))[1:-1]
@@ -375,7 +379,6 @@ class Building:
             # just before closing each database connection." This should be very fast or a no-op.
             # https://www.sqlite.org/pragma.html#pragma_optimize
             print("Retrieved. Cleaning up (do not interrupt)...")
-            print(data)
             try:
                 cursor_obj.execute("PRAGMA optimize;")
                 cursor_obj.close()
@@ -393,6 +396,7 @@ class Building:
         # Duplicate entries that are listed more than once in ids
         id_counts = pd.Series(data=self.__ids).value_counts() # Find how many times IDs are duplicated
         all_ids = list(unique_ids) # Needs to be separate so we can append without affecting for loop
+        print(all_ids)
         for id in unique_ids:
             if id_counts[id] > 1:
                 print(id, "is duplicated", id_counts[id], "times.")
@@ -402,7 +406,7 @@ class Building:
                     # Point ID of dupe needs to be changed; index must be unique
                     while id in unique_ids:
                         id += 1
-                    all_ids = all_ids.append(id)
+                    all_ids.append(id)
                     dupesite["point_id"] = id
                     self.__data = pd.concat((self.__data, dupesite))
         # Timestamps need to be datetime for resample to work for aggregation
