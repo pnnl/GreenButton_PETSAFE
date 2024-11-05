@@ -589,7 +589,7 @@ class Building:
                         batchSize = 2
                         real_power = self.__cc.EvalAdd(real_power, interval_records["real_power"].iloc[record])
                         real_power = self.__cc.EvalSum(real_power, batchSize)
-                        duration += interval_records["duration"].iloc[record]
+                        duration = interval_records["duration"].iloc[record]
                         if type(apparent_power) == "object":
                             apparent_power = self.__cc.EvalAdd(apparent_power, interval_records["apparent_power"].iloc[record])
                             apparent_power = self.__cc.EvalSum(apparent_power, batchSize)
