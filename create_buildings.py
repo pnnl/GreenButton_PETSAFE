@@ -263,6 +263,8 @@ class Building:
                 sumkeys[meter] = cc.MultiEvalSumKeyGen(keypair.secretKey, evalSumKeys, keypair.publicKey.GetKeyTag())
             # Setup for next meter
             prev_meter = meter
+            if meter == self.__ids[-1]:
+                self.__shared_pubkey = keypair.publicKey
 
         # Generate the combined EvalMult key
         for meter in self.__ids:
@@ -315,7 +317,7 @@ class Building:
             if type(target) == int or type(target) == float:
                 if target not in self.__value_map: # Encrypt and add to value map
                     plaintext = self.__cc.MakeCKKSPackedPlaintext([target])
-                    ciphertext = self.__cc.Encrypt(keys.publicKey, plaintext)
+                    ciphertext = self.__cc.Encrypt(keys, plaintext)
                     self.__value_map[target] = ciphertext
                     return ciphertext
                 else: # We've encrypted this value already. Return it.
@@ -326,7 +328,8 @@ class Building:
         # The main function
         for meter in self.__ids:
             self.__value_map = {} # Used to speed encryption by only encrypting each value once
-            meter_keys = self.__keypairs[meter]
+            #meter_keys = self.__keypairs[meter]
+            meter_keys = self.__shared_pubkey # The last pubkey is the one needed for encryption
             meter_data = self.__data[self.__data["point_id"] == meter]
             for column in meter_data.columns:
                 if column in ENCRYPT_COLS and column in self.__data.columns:
@@ -575,17 +578,28 @@ class Building:
             aggregated_data = pd.DataFrame()
             for timestamp in pd.unique(self.__data.index):
                 interval_records = self.__data[self.__data.index == timestamp]
-                print(interval_records)
                 for record in range(0, interval_records["point_id"].size):
                     if "real_power" not in locals():
-                        print(record)
+                        # This would work better as a loop?
+                        duration = interval_records["duration"].iloc[record]
                         real_power = interval_records["real_power"].iloc[record]
                         apparent_power = interval_records["apparent_power"].iloc[record]
+                        power_factor = interval_records["pf"].iloc[record]
                     else:
+                        batchSize = 2
                         real_power = self.__cc.EvalAdd(real_power, interval_records["real_power"].iloc[record])
-                        apparent_power = self.__cc.EvalAdd(apparent_power, interval_records["apparent_power"].iloc[record])
-                    # TODO Power factor needs to be recalculated here
+                        real_power = self.__cc.EvalSum(real_power, batchSize)
+                        duration += interval_records["duration"].iloc[record]
+                        if type(apparent_power) == "object":
+                            apparent_power = self.__cc.EvalAdd(apparent_power, interval_records["apparent_power"].iloc[record])
+                            apparent_power = self.__cc.EvalSum(apparent_power, batchSize)
+                        else:
+                            apparent_power += interval_records["apparent_power"].iloc[record]
+                    # TODO Power factor needs to be recalculated here- rp / ap
                     # TODO build record for aggregated frame from this
+                new_record = pd.DataFrame({"timestamp": interval_records.index[0], "point_id": 0, "ee_site_id": 0, "duration": duration, \
+                                           "real_power": real_power, "apparent_power": apparent_power, "pf": 0}, index=["timestamp"])
+                aggregated_data = pd.concat([aggregated_data, new_record])
         # Set ID columns
         # point_id is repurposed to hold a tuple of point_ids in the building
         # ee_site_id is renamed to building_id and repurposed for that in case it winds up
@@ -593,6 +607,7 @@ class Building:
         aggregated_data["point_id"] = str(self.__ids) # TODO: assign per row based on presence in aggregation?
         aggregated_data = aggregated_data.rename(columns={"ee_site_id": "building_id"}) 
         aggregated_data["building_id"] = self.__bid
+        print(aggregated_data)
         return aggregated_data
     
 
