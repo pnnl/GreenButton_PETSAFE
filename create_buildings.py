@@ -579,7 +579,7 @@ class Building:
             for timestamp in pd.unique(self.__data.index):
                 interval_records = self.__data[self.__data.index == timestamp]
                 for record in range(0, interval_records["point_id"].size):
-                    if "real_power" not in locals():
+                    if "real_power" not in locals() or record == 0:
                         # This would work better as a loop?
                         duration = interval_records["duration"].iloc[record]
                         real_power = interval_records["real_power"].iloc[record]
