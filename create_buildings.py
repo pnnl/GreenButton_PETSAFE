@@ -12,7 +12,7 @@ from datetime import datetime
 #import processor.pullMains as pulldb
 from processor.commonDB import DBConn
 from logger_config import config_logger
-from config import DATABASE, ENCRYPT_COLS, ENCRYPT, \
+from config import DATABASE, ENCRYPT_COLS, ENCRYPT, BATCH_SIZE, \
     OUTPUT_DIR, FIRST_BUILDING_ID, MIN_SIZE, MAX_SIZE, LIMIT_DATE, START_DATE, END_DATE
 
 # Setting copy on write for PANDAS as recommended here:
@@ -224,8 +224,8 @@ class Building:
         parameters.SetMultiplicativeDepth(3)
         parameters.SetScalingModSize(50)
         # TODO: SET BATCH SIZE DYNAMICALLY
-        batchSize = 2 # Smallest power of 2 that contains a point (1024 would be a full week)
-        parameters.SetBatchSize(batchSize)
+        self.__batch_size = BATCH_SIZE # Smallest power of 2 that contains a point (1024 would be a full week)
+        parameters.SetBatchSize(self.__batch_size)
 
         # Enable relevant features
         cc = GenCryptoContext(parameters)
@@ -586,13 +586,12 @@ class Building:
                         apparent_power = interval_records["apparent_power"].iloc[record]
                         power_factor = interval_records["pf"].iloc[record]
                     else:
-                        batchSize = 2
                         real_power = self.__cc.EvalAdd(real_power, interval_records["real_power"].iloc[record])
-                        real_power = self.__cc.EvalSum(real_power, batchSize)
+                        real_power = self.__cc.EvalSum(real_power, self.__batch_size)
                         duration = interval_records["duration"].iloc[record]
                         if type(apparent_power) == "object":
                             apparent_power = self.__cc.EvalAdd(apparent_power, interval_records["apparent_power"].iloc[record])
-                            apparent_power = self.__cc.EvalSum(apparent_power, batchSize)
+                            apparent_power = self.__cc.EvalSum(apparent_power, self.__batch_size)
                         else:
                             apparent_power += interval_records["apparent_power"].iloc[record]
                     # TODO Power factor needs to be recalculated here- rp / ap

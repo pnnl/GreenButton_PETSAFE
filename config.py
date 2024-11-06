@@ -10,7 +10,9 @@ CREATE_BUILDINGS = True
 # Database file target
 DATABASE = "data/records.db"
 # Set to true if you want to encrypt data before saving to file
-ENCRYPT = False
+ENCRYPT = True
+# Sets number of readings per encryption vector
+BATCH_SIZE = 1
 # Set to True if you'd prefer to save as pickle files
 SAVE_AS_PICKLE = True
 # Fraction of CPU power to dedicate to processing, at most.
@@ -18,7 +20,7 @@ SAVE_AS_PICKLE = True
 PORTION_OF_CPU = 0.5
 
 # Process statistics from created buildings
-CREATE_STATISTICS = True
+CREATE_STATISTICS = False
 # Set to True if processing encrypted data
 DECRYPT = False
 
@@ -36,8 +38,8 @@ STAT_TEMPORAL_RESOLUTION = "d"
 
 # What date range to retrieve statistics for
 LIMIT_DATE = True
-START_DATE = "2021-01-01"
-END_DATE = "2021-12-31"
+START_DATE = "2023-04-01"
+END_DATE = "2023-04-09"
 
 
 # ----- PROCESSING -----
