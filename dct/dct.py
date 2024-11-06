@@ -5,7 +5,7 @@ from typing import Optional
 import pandas as pd
 
 import normalization as norm
-from dct_config import *
+from dct.dct_config import *
 
 DCT_TYPE = 2
 

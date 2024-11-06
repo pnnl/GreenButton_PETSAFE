@@ -5,7 +5,7 @@ from time import perf_counter
 
 import config
 from list_files import list_files_in_dir
-import dct_main
+import dct.dct_main as dct_main
 
 # Building module-related imports
 import create_buildings as cb

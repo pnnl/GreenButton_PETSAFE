@@ -8,8 +8,8 @@ from os import makedirs
 from time import perf_counter
 
 import config
-from building_analysis import dct
-from building_analysis.dct_config import *
+from dct import dct
+from dct.dct_config import *
 import normalization as norm
 from list_files import list_files_in_dir
 
