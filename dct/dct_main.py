@@ -10,7 +10,7 @@ from time import perf_counter
 import config
 from dct import dct
 from dct.dct_config import *
-import normalization as norm
+import dct.normalization as norm
 from list_files import list_files_in_dir
 
 # Building module-related imports

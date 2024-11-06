@@ -4,7 +4,7 @@ import numpy as np
 from typing import Optional
 import pandas as pd
 
-import normalization as norm
+import dct.normalization as norm
 from dct.dct_config import *
 
 DCT_TYPE = 2
