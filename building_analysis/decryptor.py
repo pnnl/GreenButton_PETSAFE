@@ -1,25 +1,26 @@
-from lightphe import LightPHE
-from os import environ
+from openfhe import *
 from typing import Optional
 # Value obtained from print(str(logging.ERROR))
-# LightPHE is a little log-happy and needs to be reminded not to spam
-environ['LIGHTPHE_LOG_LEVEL'] = "40" # Errors and critical only
 
 class Decryptor:
     def __init__(
             self,
-            key_location: Optional[str] = "./keys/", # location of keys, dir path
-            algorithm: Optional[str] = "EllipticCurve-ElGamal", # The encryption algorithm
-            decimal_places: Optional[int] = 5 # the number of decimal places to adjust numbers by
+            keys: list, # List of keys to decrypt with
+            cc, # CC object from openfhe; needs evalkeys
+            order: list, # Order of meters for decryption
+            #key_location: Optional[str] = "./keys/", # location of keys, dir path
+            batch_size: Optional[int] = 1 # Number of values in a vector
     ):
         # Add any missing slashes to the key location, then read the keys from file
-        if key_location[-1] != "/":
-            key_location += "/"
+        #if key_location[-1] != "/":
+        #    key_location += "/"
         try:
-            self.__keys = LightPHE(algorithm_name = algorithm, key_file=key_location + "private.txt")
+            self.__cc = cc
+            self.__keys = keys
+            self.__meter_order = order
+            self.__batch_size = batch_size
         except:
             print("Keys not found or algorithm incorrect.")
-        self.__scalar = 10**decimal_places
 
     # Converts from stored data back to ciphertext object to enable decryption.
     # Target is the data to re-init as ciphertext
@@ -33,33 +34,37 @@ class Decryptor:
     # Decrypts a target using the Decryptor's algorithm argument
     # Target is the data to decrypt
     def decrypt_target(self, target):
-        try:
+        #try:
             # The usual format when reading file with pandas
-            if isinstance(target, str):
-                target = self.__format_for_decrypt(target)
+            #if isinstance(target, str):
+            #    target = self.__format_for_decrypt(target)
             # Re-init ciphertext if needed
-            if isinstance(target, tuple):
-                target = self.__re_initialize(target)
-            elif not isinstance(target, object):
-                print("Cannot decrypt: input type not string, nested tuple, or ciphertext.")
-                return target
+            #if isinstance(target, tuple):
+            #    target = self.__re_initialize(target)
+            #elif not isinstance(target, object):
+            #    pass
+            #else:
+            #    print("Cannot decrypt: input type not string, nested tuple, or ciphertext.")
+            #    return target
             # Only decrypt once ciphertext is initialized
-            data = self.__keys.decrypt(target)
-            # Fix the scaling
-            data = float(data) / (self.__scalar)
-            return data
-        except AssertionError:
-            # This came up with a too-short ciphertext at one point
-            print("Cannot decrypt: key or ciphertext incorrect.")
-            return target
-        except AttributeError:
+            partial_decryptions = []
+            for meter in self.__meter_order:
+                key = self.__keys[meter]
+                if key == self.__meter_order[0]:
+                    partial_decryptions += self.__cc.MultipartyDecryptLead([target], key.secretKey)
+                else:
+                    partial_decryptions += self.__cc.MultipartyDecryptMain([target], key.secretKey)
+                plaintext = self.__cc.MultipartyDecryptFusion(partial_decryptions)
+                plaintext.SetLength(2) # TODO: set using batch size? or have it passed in?
+            return plaintext
+        #except AttributeError:
             # Came up when trying to decrypt non-encrypted data
             # TODO: return the data instead so everything still works
-            print("Could not decrypt. Are you passing unencrypted data?")
-            return target
-        except Exception as error:
-            print("Decryption failed:", error)
-            return target
+            #print("Could not decrypt. Are you passing unencrypted data?")
+            #return target
+        #except Exception as error:
+            #print("Decryption failed:", error)
+            #return target
 
     # Data is read from files as a string like the following, where
     # w, x, y, and z are integers: "((w, x), (y, z))". This converts

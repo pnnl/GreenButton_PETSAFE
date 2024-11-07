@@ -12,7 +12,7 @@ DATABASE = "data/records.db"
 # Set to true if you want to encrypt data before saving to file
 ENCRYPT = True
 # Sets number of readings per encryption vector
-BATCH_SIZE = 1
+BATCH_SIZE = 2
 # Set to True if you'd prefer to save as pickle files
 SAVE_AS_PICKLE = True
 # Fraction of CPU power to dedicate to processing, at most.
@@ -46,7 +46,7 @@ END_DATE = "2023-04-09"
 # How many virtual buildings to make
 BUILDING_COUNT = 1
 # What building ID number to start at
-FIRST_BUILDING_ID = 10
+FIRST_BUILDING_ID = 0
 # Minimum and maximum count of units per building
 MIN_SIZE = 3
 MAX_SIZE = 3
@@ -62,6 +62,8 @@ ROOT_DATA_DIR = "./data"
 # Name of target directory in root dir
 POWER_DIR = ROOT_DATA_DIR + "power/"
 
+# Enables all other DCT processing switches
+PERFORM_DCT = False
 
 # ----- ENCRYPTION AND RANDOMIZATION -----
 

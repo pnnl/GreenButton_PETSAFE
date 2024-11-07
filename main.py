@@ -44,7 +44,39 @@ def main():
     # Create buildings from the data. 
     # Optionally, save them to a pickle file in OUTPUT_DIR/buildings/
     if config.CREATE_BUILDINGS == True:
-        cb.make_buildings(config.BUILDING_COUNT, pickle=True, seed=config.SEED)
+        # Make buildings; both encrypted and decrypted
+        # Temp: TODO save this to file instead. this works for now.
+        # Current barrier to file saving is pickle's refusal to work with openfhe objects, including keypairs,
+        # but no clear methods to save keys and cc obj to file in documentation.
+        buildings = cb.make_buildings(config.BUILDING_COUNT, pickle=False, seed=config.SEED, encrypt=False)
+        encrypted_buildings = cb.make_buildings(config.BUILDING_COUNT, pickle=False, seed=config.SEED, encrypt=True)
+
+        # Basic stats on both sets of buildings, calculate the relative error between them
+        decrypt_times = []
+        for building in encrypted_buildings:
+            cc = building.get_cc()
+            keys = building.get_keys()
+            order = building.get_meter_order()
+            # Calculate
+            power_sum_building = 0
+            data = building.get_data()
+            power_sum_building = data["real_power"].iloc[50]
+            actual = buildings[0].get_data()
+            actual = actual["real_power"].iloc[50]
+            #for row in data["real_power"]:
+            #    power_sum_building = cc.EvalAdd(ciphertext1, ciphertext2)
+            # Decrypt
+            start_time = perf_counter()
+            decryptor = Decryptor(keys=keys, cc=cc, order=order)
+            print("Decrypting statistics.")
+            power_sum_building = decryptor.decrypt_target(power_sum_building)
+            print("Decrypted sum.")
+            end_time = perf_counter()
+            print("Actual:", actual)
+            print("Decrypted:", power_sum_building)
+            time_taken = end_time - start_time
+            decrypt_times.append(time_taken)
+            print("Time to decrypt:", time_taken, "seconds")
 
     # Calculate DCT on data and perform any selected operations with it
     if config.PERFORM_DCT == True:
