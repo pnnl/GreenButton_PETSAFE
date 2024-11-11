@@ -61,9 +61,10 @@ def main():
             # Calculate
             power_sum_building = 0
             data = building.get_data()
-            power_sum_building = data["real_power"].iloc[50] # TEMP to test decryption
+            power_sum_building = data["real_power"].iloc[0] # TEMP to test decryption
             actual = buildings[0].get_data()
-            actual = actual["real_power"].iloc[50]
+            # TODO: get actual real_power sum for each day to compare against
+            actual = actual["real_power"].iloc[0]
             #for row in data["real_power"]:
             #    power_sum_building = cc.EvalAdd(ciphertext1, ciphertext2)
             # Decrypt

@@ -13,8 +13,7 @@ import pickle
 #import processor.pullMains as pulldb
 from processor.commonDB import DBConn
 from logger_config import config_logger
-from config import DATABASE, ENCRYPT_COLS, BATCH_SIZE, BATCH_SIZE, BUILDING_COUNT, \
-    OUTPUT_DIR, FIRST_BUILDING_ID, MIN_SIZE, MAX_SIZE, LIMIT_DATE, START_DATE, END_DATE
+from config import *
 
 # Setting copy on write for PANDAS as recommended here:
 # https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
@@ -230,6 +229,20 @@ class Building:
     
     def get_length(self):
         return self.vector_length
+    
+    def __eval_batch_size(self):
+        self.vector_length = BATCH_SIZE
+        if (self.vector_length != 0) and (self.vector_length & (self.vector_length-1) != 0): # Is it NOT a power of 2?
+                # Make it a power of 2. We'll zero-pad later since we're summing within a vector, and summing
+                # values + 0 will equal summing the values themselves
+                # Find the next power of 2 first
+                for x in range(0, 100001): # TODO: set the second value sensibly
+                    power_two = 2**(x-1).bit_length()
+                    if power_two > BATCH_SIZE: # Found one! Set it.
+                        self.vector_length = power_two
+                        break
+        self.__batch_size = BATCH_SIZE # Used to check for zero padding
+        return self.vector_length
 
     # Sets up and exports or retrieves encryption keys;
     # returns a LightPHE Keys object
@@ -270,17 +283,7 @@ class Building:
         #parameters.SetThresholdNumOfParties(len(self.__ids))
 
         # Batch size needs to be a power of 2
-        self.vector_length = BATCH_SIZE
-        if (self.vector_length != 0) and (self.vector_length & (self.vector_length-1) != 0): # Is it NOT a power of 2?
-                # Make it a power of 2. We'll zero-pad later since we're summing within a vector, and summing
-                # values + 0 will equal summing the values themselves
-                # Find the next power of 2 first
-                for x in range(0, 100001): # TODO: set the second value sensibly
-                    power_two = 2**(x-1).bit_length()
-                    if power_two > BATCH_SIZE: # Found one! Set it.
-                        self.vector_length = power_two
-                        break
-        self.__batch_size = BATCH_SIZE # Used to check for zero padding
+        self.vector_length = self.__eval_batch_size()
         parameters.SetBatchSize(self.vector_length)
 
         # Enable relevant features
@@ -420,7 +423,63 @@ class Building:
                 raise TypeError("Column to encrypt must only contain floats and/or integers.")
             
         # The main function
-        if BATCH_SIZE == 2: # Encrypting each reading individually
+        if STAT_TEMPORAL_RESOLUTION == "d":
+            all_days =  pd.date_range(start=START_DATE, end=END_DATE, freq="d", normalize=True, inclusive="both")
+            for meter in self.__ids:
+                print("Meter", meter, ":")
+                meter_data = self.__data[self.__data["point_id"] == meter]
+                aggregate_days = []
+                for day in all_days:
+                    print("Day", day, ":")
+                    # Get the day's data
+                    day_data = meter_data[day:(day + pd.Timedelta(1, "d"))]
+                    # Last row is in the next day; pd[] includes start AND end. Remove end so it's not counted twice.
+                    day_data = day_data.iloc[:-1]
+                    day_row = {}
+                    for column in day_data.columns:
+                        if column in ENCRYPT_COLS and column in self.__data.columns:
+                            print("Encrypting", column)
+                            # Load sensitive columns into a vector and encrypt it.
+                            plaintext = day_data[column].tolist()
+                            if self.__batch_size < len(plaintext):
+                                self.__batch_size = len(plaintext)
+                                self.__batch_size = self.__eval_batch_size()
+                            packed_plaintext = self.__cc.MakeCKKSPackedPlaintext(value=plaintext)
+                            ciphertext = self.__cc.Encrypt(self.__shared_pubkey, packed_plaintext)
+                            # Set length accordingly
+                            self.vector_length = packed_plaintext.GetLength()
+                            # Sum the encrypted vector.
+                            # It needs to be done here, not later, so we have a coherent frame
+                            # to make statistics.
+                            day_row[column] = self.__cc.EvalSum(ciphertext, self.__batch_size)
+                        else:
+                            # Correct special cases
+                            if column == "pf":
+                                # TODO: recalculate it
+                                day_row[column] = 0
+                                pass
+                                # day_row[column] = day_row["apparent_power"] / day_row["real_power"]
+                            elif column == "point_id":
+                                day_row[column] = meter_data[column][0]
+                            elif column == "ee_site_id":
+                                day_row[column] = self.__bid
+                            else:
+                                # We've aggregated encrypted columns; do the same for non-sensitive ones.
+                                day_row[column] = day_data[column].sum()
+                    day_row["timestamp"] = day_data.index[0]
+                    aggregate_day_frame = pd.DataFrame([day_row])
+                    aggregate_day_frame.set_index("timestamp", inplace=True)
+                    aggregate_days.append(aggregate_day_frame)
+                # Finally, concatenate meters together
+                for frame in aggregate_days:
+                    if "final_frame" not in locals():
+                        final_frame = frame
+                    else:
+                        final_frame = pd.concat([final_frame, frame])
+            self.__data = final_frame
+            return final_frame
+
+        elif STAT_TEMPORAL_RESOLUTION == "f": # Encrypting each reading individually
             for meter in self.__ids:
                 self.__value_map = {} # Used to speed encryption by only encrypting each value once
                 #meter_keys = self.__keypairs[meter]
@@ -433,73 +492,6 @@ class Building:
                             meter_data[column] = meter_data[column].apply(encrypt_single_value, keys=self.__shared_pubkey)
                 del self.__value_map
                 self.__data[self.__data["point_id"] == meter] = meter_data
-
-        elif BATCH_SIZE > 2: # One day of readings, together; aggregating within a meter
-            for meter in self.__ids:
-                self.__value_map = {} # Used to speed encryption by only encrypting each value once
-                #meter_keys = self.__keypairs[meter]
-                meter_keys = self.__shared_pubkey # The last pubkey is the one needed for encryption
-                meter_data = self.__data[self.__data["point_id"] == meter]
-                processed_columns = {}
-                for column in meter_data.columns:
-                    counter = 1
-                    timestamp = meter_data.index[0]
-                    if column in ENCRYPT_COLS and column in self.__data.columns:
-                        print("Encrypting", column)
-                        packed_vectors = {}
-                        current_pack = []
-                        index = 0
-                        for reading in meter_data[column]:
-                            current_pack.append(reading)
-                            if counter < self.vector_length:
-                                counter += 1
-                            else:
-                                timestamp = meter_data.index[meter_data[column].iloc(index)]
-                                # Pad with zeroes if needed
-                                print("Length of pre-padding pack:", len(current_pack))
-                                if self.vector_length != BATCH_SIZE:
-                                    while counter < self.vector_length:
-                                        current_pack.append(0)
-                                        counter += 1
-                                packed_vectors[timestamp] = current_pack
-                                counter = 1
-                                print("Length of packed text:", len(current_pack))
-                                current_pack = []
-                            index += 1
-                                
-                        # ENCRYPT VECTORS HERE
-                        # SUM ENCRYPTED VECTORS HERE
-                        processed_columns[column] = packed_vectors
-                    else: # Non-encrypted columns
-                        aggregated_values = {}
-                        current_value = 0
-                        print("Summing pieces of", column)
-                        for reading in column:
-                            try:
-                                int(reading)
-                            except: # String columns should stay the same throughout
-                                aggregated_values[timestamp] = column[0]
-                                break
-                            # IF all's well, then get to summing
-                            current_value += reading
-                            # We haven't finished adding yet
-                            if counter < self.vector_length:
-                                counter += 1
-                            # Done adding this chunk, finish it and prep for the nect
-                            else:
-                                aggregated_values[timestamp] = current_value
-                                timestamp = meter_data.index[meter_data[column].iloc(reading)]
-                                counter = 1
-                                current_value = 0
-                        processed_columns[column] = aggregated_values
-                # Rebuild frame
-                partial_frames = []
-                for column in processed_columns:
-                    column_frame = pd.DataFrame(column)
-                    partial_frames.append(column_frame)
-                self.__data = pd.concat(partial_frames, axis=1)
-                print(self.__data)
-                raise SystemExit
 
         return self.__data
             

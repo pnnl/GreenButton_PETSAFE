@@ -12,7 +12,7 @@ DATABASE = "data/records.db"
 # Set to true if you want to encrypt data before saving to file
 ENCRYPT = True
 # Sets number of readings per encryption vector
-BATCH_SIZE = 2
+BATCH_SIZE = 96
 # Set to True if you'd prefer to save as pickle files
 SAVE_AS_PICKLE = True
 # Fraction of CPU power to dedicate to processing, at most.
