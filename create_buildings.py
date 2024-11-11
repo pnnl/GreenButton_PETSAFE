@@ -363,11 +363,11 @@ class Building:
 
         # Generate the combined EvalSum key
         # Round 1: Add the keys together
-        for meter in self.__ids:
+        for meter in meter_order:
             # Multkey round 1: MultiAdd
             meter_key = keypairs[meter]
             meter_sumkey = sumkeys[meter]
-            if meter == self.__ids[0]:
+            if meter == meter_order[0]:
                 final_sumkey = meter_sumkey
             else:
                 final_sumkey = cc.MultiAddEvalSumKeys(final_sumkey, meter_sumkey, meter_key.publicKey.GetKeyTag())
