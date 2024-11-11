@@ -201,7 +201,7 @@ class Building:
 
             # If requested, encrypt the building.
             if self.__encryption_enabled == True:
-                self.__cc, self.__keys, self.meter_order = self.__setup_encryption() # Make keys
+                self.__setup_encryption() # Make keys
                 self.__data = self.encrypt_building() # Perform encryption
 
             self.__data = self.aggregate("15min") # Ensure we have all data in 15min intervals
@@ -227,6 +227,9 @@ class Building:
     
     def get_meter_order(self):
         return self.meter_order
+    
+    def get_length(self):
+        return self.vector_length
 
     # Sets up and exports or retrieves encryption keys;
     # returns a LightPHE Keys object
@@ -380,6 +383,7 @@ class Building:
         # Save to object
         self.__cc = cc
         self.__keypairs = keypairs
+        self.meter_order = meter_order
         # Save to file
         # Keys
         #pickleable_keys = {}
@@ -404,6 +408,9 @@ class Building:
             if type(target) == int or type(target) == float:
                 if target not in self.__value_map: # Encrypt and add to value map
                     plaintext = self.__cc.MakeCKKSPackedPlaintext([target, 0])
+                    if "first_length" not in locals():
+                        first_length = plaintext.GetLength()
+                        self.vector_length = first_length
                     ciphertext = self.__cc.Encrypt(keys, plaintext)
                     self.__value_map[target] = ciphertext
                     return ciphertext

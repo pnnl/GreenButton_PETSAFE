@@ -57,6 +57,7 @@ def main():
             cc = building.get_cc()
             keys = building.get_keys()
             order = building.get_meter_order()
+            length = building.get_length()
             # Calculate
             power_sum_building = 0
             data = building.get_data()
@@ -67,7 +68,7 @@ def main():
             #    power_sum_building = cc.EvalAdd(ciphertext1, ciphertext2)
             # Decrypt
             start_time = perf_counter()
-            decryptor = Decryptor(keys=keys, cc=cc, order=order)
+            decryptor = Decryptor(keys=keys, cc=cc, order=order, length=length)
             print("Decrypting statistics.")
             power_sum_building = decryptor.decrypt_target(power_sum_building)
             print("Decrypted sum.")

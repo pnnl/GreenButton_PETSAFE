@@ -10,7 +10,8 @@ class Decryptor:
             cc, # CC object from openfhe; needs evalkeys
             order: list, # Order of meters for decryption
             #key_location: Optional[str] = "./keys/", # location of keys, dir path
-            batch_size: Optional[int] = 1 # Number of values in a vector
+            batch_size: Optional[int] = 1,
+            length: Optional[int] = 2 # Number of values in a vector
     ):
         # Add any missing slashes to the key location, then read the keys from file
         #if key_location[-1] != "/":
@@ -20,6 +21,7 @@ class Decryptor:
             self.__keys = keys
             self.__meter_order = order
             self.__batch_size = batch_size
+            self.__length = length
         except:
             print("Keys not found or algorithm incorrect.")
 
@@ -49,14 +51,19 @@ class Decryptor:
             #    return target
             # Only decrypt once ciphertext is initialized
             partial_decryptions = []
+            print("Meter order:", self.__meter_order)
             for meter in self.__meter_order:
                 key = self.__keys[meter]
                 if meter == self.__meter_order[0]:
+                    print("Leader meter", meter, "decrypting.")
                     partial_decryptions += self.__cc.MultipartyDecryptLead([target], key.secretKey)
                 else:
+                    print("Follower meter", meter, "decrypting.")
                     partial_decryptions += self.__cc.MultipartyDecryptMain([target], key.secretKey)
-                plaintext = self.__cc.MultipartyDecryptFusion(partial_decryptions)
-                plaintext.SetLength(BATCH_SIZE) # TODO: set using batch size? or have it passed in?
+                print("Fusing partial decryptions.")
+            plaintext = self.__cc.MultipartyDecryptFusion(partial_decryptions)
+            #plaintext.SetLength(BATCH_SIZE) # TODO: set using batch size? or have it passed in? or 1?
+            plaintext.SetLength(self.__length)
             return plaintext
         #except AttributeError:
             # Came up when trying to decrypt non-encrypted data
