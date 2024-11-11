@@ -316,6 +316,7 @@ class Building:
                 # Evalsum key init
                 cc.EvalSumKeyGen(keypair.secretKey)
                 leaderEvalSumKeys = cc.GetEvalSumKeyMap(keypair.secretKey.GetKeyTag())
+                # TODO: deal with duplicate site ids; how to differentiate which has which key?
                 sumkeys[meter] = leaderEvalSumKeys
             else: # Follower meters behave differently from leader meter
                 # Generate key using prev meter key as input
@@ -396,13 +397,13 @@ class Building:
     # Encrypt all sensitive columns defined in config
     def encrypt_building(self):
         # Used for pandas.apply() to speed the process
-        def encrypt_value(
+        def encrypt_single_value(
             target, # the value to encrypt
             keys # The keypair to use
             ) -> int:
             if type(target) == int or type(target) == float:
                 if target not in self.__value_map: # Encrypt and add to value map
-                    plaintext = self.__cc.MakeCKKSPackedPlaintext([target])
+                    plaintext = self.__cc.MakeCKKSPackedPlaintext([target, 0])
                     ciphertext = self.__cc.Encrypt(keys, plaintext)
                     self.__value_map[target] = ciphertext
                     return ciphertext
@@ -416,14 +417,13 @@ class Building:
             for meter in self.__ids:
                 self.__value_map = {} # Used to speed encryption by only encrypting each value once
                 #meter_keys = self.__keypairs[meter]
-                meter_keys = self.__shared_pubkey # The last pubkey is the one needed for encryption
                 meter_data = self.__data[self.__data["point_id"] == meter]
                 for column in meter_data.columns:
                     if column in ENCRYPT_COLS and column in self.__data.columns:
                         print("Encrypting", column)
                         if type(meter_data[column].iloc[0]) not in [Ciphertext, "object", object]: # Deals with duplicate sites
                             meter_data[column] = meter_data[column].apply(float)
-                            meter_data[column] = meter_data[column].apply(encrypt_value, keys=meter_keys)
+                            meter_data[column] = meter_data[column].apply(encrypt_single_value, keys=self.__shared_pubkey)
                 del self.__value_map
                 self.__data[self.__data["point_id"] == meter] = meter_data
 

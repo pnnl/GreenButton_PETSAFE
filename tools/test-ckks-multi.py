@@ -6,26 +6,25 @@ def main():
     RunCKKSrns()
 
 def RunCKKSrns():
-    plaintextModulus = 65537
-    sigma = 3.2
     securityLevel = SecurityLevel.HEStd_128_classic
 
     batchSize = 16
-    multDepth = 4
-    digitSize = 30
-    dcrtBits = 60
 
+    if get_native_int()==128:
+        rescale_tech = ScalingTechnique.FIXEDAUTO
+        dcrt_bits = 78
+        first_mod = 89
+    else:
+        rescale_tech = ScalingTechnique.FLEXIBLEAUTO
+        dcrt_bits = 59
+        first_mod = 60
+    
     parameters = CCParamsCKKSRNS()
-    parameters.SetPlaintextModulus(plaintextModulus)
+    parameters.SetScalingModSize(dcrt_bits)
+    parameters.SetScalingTechnique(rescale_tech)
+    parameters.SetFirstModSize(first_mod)
     parameters.SetSecurityLevel(securityLevel)
-    parameters.SetStandardDeviation(sigma)
-    parameters.SetSecretKeyDist(UNIFORM_TERNARY)
-    parameters.SetMultiplicativeDepth(multDepth)
-    parameters.SetBatchSize(batchSize)
-    parameters.SetDigitSize(digitSize)
-    parameters.SetScalingModSize(dcrtBits)
-    parameters.SetThresholdNumOfParties(5)
-    parameters.SetMultiplicationTechnique(HPSPOVERQLEVELED)
+    parameters.SetMultiplicativeDepth(3)
 
     cc = GenCryptoContext(parameters)
     # Enable features you wish to use
@@ -130,6 +129,7 @@ def RunCKKSrns():
     ciphertext1 = cc.Encrypt(kp5.publicKey, plaintext1)
     ciphertext2 = cc.Encrypt(kp5.publicKey, plaintext2)
     ciphertext3 = cc.Encrypt(kp5.publicKey, plaintext3)
+    print("Encrypted.")
 
     ############################################################
     ## Homomorphic Operations
@@ -167,6 +167,7 @@ def RunCKKSrns():
 
     partialCiphertextVec = [ciphertextPartial1[0], ciphertextPartial2[0], ciphertextPartial3[0],
                             ciphertextPartial4[0], ciphertextPartial5[0]]
+    print(partialCiphertextVec[1])
 
     plaintextMultipartyNew = cc.MultipartyDecryptFusion(partialCiphertextVec)
 

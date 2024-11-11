@@ -3,29 +3,15 @@ from math import log2
 
 def main():
     print("\n=================RUNNING FOR BFVrns======================\n")
-    RunBFVrns()
+    RunCKKS()
 
-def RunBFVrns():
-    plaintextModulus = 65537
-    sigma = 3.2
-    securityLevel = SecurityLevel.HEStd_128_classic
-
+def RunCKKS():
     batchSize = 16
-    multDepth = 4
-    digitSize = 30
-    dcrtBits = 60
 
-    parameters = CCParamsBFVRNS()
-    parameters.SetPlaintextModulus(plaintextModulus)
-    parameters.SetSecurityLevel(securityLevel)
-    parameters.SetStandardDeviation(sigma)
-    parameters.SetSecretKeyDist(UNIFORM_TERNARY)
-    parameters.SetMultiplicativeDepth(multDepth)
+    parameters = CCParamsCKKSRNS()
+    parameters.SetMultiplicativeDepth(3)
+    parameters.SetScalingModSize(50)
     parameters.SetBatchSize(batchSize)
-    parameters.SetDigitSize(digitSize)
-    parameters.SetScalingModSize(dcrtBits)
-    parameters.SetThresholdNumOfParties(5)
-    parameters.SetMultiplicationTechnique(HPSPOVERQLEVELED)
 
     cc = GenCryptoContext(parameters)
     # Enable features you wish to use
@@ -41,8 +27,8 @@ def RunBFVrns():
 
     # Output the generated parameters
     print(f"p = {cc.GetPlaintextModulus()}")
-    print(f"n = {cc.GetCyclotomicOrder() / 2}")
-    print(f"log2 q = {log2(cc.GetModulus())}")
+    print(f"n = {cc.GetCyclotomicOrder()/2}")
+    print(f"lo2 q = {log2(cc.GetModulus())}")
 
     ############################################################
     ## Perform Key Generation Operation
@@ -55,118 +41,91 @@ def RunBFVrns():
     print("Round 1 (party A) started.")
 
     kp1 = cc.KeyGen()
-    kp2 = cc.MultipartyKeyGen(kp1.publicKey)
-    kp3 = cc.MultipartyKeyGen(kp2.publicKey)
-    kp4 = cc.MultipartyKeyGen(kp3.publicKey)
-    kp5 = cc.MultipartyKeyGen(kp4.publicKey)
 
     # Generate evalmult key part for A
     evalMultKey = cc.KeySwitchGen(kp1.secretKey, kp1.secretKey)
-    evalMultKey2 = cc.MultiKeySwitchGen(kp2.secretKey, kp2.secretKey, evalMultKey)
-    evalMultKey3 = cc.MultiKeySwitchGen(kp3.secretKey, kp3.secretKey, evalMultKey)
-    evalMultKey4 = cc.MultiKeySwitchGen(kp4.secretKey, kp4.secretKey, evalMultKey)
-    evalMultKey5 = cc.MultiKeySwitchGen(kp5.secretKey, kp5.secretKey, evalMultKey)
-
-    evalMultAB = cc.MultiAddEvalKeys(evalMultKey, evalMultKey2, kp2.publicKey.GetKeyTag())
-    evalMultABC = cc.MultiAddEvalKeys(evalMultAB, evalMultKey3, kp3.publicKey.GetKeyTag())
-    evalMultABCD = cc.MultiAddEvalKeys(evalMultABC, evalMultKey4, kp4.publicKey.GetKeyTag())
-    evalMultABCDE = cc.MultiAddEvalKeys(evalMultABCD, evalMultKey5, kp5.publicKey.GetKeyTag())
-
-    evalMultEABCDE = cc.MultiMultEvalKey(kp5.secretKey, evalMultABCDE, kp5.publicKey.GetKeyTag())
-    evalMultDABCDE = cc.MultiMultEvalKey(kp4.secretKey, evalMultABCDE, kp5.publicKey.GetKeyTag())
-    evalMultCABCDE = cc.MultiMultEvalKey(kp3.secretKey, evalMultABCDE, kp5.publicKey.GetKeyTag())
-    evalMultBABCDE = cc.MultiMultEvalKey(kp2.secretKey, evalMultABCDE, kp5.publicKey.GetKeyTag())
-    evalMultAABCDE = cc.MultiMultEvalKey(kp1.secretKey, evalMultABCDE, kp5.publicKey.GetKeyTag())
-
-    evalMultDEABCDE = cc.MultiAddEvalMultKeys(evalMultEABCDE, evalMultDABCDE, evalMultEABCDE.GetKeyTag())
-    evalMultCDEABCDE = cc.MultiAddEvalMultKeys(evalMultCABCDE, evalMultDEABCDE, evalMultCABCDE.GetKeyTag())
-    evalMultBCDEABCDE = cc.MultiAddEvalMultKeys(evalMultBABCDE, evalMultCDEABCDE, evalMultBABCDE.GetKeyTag())
-
-    evalMultFinal = cc.MultiAddEvalMultKeys(evalMultAABCDE, evalMultBCDEABCDE, kp5.publicKey.GetKeyTag())
-    cc.InsertEvalMultKey([evalMultFinal])
-
-    print("Round 1 of key generation completed.")
-
-    ############################################################
-    ## EvalSum Key Generation
-    ############################################################
-
-    print("Running evalsum key generation (used for source data)...")
 
     # Generate evalsum key part for A
     cc.EvalSumKeyGen(kp1.secretKey)
     evalSumKeys = cc.GetEvalSumKeyMap(kp1.secretKey.GetKeyTag())
 
+    print("Round 1 of key generation completed.")
+
+    # Round 2 (party B)
+
+    print("Round 2 (party B) started.")
+
+    print("Joint public key for (s_a + s_b) is generated...")
+    kp2 = cc.MultipartyKeyGen(kp1.publicKey)
+
+    evalMultKey2 = cc.MultiKeySwitchGen(kp2.secretKey, kp2.secretKey, evalMultKey)
+
+    print("Joint evaluation multiplication key for (s_a + s_b) is generated...")
+    evalMultAB = cc.MultiAddEvalKeys(evalMultKey, evalMultKey2, kp2.publicKey.GetKeyTag())
+
+    print("Joint evaluation multiplication key (s_a + s_b) is transformed into s_b*(s_a + s_b)...")
+    evalMultBAB = cc.MultiMultEvalKey(kp2.secretKey, evalMultAB, kp2.publicKey.GetKeyTag())
+
     evalSumKeysB = cc.MultiEvalSumKeyGen(kp2.secretKey, evalSumKeys, kp2.publicKey.GetKeyTag())
-    evalSumKeysC = cc.MultiEvalSumKeyGen(kp3.secretKey, evalSumKeys, kp3.publicKey.GetKeyTag())
-    evalSumKeysD = cc.MultiEvalSumKeyGen(kp4.secretKey, evalSumKeys, kp4.publicKey.GetKeyTag())
-    evalSumKeysE = cc.MultiEvalSumKeyGen(kp5.secretKey, evalSumKeys, kp5.publicKey.GetKeyTag())
 
-    evalSumKeysAB = cc.MultiAddEvalSumKeys(evalSumKeys, evalSumKeysB, kp2.publicKey.GetKeyTag())
-    evalSumKeysABC = cc.MultiAddEvalSumKeys(evalSumKeysC, evalSumKeysAB, kp3.publicKey.GetKeyTag())
-    evalSumKeysABCD = cc.MultiAddEvalSumKeys(evalSumKeysABC, evalSumKeysD, kp4.publicKey.GetKeyTag())
+    print("Joint evaluation summation key for (s_a + s_b) is generated...")
+    evalSumKeysJoin = cc.MultiAddEvalSumKeys(evalSumKeys, evalSumKeysB, kp2.publicKey.GetKeyTag())
 
-    evalSumKeysJoin = cc.MultiAddEvalSumKeys(evalSumKeysE, evalSumKeysABCD, kp5.publicKey.GetKeyTag())
     cc.InsertEvalSumKey(evalSumKeysJoin)
 
-    print("Evalsum key generation completed.")
+    print("Round 2 of key generation completed.")
+
+    print("Round 3 (party A) started.")
+
+    print("Joint key (s_a + s_b) is transformed into s_a*(s_a + s_b)...")
+    evalMultAAB = cc.MultiMultEvalKey(kp1.secretKey, evalMultAB, kp2.publicKey.GetKeyTag())
+
+    print("Computing the final evaluation multiplication key for (s_a + s_b)*(s_a + s_b)...")
+    evalMultFinal = cc.MultiAddEvalMultKeys(evalMultAAB, evalMultBAB, evalMultAB.GetKeyTag())
+
+    cc.InsertEvalMultKey([evalMultFinal])
+
+    print("Round 3 of key generation completed.")
 
     ############################################################
     ## Encode source data
     ############################################################
 
-    vectorOfInts1 = [1, 2, 3, 4, 5, 6, 5, 4, 3, 2, 1, 0]
-    vectorOfInts2 = [1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0]
-    vectorOfInts3 = [2, 2, 3, 4, 5, 6, 7, 8, 9, 10, 0, 0]
+    vectorOfInts1 = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 5.0, 4.0, 3.0, 2.0, 1.0, 0.0]
+    vectorOfInts2 = [1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    vectorOfInts3 = [2.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 0.0, 0.0]
 
-    plaintext1 = cc.MakePackedPlaintext(vectorOfInts1)
-    plaintext2 = cc.MakePackedPlaintext(vectorOfInts2)
-    plaintext3 = cc.MakePackedPlaintext(vectorOfInts3)
+    plaintext1 = cc.MakeCKKSPackedPlaintext(vectorOfInts1)
+    plaintext2 = cc.MakeCKKSPackedPlaintext(vectorOfInts2)
+    plaintext3 = cc.MakeCKKSPackedPlaintext(vectorOfInts3)
 
     ############################################################
     ## Encryption
     ############################################################
 
-    ciphertext1 = cc.Encrypt(kp5.publicKey, plaintext1)
-    ciphertext2 = cc.Encrypt(kp5.publicKey, plaintext2)
-    ciphertext3 = cc.Encrypt(kp5.publicKey, plaintext3)
+    ciphertext1 = cc.Encrypt(kp2.publicKey, plaintext1)
+    ciphertext2 = cc.Encrypt(kp2.publicKey, plaintext2)
+    ciphertext3 = cc.Encrypt(kp2.publicKey, plaintext3)
 
     ############################################################
-    ## Homomorphic Operations
+    ## EvalAdd Operation on Re-Encrypted Data
     ############################################################
 
     ciphertextAdd12 = cc.EvalAdd(ciphertext1, ciphertext2)
     ciphertextAdd123 = cc.EvalAdd(ciphertextAdd12, ciphertext3)
 
-    ciphertextMult1 = cc.EvalMult(ciphertext1, ciphertext1)
-    ciphertextMult2 = cc.EvalMult(ciphertextMult1, ciphertext1)
-    ciphertextMult3 = cc.EvalMult(ciphertextMult2, ciphertext1)
-    ciphertextMult = cc.EvalMult(ciphertextMult3, ciphertext1)
-
+    ciphertextMultTemp = cc.EvalMult(ciphertext1, ciphertext3)
+    ciphertextMult = cc.ModReduce(ciphertextMultTemp)
     ciphertextEvalSum = cc.EvalSum(ciphertext3, batchSize)
 
     ############################################################
     ## Decryption after Accumulation Operation on Encrypted Data with Multiparty
     ############################################################
 
-    # Distributed decryption
-    # partial decryption by party A
     ciphertextPartial1 = cc.MultipartyDecryptLead([ciphertextAdd123], kp1.secretKey)
-
-    # partial decryption by party B
     ciphertextPartial2 = cc.MultipartyDecryptMain([ciphertextAdd123], kp2.secretKey)
 
-    # partial decryption by party C
-    ciphertextPartial3 = cc.MultipartyDecryptMain([ciphertextAdd123], kp3.secretKey)
-
-    # partial decryption by party D
-    ciphertextPartial4 = cc.MultipartyDecryptMain([ciphertextAdd123], kp4.secretKey)
-
-    # partial decryption by party E
-    ciphertextPartial5 = cc.MultipartyDecryptMain([ciphertextAdd123], kp5.secretKey)
-
-    partialCiphertextVec = [ciphertextPartial1[0], ciphertextPartial2[0], ciphertextPartial3[0],
-                            ciphertextPartial4[0], ciphertextPartial5[0]]
+    partialCiphertextVec = [ciphertextPartial1[0], ciphertextPartial2[0]]
 
     plaintextMultipartyNew = cc.MultipartyDecryptFusion(partialCiphertextVec)
 
@@ -184,12 +143,8 @@ def RunBFVrns():
 
     ciphertextPartial1 = cc.MultipartyDecryptLead([ciphertextMult], kp1.secretKey)
     ciphertextPartial2 = cc.MultipartyDecryptMain([ciphertextMult], kp2.secretKey)
-    ciphertextPartial3 = cc.MultipartyDecryptMain([ciphertextMult], kp3.secretKey)
-    ciphertextPartial4 = cc.MultipartyDecryptMain([ciphertextMult], kp4.secretKey)
-    ciphertextPartial5 = cc.MultipartyDecryptMain([ciphertextMult], kp5.secretKey)
 
-    partialCiphertextVecMult = [ciphertextPartial1[0], ciphertextPartial2[0], ciphertextPartial3[0],
-                                ciphertextPartial4[0], ciphertextPartial5[0]]
+    partialCiphertextVecMult = [ciphertextPartial1[0], ciphertextPartial2[0]]
 
     plaintextMultipartyMult = cc.MultipartyDecryptFusion(partialCiphertextVecMult)
 
@@ -202,12 +157,8 @@ def RunBFVrns():
 
     ciphertextPartial1 = cc.MultipartyDecryptLead([ciphertextEvalSum], kp1.secretKey)
     ciphertextPartial2 = cc.MultipartyDecryptMain([ciphertextEvalSum], kp2.secretKey)
-    ciphertextPartial3 = cc.MultipartyDecryptMain([ciphertextEvalSum], kp3.secretKey)
-    ciphertextPartial4 = cc.MultipartyDecryptMain([ciphertextEvalSum], kp4.secretKey)
-    ciphertextPartial5 = cc.MultipartyDecryptMain([ciphertextEvalSum], kp5.secretKey)
 
-    partialCiphertextVecEvalSum = [ciphertextPartial1[0], ciphertextPartial2[0], ciphertextPartial3[0],
-                                   ciphertextPartial4[0], ciphertextPartial5[0]]
+    partialCiphertextVecEvalSum = [ciphertextPartial1[0], ciphertextPartial2[0]]
 
     plaintextMultipartyEvalSum = cc.MultipartyDecryptFusion(partialCiphertextVecEvalSum)
 
@@ -216,5 +167,5 @@ def RunBFVrns():
     print("\n Fused result after the Summation of ciphertext 3: \n")
     print(plaintextMultipartyEvalSum)
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
