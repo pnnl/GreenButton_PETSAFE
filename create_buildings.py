@@ -422,7 +422,7 @@ class Building:
                     if column in ENCRYPT_COLS and column in self.__data.columns:
                         print("Encrypting", column)
                         if type(meter_data[column].iloc[0]) not in [Ciphertext, "object", object]: # Deals with duplicate sites
-                            meter_data[column] = meter_data[column].apply(float)
+                            meter_data[column] = meter_data[column].apply(float) # Ensure data is compatible
                             meter_data[column] = meter_data[column].apply(encrypt_single_value, keys=self.__shared_pubkey)
                 del self.__value_map
                 self.__data[self.__data["point_id"] == meter] = meter_data

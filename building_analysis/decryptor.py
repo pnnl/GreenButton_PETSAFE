@@ -51,7 +51,7 @@ class Decryptor:
             partial_decryptions = []
             for meter in self.__meter_order:
                 key = self.__keys[meter]
-                if key == self.__meter_order[0]:
+                if meter == self.__meter_order[0]:
                     partial_decryptions += self.__cc.MultipartyDecryptLead([target], key.secretKey)
                 else:
                     partial_decryptions += self.__cc.MultipartyDecryptMain([target], key.secretKey)
