@@ -232,10 +232,40 @@ class Building:
     # returns a LightPHE Keys object
     def __setup_encryption(self):
         self.__KEY_LOCATION = "./keys/"
-        # Set parameters
+        # ----- Set parameters for cryptocontext -----
         parameters = CCParamsCKKSRNS()
-        parameters.SetMultiplicativeDepth(3)
-        parameters.SetScalingModSize(50)
+        secret_key_dist = SecretKeyDist.GAUSSIAN #Gauss is best compromise between security and memory usage
+        parameters.SetSecretKeyDist(secret_key_dist)
+        #plaintextModulus = 65537
+        #parameters.SetPlaintextModulus(plaintextModulus)
+        securityLevel = SecurityLevel.HEStd_128_classic # TODO: 256-bit once this works properly
+        parameters.SetSecurityLevel(securityLevel)
+        sigma = 3.2
+        parameters.SetStandardDeviation(sigma)
+        digitSize = 30
+        parameters.SetDigitSize(digitSize)
+
+        if get_native_int()==128:
+            rescale_tech = ScalingTechnique.FIXEDAUTO
+            dcrt_bits = 78
+            first_mod = 89
+        else:
+            rescale_tech = ScalingTechnique.FLEXIBLEAUTO
+            dcrt_bits = 59
+            first_mod = 60
+
+        parameters.SetScalingModSize(dcrt_bits)
+        parameters.SetScalingTechnique(rescale_tech)
+        parameters.SetFirstModSize(first_mod)
+
+        bootstrap_iterations = 1 # OpenFHE only supports 1 or 2; 2 has twice the precision gain
+        level_budget = [1, 1]
+        levels_available_after_bootstrap = 3
+        depth = levels_available_after_bootstrap + FHECKKSRNS.GetBootstrapDepth(level_budget, secret_key_dist) + (bootstrap_iterations - 1)
+        depth = 5
+        parameters.SetMultiplicativeDepth(depth) # Higher values SIGNIFICANTLY slow encryption and risk OOM
+        #parameters.SetThresholdNumOfParties(len(self.__ids))
+
         # Batch size needs to be a power of 2
         self.vector_length = BATCH_SIZE
         if (self.vector_length != 0) and (self.vector_length & (self.vector_length-1) != 0): # Is it NOT a power of 2?
@@ -252,44 +282,55 @@ class Building:
 
         # Enable relevant features
         cc = GenCryptoContext(parameters)
+        cc.Enable(FHE)
         cc.Enable(PKE)
         cc.Enable(KEYSWITCH)
         cc.Enable(LEVELEDSHE)
         cc.Enable(ADVANCEDSHE)
         cc.Enable(MULTIPARTY)
+
+        print("Checking encryption setup.")
+        try:
+            pass
+            #cc.EvalBootstrapSetup(level_budget)
+        except Exception as ex:
+            print("Setup invalid:", ex, "\nCheck parameters.")
         
         # TODO: retrieve keys if they already exist
-        # Generate keys
+        # ---------- Generate keys ----------
         keypairs = {}
         multkeys = {}
         sumkeys = {}
         meter_order = []
         for meter in self.__ids:
+            meter_order.append(meter)
             print("Preparing keys for meter", meter)
-            if meter == self.__ids[0]:
+            if meter == meter_order[0]:
+                print("Leader key generating.")
                 # Leader meter generates key independently
                 keypair = cc.KeyGen()
                 keypairs[meter] = keypair
                 # Evalmult key init
-                evalMultKey = cc.KeySwitchGen(keypair.secretKey, keypair.secretKey)
-                multkeys[meter] = evalMultKey
+                leaderEvalMultKey = cc.KeySwitchGen(keypair.secretKey, keypair.secretKey)
+                multkeys[meter] = leaderEvalMultKey
                 # Evalsum key init
                 cc.EvalSumKeyGen(keypair.secretKey)
-                evalSumKeys = cc.GetEvalSumKeyMap(keypair.secretKey.GetKeyTag())
-                sumkeys[meter] = evalSumKeys
+                leaderEvalSumKeys = cc.GetEvalSumKeyMap(keypair.secretKey.GetKeyTag())
+                sumkeys[meter] = leaderEvalSumKeys
             else: # Follower meters behave differently from leader meter
                 # Generate key using prev meter key as input
+                print("Follower key generating.")
                 keypair = cc.MultipartyKeyGen(keypairs[prev_meter].publicKey)
                 keypairs[meter] = keypair
                 # Generate multkey
-                multkeys[meter] = cc.MultiKeySwitchGen(keypair.secretKey, keypair.secretKey, evalMultKey)
+                multkeys[meter] = cc.MultiKeySwitchGen(keypair.secretKey, keypair.secretKey, leaderEvalMultKey)
                 # Generate sumkey
-                sumkeys[meter] = cc.MultiEvalSumKeyGen(keypair.secretKey, evalSumKeys, keypair.publicKey.GetKeyTag())
+                sumkeys[meter] = cc.MultiEvalSumKeyGen(keypair.secretKey, leaderEvalSumKeys, keypair.publicKey.GetKeyTag())
             # Setup for next meter
             prev_meter = meter
+            # If this is the last meter
             if meter == self.__ids[-1]:
                 self.__shared_pubkey = keypair.publicKey
-            meter_order.append(meter)
 
         # Generate the combined EvalMult key
         for meter in self.__ids:
@@ -297,21 +338,26 @@ class Building:
             meter_key = keypairs[meter]
             meter_multkey = multkeys[meter]
             if meter == self.__ids[0]:
-                wip_multkey = meter_multkey
+                summed_multkey = meter_multkey
             else:
-                wip_multkey = cc.MultiAddEvalKeys(wip_multkey, meter_multkey, meter_key.publicKey.GetKeyTag())
+                summed_multkey = cc.MultiAddEvalKeys(summed_multkey, meter_multkey, meter_key.publicKey.GetKeyTag())
         # Multkey round 2: MultiMult
         multimult_keys = []
-        for meter in self.__ids:
+        last_key = keypairs[meter_order[-1]]
+        for meter in meter_order:
             meter_key = keypairs[meter]
-            wip_multkey = cc.MultiMultEvalKey(meter_key.secretKey, wip_multkey, meter_key.publicKey.GetKeyTag())
-            multimult_keys.append(wip_multkey)
+            meter_multimult = cc.MultiMultEvalKey(meter_key.secretKey, summed_multkey, last_key.publicKey.GetKeyTag())
+            # order: [AABCDE, BABCDE, CABCDE, DABCDE, EABCDE]
+            multimult_keys.append(meter_multimult)
         # Round 3: MultiAdd all the MultiMults together
-        for key in multimult_keys:
+        reversed_multimult_keys = multimult_keys[::-1] # Has to be done backwards; EABCDE first
+        for multkey in reversed_multimult_keys:
             if "final_multikey" not in locals():
-                final_multikey = key
+                final_multikey = multkey
+            elif multkey == multimult_keys[-1]:
+                final_multikey = cc.MultiAddEvalMultKeys(multkey, final_multikey, last_key.GetKeyTag())
             else:
-                final_multikey = cc.MultiAddEvalMultKeys(key, final_multikey, key.GetKeyTag())
+                final_multikey = cc.MultiAddEvalMultKeys(multkey, final_multikey, multkey.GetKeyTag())
         # Multkey generation done
         cc.InsertEvalMultKey([final_multikey])
 
@@ -327,6 +373,9 @@ class Building:
                 final_sumkey = cc.MultiAddEvalSumKeys(final_sumkey, meter_sumkey, meter_key.publicKey.GetKeyTag())
         # Sumkey done
         cc.InsertEvalSumKey(final_sumkey)
+        # TODO Generate the EvalBootstrap key if needed
+
+
         # Save to object
         self.__cc = cc
         self.__keypairs = keypairs

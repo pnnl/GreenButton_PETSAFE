@@ -39,7 +39,7 @@ STAT_TEMPORAL_RESOLUTION = "d"
 # What date range to retrieve statistics for
 LIMIT_DATE = True
 START_DATE = "2023-04-01"
-END_DATE = "2023-04-09"
+END_DATE = "2023-04-02"
 
 
 # ----- PROCESSING -----
@@ -48,8 +48,8 @@ BUILDING_COUNT = 1
 # What building ID number to start at
 FIRST_BUILDING_ID = 0
 # Minimum and maximum count of units per building
-MIN_SIZE = 3
-MAX_SIZE = 3
+MIN_SIZE = 2
+MAX_SIZE = 2
 
 # Output directory for prepped data
 OUTPUT_DIR = "./output/"

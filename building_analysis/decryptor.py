@@ -1,5 +1,6 @@
 from openfhe import *
 from typing import Optional
+from config import BATCH_SIZE
 # Value obtained from print(str(logging.ERROR))
 
 class Decryptor:
@@ -55,7 +56,7 @@ class Decryptor:
                 else:
                     partial_decryptions += self.__cc.MultipartyDecryptMain([target], key.secretKey)
                 plaintext = self.__cc.MultipartyDecryptFusion(partial_decryptions)
-                plaintext.SetLength(2) # TODO: set using batch size? or have it passed in?
+                plaintext.SetLength(BATCH_SIZE) # TODO: set using batch size? or have it passed in?
             return plaintext
         #except AttributeError:
             # Came up when trying to decrypt non-encrypted data
