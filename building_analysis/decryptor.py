@@ -62,9 +62,10 @@ class Decryptor:
                     partial_decryptions += self.__cc.MultipartyDecryptMain([target], key.secretKey)
                 print("Fusing partial decryptions.")
             plaintext = self.__cc.MultipartyDecryptFusion(partial_decryptions)
+            plaintext = Plaintext.GetCKKSPackedValue(plaintext)
             #plaintext.SetLength(BATCH_SIZE) # TODO: set using batch size? or have it passed in? or 1?
             #plaintext.SetLength(self.__length)
-            return plaintext
+            return plaintext[0].real # There should not be an imaginary component in this case
         #except AttributeError:
             # Came up when trying to decrypt non-encrypted data
             # TODO: return the data instead so everything still works

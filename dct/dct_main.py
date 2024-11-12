@@ -14,7 +14,7 @@ import dct.normalization as norm
 from list_files import list_files_in_dir
 
 # Building module-related imports
-from virtual_buildings import create_buildings as cb
+import create_buildings as cb
 from building_analysis.reader import Reader
 from building_analysis.decryptor import Decryptor
 from processor.commonDB import DBConn

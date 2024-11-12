@@ -2,6 +2,7 @@ import multiprocessing
 import pandas as pd
 import pickle
 from time import perf_counter
+from sklearn.metrics import mean_squared_error
 
 import config
 from list_files import list_files_in_dir
@@ -53,37 +54,55 @@ def main():
 
         # Basic stats on both sets of buildings, calculate the relative error between them
         decrypt_times = []
+        plaintext_sums = []
+        enc_sums = []
+        b_id = 0 # Used to match encrypted to plaintext buildings by id
+        rounds = 0 # Used to average time overhead
         for building in encrypted_buildings:
             cc = building.get_cc()
             keys = building.get_keys()
             order = building.get_meter_order()
             length = building.get_length()
-            # Calculate
-            power_sum_building = 0
-            data = building.get_data()
-            #enc_reader = Reader(building=data, resolution="d")
-            power_sum_building = data["real_power"].iloc[0] # TEMP to test decryption
-            plaintext_building = buildings[0].get_data()
-            plaintext_reader = Reader(resolution=config.STAT_TEMPORAL_RESOLUTION, building=buildings[0])
-            print("Plaintext building:\n", plaintext_reader.get_data())
-            #plaintext_sum = plaintext_reader.get_building_power_sum()
-            plaintext_sum = plaintext_reader.get_data()["real_power"][0]
-            # TODO: get actual real_power sum for each day to compare against
-            #actual = actual["real_power"].iloc[0]
-            #for row in data["real_power"]:
-            #    power_sum_building = cc.EvalAdd(ciphertext1, ciphertext2)
-            # Decrypt
-            start_time = perf_counter()
-            decryptor = Decryptor(keys=keys, cc=cc, order=order, length=length)
-            print("Decrypting statistics.")
-            power_sum_building = decryptor.decrypt_target(power_sum_building)
-            print("Decrypted sum.")
-            end_time = perf_counter()
-            print("Actual:", plaintext_sum)
-            print("Decrypted:", power_sum_building)
-            time_taken = end_time - start_time
-            decrypt_times.append(time_taken)
-            print("Time to decrypt:", time_taken, "seconds")
+
+            # Get the encrypted data
+            enc_data = building.get_data()
+            enc_data = enc_data.set_index(["timestamp"])
+            # Get the plaintext data
+            plaintext_reader = Reader(resolution=config.STAT_TEMPORAL_RESOLUTION, building=buildings[b_id])
+
+            # Calculate statistics for each time interval (sum, avg, etc.)
+            for timestamp in plaintext_reader.get_data().index:
+                # Get data for interval
+                enc_power_sum_building = enc_data["real_power"].loc[enc_data.index == timestamp].iloc[0] # encrypted
+                plaintext_sum = plaintext_reader.get_data()["real_power"].loc[enc_data.index == timestamp].iloc[0]
+                plaintext_sums.append(plaintext_sum)
+
+                # Decrypt
+                start_time = perf_counter()
+                decryptor = Decryptor(keys=keys, cc=cc, order=order, length=length)
+                print("Decrypting statistics.")
+                dec_power_sum_building = decryptor.decrypt_target(enc_power_sum_building)
+                enc_sums.append(dec_power_sum_building)
+                print("Decrypted sum.")
+                end_time = perf_counter()
+
+                print("---------")
+                print("Building", enc_data["building_id"].iloc[0])
+                print("Timestamp:", timestamp)
+                print("Actual:", plaintext_sum)
+                print("Decrypted:", dec_power_sum_building)
+                time_taken = end_time - start_time
+                decrypt_times.append(time_taken)
+                print("Time to decrypt:", time_taken, "seconds")
+                print("---------")
+                rounds += 1
+
+            b_id += 1
+            print("Average time for decryption:", sum(decrypt_times) / rounds, "seconds")
+            print("RMSE:", mean_squared_error(plaintext_sums, enc_sums))
+
+
+
 
     # Calculate DCT on data and perform any selected operations with it
     if config.PERFORM_DCT == True:

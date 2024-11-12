@@ -421,14 +421,17 @@ class Building:
         # The main function
         if STAT_TEMPORAL_RESOLUTION == "d":
             all_days =  pd.date_range(start=START_DATE, end=END_DATE, freq="d", normalize=True, inclusive="both")
+            print("Encrypting", ENCRYPT_COLS)
             for meter in self.__ids:
-                print("Meter", meter, ":")
                 meter_data = self.__data[self.__data["point_id"] == meter]
                 aggregate_days = []
                 for day in all_days:
-                    print("Day", day, ":")
                     # Get the day's data
-                    day_data = meter_data[day:(day + pd.Timedelta(1, "d"))]
+                    try:
+                        day_data = meter_data[day:(day + pd.Timedelta(1, "d"))]
+                    except KeyError:
+                        print("Data non-unique for timestamp", day, "and meter", meter)
+                        print("Is site duplicated?")
                     # Last row is in the next day; pd[] includes start AND end. Remove end so it's not counted twice.
                     day_data = day_data.iloc[:-1]
                     day_row = {}
@@ -456,7 +459,7 @@ class Building:
                                 pass
                                 # day_row[column] = day_row["apparent_power"] / day_row["real_power"]
                             elif column == "point_id":
-                                day_row[column] = meter_data[column][0]
+                                day_row[column] = meter_data[column].iloc[0]
                             elif column == "ee_site_id":
                                 day_row[column] = self.__bid
                             else:
@@ -464,7 +467,7 @@ class Building:
                                 day_row[column] = day_data[column].sum()
                     day_row["timestamp"] = day_data.index[0]
                     aggregate_day_frame = pd.DataFrame([day_row])
-                    aggregate_day_frame.set_index("timestamp", inplace=True)
+                    aggregate_day_frame = aggregate_day_frame.set_index(["timestamp"])
                     aggregate_days.append(aggregate_day_frame)
                 # Finally, concatenate meters together
                 for frame in aggregate_days:
@@ -761,7 +764,7 @@ class Building:
         aggregated_data["point_id"] = str(self.__ids) # TODO: assign per row based on presence in aggregation?
         aggregated_data = aggregated_data.rename(columns={"ee_site_id": "building_id"}) 
         aggregated_data["building_id"] = self.__bid
-        print(aggregated_data)
+        #print(aggregated_data)
         return aggregated_data
     
 
