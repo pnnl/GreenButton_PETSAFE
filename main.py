@@ -58,39 +58,45 @@ def main():
         enc_sums = []
         b_id = 0 # Used to match encrypted to plaintext buildings by id
         rounds = 0 # Used to average time overhead
-        for building in encrypted_buildings:
-            cc = building.get_cc()
-            keys = building.get_keys()
-            order = building.get_meter_order()
-            length = building.get_length()
+        for enc_building in encrypted_buildings:
+            cc = enc_building.get_cc()
+            keys = enc_building.get_keys()
+            order = enc_building.get_meter_order()
+            length = enc_building.get_length()
 
             # Get the encrypted data
-            enc_data = building.get_data()
-            enc_data = enc_data.set_index(["timestamp"])
+            enc_data = enc_building.get_data()
             # Get the plaintext data
             plaintext_reader = Reader(resolution=config.STAT_TEMPORAL_RESOLUTION, building=buildings[b_id])
 
             # Calculate statistics for each time interval (sum, avg, etc.)
             for timestamp in plaintext_reader.get_data().index:
                 # Get data for interval
-                enc_power_sum_building = enc_data["real_power"].loc[enc_data.index == timestamp].iloc[0] # encrypted
+                # Sums
+                enc_power_sum = enc_data["real_power"].loc[enc_data.index == timestamp].iloc[0] # encrypted
                 plaintext_sum = plaintext_reader.get_data()["real_power"].loc[enc_data.index == timestamp].iloc[0]
                 plaintext_sums.append(plaintext_sum)
+                # Averages
+                enc_power_avg = enc_building.get_avg_real_power(timestamp)
+                plaintext_power_avg = buildings[b_id].get_avg_real_power(timestamp)
 
                 # Decrypt
                 start_time = perf_counter()
                 decryptor = Decryptor(keys=keys, cc=cc, order=order, length=length)
                 print("Decrypting statistics.")
-                dec_power_sum_building = decryptor.decrypt_target(enc_power_sum_building)
-                enc_sums.append(dec_power_sum_building)
+                dec_power_sum = decryptor.decrypt_target(enc_power_sum)
+                enc_sums.append(dec_power_sum)
                 print("Decrypted sum.")
                 end_time = perf_counter()
+                dec_power_avg = decryptor.decrypt_target(enc_power_avg)
 
                 print("---------")
                 print("Building", enc_data["building_id"].iloc[0])
                 print("Timestamp:", timestamp)
-                print("Actual:", plaintext_sum)
-                print("Decrypted:", dec_power_sum_building)
+                print("Actual Sum:", plaintext_sum)
+                print("Homomorphic Sum:", dec_power_sum)
+                print("Actual Avg:", plaintext_power_avg)
+                print("Homomorphic Avg:", dec_power_avg)
                 time_taken = end_time - start_time
                 decrypt_times.append(time_taken)
                 print("Time to decrypt:", time_taken, "seconds")

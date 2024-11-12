@@ -202,8 +202,18 @@ class Building:
             if self.__encryption_enabled == True:
                 self.__setup_encryption() # Make keys
                 self.__data = self.encrypt_building() # Perform encryption
+            else:
+                vector = self.__data[self.__data["point_id"] == self.__ids[0]]
+                first_day = vector.index[0].date()
+                vector = vector.loc[first_day:(first_day + pd.Timedelta(1, "d"))]
+                vector = vector[0:-1] # loc is right-inclusive. We don't want that. Drop the rightmost.
+                self.vector_length = vector["real_power"].size
+                print("Vector length:", self.vector_length)
+                self.__cc = None
 
             self.__data = self.aggregate("15min") # Ensure we have all data in 15min intervals
+            if "timestamp" in self.__data.columns:
+                self.__data = self.__data.set_index(["timestamp"])
             #print(self.__data[self.__data["real_power"] > 0]) # Show proof that it worked
 
             # TODO: when changing resolution-
@@ -229,6 +239,24 @@ class Building:
     
     def get_length(self):
         return self.vector_length
+    
+    def get_avg_real_power(self, day: datetime):
+        # Get the date whose average is being asked for
+        real_power = self.__data[day: (day + pd.Timedelta(1, "d"))]
+        real_power = real_power["real_power"]
+        if real_power.empty: # Nothing for supplied date
+            print("Cannot calculate average on empty frame. Check date passed to get_avg_real_power().")
+            return None
+        if isinstance(real_power.iloc[0], float) or isinstance(real_power.iloc[0], int): # Value is not encrypted
+            real_power = real_power.sum()
+            return real_power / self.vector_length
+        elif isinstance(real_power.iloc[0], object): # Value is encrypted
+            # For a single reading
+            real_power = real_power.iloc[0] # should only have one item inside
+            return self.__cc.EvalMult(real_power, (1 / self.vector_length)) # real_power / vector_length
+        else: # Type isn't practical for averaging
+            print("Object type of real power not valid.")
+            return None
     
     def __eval_batch_size(self):
         self.vector_length = BATCH_SIZE
