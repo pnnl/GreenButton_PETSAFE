@@ -61,10 +61,15 @@ def main():
             # Calculate
             power_sum_building = 0
             data = building.get_data()
+            #enc_reader = Reader(building=data, resolution="d")
             power_sum_building = data["real_power"].iloc[0] # TEMP to test decryption
-            actual = buildings[0].get_data()
+            plaintext_building = buildings[0].get_data()
+            plaintext_reader = Reader(resolution=config.STAT_TEMPORAL_RESOLUTION, building=buildings[0])
+            print("Plaintext building:\n", plaintext_reader.get_data())
+            #plaintext_sum = plaintext_reader.get_building_power_sum()
+            plaintext_sum = plaintext_reader.get_data()["real_power"][0]
             # TODO: get actual real_power sum for each day to compare against
-            actual = actual["real_power"].iloc[0]
+            #actual = actual["real_power"].iloc[0]
             #for row in data["real_power"]:
             #    power_sum_building = cc.EvalAdd(ciphertext1, ciphertext2)
             # Decrypt
@@ -74,7 +79,7 @@ def main():
             power_sum_building = decryptor.decrypt_target(power_sum_building)
             print("Decrypted sum.")
             end_time = perf_counter()
-            print("Actual:", actual)
+            print("Actual:", plaintext_sum)
             print("Decrypted:", power_sum_building)
             time_taken = end_time - start_time
             decrypt_times.append(time_taken)

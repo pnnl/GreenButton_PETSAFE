@@ -5,25 +5,31 @@ import datetime as dt
 from os import listdir
 import os.path
 from typing import Optional
-from config import OUTPUT_DIR, DECRYPT
+from config import OUTPUT_DIR, DECRYPT, ENCRYPT
 
 # Time periods should be in the form yyyy-mm-dd HH:mm
 # HH:mm may be missing if time is midnight
 class Reader:
     def __init__(
             self,
-            start_date: str, # the datetime of the start of the period to read, YY-MM-DD HH-MM expected
+            start_date: Optional[str] = None, # the datetime of the start of the period to read, YY-MM-DD HH-MM expected
             end_date: Optional[str] = None, # the datetime of the start of the period to read, YY-MM-DD HH-MM expected
             resolution: Optional[str] = "15mins", # the resolution to return data at
-            read_dir: Optional[str] = OUTPUT_DIR + "buildings/"
+            read_dir: Optional[str] = OUTPUT_DIR + "buildings/",
+            building: Optional[object] = None # An existing building to work with
     ):
         self.__start_datetime = start_date
         self.__end_datetime = end_date
         self.__resolution = resolution
-        self.__read_dir = read_dir
-        # TODO: deal with None end datetime
-        self.validate_date_range()
-        self.data = self.unpickle_buildings()
+        if building == None:
+            self.__read_dir = read_dir
+            self.data = self.unpickle_buildings()
+        else:
+            # TODO: validate frame
+            self.data = building.get_data()
+            # TODO: deal with None end datetime
+        if start_date and end_date:
+            self.validate_date_range()
         self.data = self.change_time_resolution(self.data, self.__resolution)
 
     # TODO: add more checks for privacy concerns
@@ -82,6 +88,7 @@ class Reader:
         resolution = self.check_resolution(resolution)
         if resolution is not None:
             # TODO Original resolution IS saved. Check it. If it matches, do nothing to save time.
+            # TODO: duration breaks; fix it
             try:
                 frame = pd.DataFrame()
                 # Work in chunks to preserve building IDs; one building at a time

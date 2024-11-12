@@ -261,14 +261,10 @@ class Building:
         digitSize = 30
         parameters.SetDigitSize(digitSize)
 
-        if get_native_int()==128:
-            rescale_tech = ScalingTechnique.FIXEDAUTO
-            dcrt_bits = 78
-            first_mod = 89
-        else:
-            rescale_tech = ScalingTechnique.FLEXIBLEAUTO
-            dcrt_bits = 59
-            first_mod = 60
+        # No need to manually call Rescale()
+        rescale_tech = ScalingTechnique.FLEXIBLEAUTO
+        dcrt_bits = 59
+        first_mod = 60
 
         parameters.SetScalingModSize(dcrt_bits)
         parameters.SetScalingTechnique(rescale_tech)
@@ -730,28 +726,33 @@ class Building:
         else:
             # Aggregating encrypted data requires the use of EvalAdd
             aggregated_data = pd.DataFrame()
-            for timestamp in pd.unique(self.__data.index):
+            for timestamp in pd.unique(self.__data.index): # For each matching timestamp
+                # Collect all records matching the stamp in a frame
                 interval_records = self.__data[self.__data.index == timestamp]
+                # For each record in the timestamp...
                 for record in range(0, interval_records["point_id"].size):
-                    if "real_power" not in locals() or record == 0:
-                        # This would work better as a loop?
-                        duration = interval_records["duration"].iloc[record]
-                        real_power = interval_records["real_power"].iloc[record]
-                        apparent_power = interval_records["apparent_power"].iloc[record]
-                        power_factor = interval_records["pf"].iloc[record]
+                    #...if the record is the first record in the set:
+                    if record == 0:
+                        # Counters equal the first record
+                        duration_agg = interval_records["duration"].iloc[record]
+                        real_power_agg = interval_records["real_power"].iloc[record]
+                        apparent_power_agg = interval_records["apparent_power"].iloc[record]
+                        power_factor_agg = interval_records["pf"].iloc[record]
+                    # If this isn't the first record:
                     else:
-                        real_power = self.__cc.EvalAdd(real_power, interval_records["real_power"].iloc[record])
-                        real_power = self.__cc.EvalSum(real_power, self.__batch_size)
-                        duration = interval_records["duration"].iloc[record]
-                        if type(apparent_power) == "object":
-                            apparent_power = self.__cc.EvalAdd(apparent_power, interval_records["apparent_power"].iloc[record])
-                            apparent_power = self.__cc.EvalSum(apparent_power, self.__batch_size)
+                        # Add the record's data to the counters
+                        real_power_agg = self.__cc.EvalAdd(real_power_agg, interval_records["real_power"].iloc[record])
+                        #real_power_agg = self.__cc.EvalSum(real_power_agg, self.__batch_size)
+                        duration_agg = interval_records["duration"].iloc[record]
+                        if type(apparent_power_agg) == "object":
+                            apparent_power_agg = self.__cc.EvalAdd(apparent_power_agg, interval_records["apparent_power"].iloc[record])
+                            #apparent_power_agg = self.__cc.EvalSum(apparent_power_agg, self.__batch_size)
                         else:
-                            apparent_power += interval_records["apparent_power"].iloc[record]
+                            apparent_power_agg += interval_records["apparent_power"].iloc[record]
                     # TODO Power factor needs to be recalculated here- rp / ap
                     # TODO build record for aggregated frame from this
-                new_record = pd.DataFrame({"timestamp": interval_records.index[0], "point_id": 0, "ee_site_id": 0, "duration": duration, \
-                                           "real_power": real_power, "apparent_power": apparent_power, "pf": 0}, index=["timestamp"])
+                new_record = pd.DataFrame({"timestamp": interval_records.index[0], "point_id": 0, "ee_site_id": 0, "duration": duration_agg, \
+                                           "real_power": real_power_agg, "apparent_power": apparent_power_agg, "pf": 0}, index=["timestamp"])
                 aggregated_data = pd.concat([aggregated_data, new_record])
         # Set ID columns
         # point_id is repurposed to hold a tuple of point_ids in the building

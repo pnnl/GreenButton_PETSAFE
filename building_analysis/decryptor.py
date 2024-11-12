@@ -63,7 +63,7 @@ class Decryptor:
                 print("Fusing partial decryptions.")
             plaintext = self.__cc.MultipartyDecryptFusion(partial_decryptions)
             #plaintext.SetLength(BATCH_SIZE) # TODO: set using batch size? or have it passed in? or 1?
-            plaintext.SetLength(self.__length)
+            #plaintext.SetLength(self.__length)
             return plaintext
         #except AttributeError:
             # Came up when trying to decrypt non-encrypted data
