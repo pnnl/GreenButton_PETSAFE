@@ -81,6 +81,7 @@ def main():
                 # Averages
                 enc_power_avg = enc_building.get_avg_real_power(timestamp)
                 plaintext_power_avg = buildings[b_id].get_avg_real_power(timestamp)
+                plaintext_avgs.append(plaintext_power_avg)
 
                 # Decrypt
                 start_time = perf_counter()
@@ -91,6 +92,7 @@ def main():
                 print("Decrypted sum.")
                 end_time = perf_counter()
                 dec_power_avg = decryptor.decrypt_target(enc_power_avg)
+                enc_avgs.append(dec_power_avg)
 
                 print("---------")
                 print("Building", enc_data["building_id"].iloc[0])
@@ -108,6 +110,7 @@ def main():
             b_id += 1
             print("Average time for decryption:", sum(decrypt_times) / rounds, "seconds")
             print("Sums RMSE:", mean_squared_error(plaintext_sums, enc_sums))
+
             print("Avgs RMSE:", mean_squared_error(plaintext_avgs, enc_avgs))
 
 
