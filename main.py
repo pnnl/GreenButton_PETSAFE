@@ -56,6 +56,8 @@ def main():
         decrypt_times = []
         plaintext_sums = []
         enc_sums = []
+        plaintext_avgs = []
+        enc_avgs = []
         b_id = 0 # Used to match encrypted to plaintext buildings by id
         rounds = 0 # Used to average time overhead
         for enc_building in encrypted_buildings:
@@ -105,7 +107,8 @@ def main():
 
             b_id += 1
             print("Average time for decryption:", sum(decrypt_times) / rounds, "seconds")
-            print("RMSE:", mean_squared_error(plaintext_sums, enc_sums))
+            print("Sums RMSE:", mean_squared_error(plaintext_sums, enc_sums))
+            print("Avgs RMSE:", mean_squared_error(plaintext_avgs, enc_avgs))
 
 
 
@@ -113,65 +116,6 @@ def main():
     # Calculate DCT on data and perform any selected operations with it
     if config.PERFORM_DCT == True:
         dct_main.main()
-
-    if config.CREATE_STATISTICS == True:
-        if config.DECRYPT == True:
-            reader = Reader(config.START_DATE, config.END_DATE, resolution=config.STAT_TEMPORAL_RESOLUTION, read_dir=config.OUTPUT_DIR + "encrypted-buildings/")
-        else:
-            reader = Reader(config.START_DATE, config.END_DATE, resolution=config.STAT_TEMPORAL_RESOLUTION)
-        data = reader.get_data()
-        building_ids = reader.get_building_ids()
-        #building_id = 2
-        building_rmses = []
-        for building_id in building_ids:
-            print("Calculating statistics.")
-            power_sum_building = reader.get_building_power_sum(building_id)
-            power_avg_building = reader.get_building_power_avg(building_id)
-            
-            RMSE = True
-            if RMSE == True:
-                building_with_sites = reader.get_building_with_sites(building_id, "15min")
-                # Transform into the average for comparison
-                building_with_sites["Building Aggregate"] = building_with_sites["Building Aggregate"]
-                for column in building_with_sites.columns:
-                    if column != "Building Aggregate":
-                        building_with_sites[column] = building_with_sites["Building Aggregate"] - building_with_sites[column]
-                        numerator = building_with_sites[column].sum()
-                        sample_size = building_with_sites[column].size
-                        site_rmse = numerator / (sample_size - 1)
-                        building_rmses.append(site_rmse)
-
-            if config.DECRYPT == True:
-                start_time = perf_counter()
-                decryptor = Decryptor()
-                print("Decrypting statistics.")
-                power_sum_building = decryptor.decrypt_target(power_sum_building)
-                print("Decrypted sum.")
-                power_avg_building = decryptor.decrypt_target(power_avg_building)
-                print("Decrypted average.")
-                end_time = perf_counter()
-                print("Time to decrypt:", end_time - start_time, "seconds")
-
-            # Round for legibility
-            power_sum_building = round(power_sum_building, 4)
-            power_avg_building = round(power_avg_building, 4)
-            print("__________")
-            print("Site IDs for building", building_id, ":", reader.get_building_site_ids(building_id))
-            print("Total power demand of building", building_id, "between", config.START_DATE, "and", config.END_DATE, ":", power_sum_building, "kW")
-            print("Power demand average of building", building_id, "between", config.START_DATE, "and", config.END_DATE, ":", power_avg_building, "kW")
-            # TODO: graph looks weird if resolution = time range provided (eg. day resolution and single day for date range)
-        if config.DECRYPT == False: # Graphing encrypted not implemented; need to decrypt first for that
-            #fig = reader.graph_building_power(building_id, config.STAT_TEMPORAL_RESOLUTION, show_graph=True)
-            fig = reader.graph_building_power_with_sites(7, config.STAT_TEMPORAL_RESOLUTION, show_graph=True)
-            pass
-        if RMSE == True:
-            rmse_series = pd.Series(building_rmses)
-            rmse_average = rmse_series.sum() / rmse_series.size
-            rmse_min = rmse_series.min()
-            rmse_worst = rmse_series[rmse_series == rmse_series.abs().max()].max()
-            print("RMSE min:", rmse_min)
-            print("RMSE average:", rmse_average)
-            print("RMSE worst:", rmse_worst)
     
     print("Done.\n========================================================")
 
