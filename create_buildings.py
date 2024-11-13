@@ -111,8 +111,6 @@ def choose_random_ids(rng: Optional[int] = None):
                     results = conn.execute(query)
                     testresult = results.fetchone()
 
-                    print(testresult)
-
                     # Number of expected results: 96 per day
                     expected = 96 * int((datetime.strptime(END_DATE, '%Y-%m-%d') - datetime.strptime(START_DATE, '%Y-%m-%d')).days)
                     required_portion = 0.75 # Portion of expected necessary to accept an id as valid for date range
@@ -144,7 +142,6 @@ def choose_random_ids(rng: Optional[int] = None):
         cursor_obj.close()
     print("Valid IDs:", valid_ids)
     building_ids = tuple(valid_ids) # Format the selections into a tuple of ids
-    raise SystemExit
     return building_ids, randomizer
 
 def make_buildings(
