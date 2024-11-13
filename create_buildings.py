@@ -113,8 +113,7 @@ def choose_random_ids(rng: Optional[int] = None):
 
                     # Number of expected results: 96 per day
                     expected = 96 * int((datetime.strptime(END_DATE, '%Y-%m-%d') - datetime.strptime(START_DATE, '%Y-%m-%d')).days)
-                    required_portion = 0.75 # Portion of expected necessary to accept an id as valid for date range
-                    required_results = floor(expected * required_portion)
+                    required_results = floor(expected * REQUIRED_PORTION)
 
                     if testresult[0] < required_results: # AKA: no data for that point in this time period
                         new_id = randomizer.choice(ids, 1, replace=False)[0][0] # [][] removes from default list nesting result (SQL(row()))
@@ -130,7 +129,7 @@ def choose_random_ids(rng: Optional[int] = None):
                     else:
                         if len(valid_ids) < count and id not in valid_ids: # We need more unique valid ids
                             valid_ids.append(id)
-                            print(id, "replaced with", new_id)
+                            #print(id, "replaced with", new_id)
                             continue
                         elif len(valid_ids) >= count: # We have enough ids
                             break
