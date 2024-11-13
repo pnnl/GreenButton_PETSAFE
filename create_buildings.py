@@ -9,6 +9,7 @@ from typing import Optional
 from time import perf_counter, mktime
 from datetime import datetime
 import pickle
+from math import floor
 
 #import processor.pullMains as pulldb
 from processor.commonDB import DBConn
@@ -26,7 +27,7 @@ logger = config_logger()
 def set_seed(seed: Optional[str] = None):
     if seed == None:
         seed = random.randint(100000000, 999999999)
-        print("Random seed generated. Seed:", seed)
+        #print("Random seed generated. Seed:", seed)
     randomizer = random.default_rng(seed)
     return randomizer
 
@@ -43,7 +44,8 @@ class building_dist(rv_discrete):
         return halfcauchy.pdf(x, scale=scale1, loc=loc1) + lognorm.pdf(x, s, scale=scale2, loc=loc2)
 
 # Gets a set of random building ids; used to create buildings
-def choose_random_ids(randomizer: Optional[int] = None):
+def choose_random_ids(rng: Optional[int] = None):
+    randomizer = rng
     print("Generating building size.")
     # Get the building size
     loc1 = 1.83202980
@@ -86,13 +88,14 @@ def choose_random_ids(randomizer: Optional[int] = None):
         query = query + ";"
         results = conn.execute(query)
         ids = results.fetchall()
-        cursor_obj = conn.cursor()
         # Select a random set from the results
-        building_ids = randomizer.choice(ids, count, replace=True)
+        building_ids = randomizer.choice(ids, count, replace=False)
+        print(building_ids)
+
         # Verify that chosen IDs have results
         building_ids = list([id[0] for id in building_ids])
         valid_ids = []
-        # Used to validate that data exists for period
+        # Used to validate that data exists within this period
         start = mktime(datetime.strptime(START_DATE, '%Y-%m-%d').timetuple())
         end = mktime(datetime.strptime(END_DATE, '%Y-%m-%d').timetuple())
         # Validate that data exists for period
@@ -100,36 +103,48 @@ def choose_random_ids(randomizer: Optional[int] = None):
             for id in building_ids:
                     # TODO: parameterized query, not fstring
                     # Check if data exists for this site
-                    query = f"SELECT P REAL FROM POWER WHERE point_id={id}" 
+                    query = f"SELECT COUNT(*) FROM POWER WHERE point_id={id}" 
                     if LIMIT_DATE == True:
                         # We checked start date above with the day_zero_dt check; this checks if it exists for long enough
                         query = query + f" AND timestamp BETWEEN {start} AND {end}" # BETWEEN {START_DATE} AND {END_DATE}"
                     query = query + ";"
                     results = conn.execute(query)
                     testresult = results.fetchone()
-                    if testresult == [] or testresult == None or testresult == "None": # AKA: no data for that point in this time period
-                        new_id = randomizer.choice(ids, 1, replace=True)[0][0]
+
+                    print(testresult)
+
+                    # Number of expected results: 96 per day
+                    expected = 96 * int((datetime.strptime(END_DATE, '%Y-%m-%d') - datetime.strptime(START_DATE, '%Y-%m-%d')).days)
+                    required_portion = 0.75 # Portion of expected necessary to accept an id as valid for date range
+                    required_results = floor(expected * required_portion)
+
+                    if testresult[0] < required_results: # AKA: no data for that point in this time period
+                        new_id = randomizer.choice(ids, 1, replace=False)[0][0] # [][] removes from default list nesting result (SQL(row()))
                         del building_ids[building_ids.index(id)] # ID is invalid for period; drop it from options
                         try:
                             if id in ids:
                                 del ids[ids.index(id)]
-                            building_ids.append(new_id)
-                            print(id, "replaced with", new_id)
+                            building_ids.append(new_id) # Setup to check the new ID's validity
+                            #print(id, "replaced with", new_id)
                         except Exception as ex:
                             print("No valid ids for time period:", ex)
                             raise SystemExit
                     else:
-                        if len(valid_ids) < count:
+                        if len(valid_ids) < count and id not in valid_ids: # We need more unique valid ids
                             valid_ids.append(id)
-                        else:
+                            print(id, "replaced with", new_id)
+                            continue
+                        elif len(valid_ids) >= count: # We have enough ids
                             break
         # "it is recommended that applications run "PRAGMA optimize" (with no arguments) 
         # just before closing each database connection."
         # https://www.sqlite.org/pragma.html#pragma_optimize
+        cursor_obj = conn.cursor()
         cursor_obj.execute("PRAGMA optimize;")
         cursor_obj.close()
     print("Valid IDs:", valid_ids)
     building_ids = tuple(valid_ids) # Format the selections into a tuple of ids
+    raise SystemExit
     return building_ids, randomizer
 
 def make_buildings(
