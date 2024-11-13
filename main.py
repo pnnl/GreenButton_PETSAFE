@@ -65,7 +65,6 @@ def main():
         plaintext_avgs = []
         enc_avgs = []
         b_id = 0 # Used to match encrypted to plaintext buildings by id
-        rounds = 0 # Used to average time overhead
         for enc_building in encrypted_buildings:
             cc = enc_building.get_cc()
             keys = enc_building.get_keys()
@@ -119,15 +118,14 @@ def main():
                 enc_avgs.append(dec_power_avg)
 
                 print("---------")
-                print("Building", enc_data["building_id"].iloc[0])
-                print("Timestamp:", timestamp)
-                print("Actual Sum:", plaintext_sum)
-                print("Homomorphic Sum:", dec_power_sum)
-                print("Actual Avg:", plaintext_power_avg)
-                print("Homomorphic Avg:", dec_power_avg)
-                print("Time to decrypt:", time_taken, "seconds")
-                print("---------")
-                rounds += 1
+                #print("Building", enc_data["building_id"].iloc[0])
+                #print("Timestamp:", timestamp)
+                #print("Actual Sum:", plaintext_sum)
+                #print("Homomorphic Sum:", dec_power_sum)
+                #print("Actual Avg:", plaintext_power_avg)
+                #print("Homomorphic Avg:", dec_power_avg)
+                #print("Time to decrypt:", time_taken, "seconds")
+                #print("---------")
 
             b_id += 1
             avg_plaintext_time = plaintext_processing_time / config.BUILDING_COUNT

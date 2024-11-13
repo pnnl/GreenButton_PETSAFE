@@ -481,6 +481,8 @@ class Building:
                             if self.__batch_size < len(plaintext):
                                 self.__batch_size = len(plaintext)
                                 self.__batch_size = self.__eval_batch_size()
+                            elif len(plaintext) == 0:
+                                plaintext = [0] * self.__batch_size
                             packed_plaintext = self.__cc.MakeCKKSPackedPlaintext(value=plaintext)
                             ciphertext = self.__cc.Encrypt(self.__shared_pubkey, packed_plaintext)
                             # Set length accordingly
