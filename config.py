@@ -39,12 +39,12 @@ STAT_TEMPORAL_RESOLUTION = "d"
 # What date range to retrieve statistics for
 LIMIT_DATE = True
 START_DATE = "2023-04-01"
-END_DATE = "2023-04-08"
+END_DATE = "2023-04-07"
 
 
 # ----- PROCESSING -----
 # How many virtual buildings to make
-BUILDING_COUNT = 20
+BUILDING_COUNT = 2
 # What building ID number to start at
 FIRST_BUILDING_ID = 0
 # Minimum and maximum count of units per building

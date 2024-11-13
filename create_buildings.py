@@ -140,8 +140,8 @@ def choose_random_ids(rng: Optional[int] = None):
         cursor_obj.execute("PRAGMA optimize;")
         cursor_obj.close()
     print("Valid IDs:", valid_ids)
-    building_ids = tuple(valid_ids) # Format the selections into a tuple of ids
-    return building_ids, randomizer
+    valid_ids = tuple(valid_ids) # Format the selections into a tuple of ids
+    return valid_ids, randomizer
 
 def make_buildings(
         count, 
@@ -476,7 +476,6 @@ class Building:
                     day_row = {}
                     for column in day_data.columns:
                         if column in ENCRYPT_COLS and column in self.__data.columns:
-                            print("Encrypting", column)
                             # Load sensitive columns into a vector and encrypt it.
                             plaintext = day_data[column].tolist()
                             if self.__batch_size < len(plaintext):
