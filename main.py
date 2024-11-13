@@ -49,11 +49,17 @@ def main():
         # Temp: TODO save this to file instead. this works for now.
         # Current barrier to file saving is pickle's refusal to work with openfhe objects, including keypairs,
         # but no clear methods to save keys and cc obj to file in documentation.
+        timer_start = perf_counter()
         buildings = cb.make_buildings(config.BUILDING_COUNT, pickle=False, seed=config.SEED, encrypt=False)
+        timer_end = perf_counter()
+        plaintext_processing_time = timer_end - timer_start
+
+        timer_start = perf_counter()
         encrypted_buildings = cb.make_buildings(config.BUILDING_COUNT, pickle=False, seed=config.SEED, encrypt=True)
+        timer_end = perf_counter()
+        enc_processing_time = timer_end - timer_start
 
         # Basic stats on both sets of buildings, calculate the relative error between them
-        decrypt_times = []
         plaintext_sums = []
         enc_sums = []
         plaintext_avgs = []
@@ -74,14 +80,30 @@ def main():
             # Calculate statistics for each time interval (sum, avg, etc.)
             for timestamp in plaintext_reader.get_data().index:
                 # Get data for interval
+
                 # Sums
+                timer_start = perf_counter()
                 enc_power_sum = enc_data["real_power"].loc[enc_data.index == timestamp].iloc[0] # encrypted
+                timer_end = perf_counter()
+                enc_processing_time += timer_end - timer_start
+
+                timer_start = perf_counter()
                 plaintext_sum = plaintext_reader.get_data()["real_power"].loc[enc_data.index == timestamp].iloc[0]
+                timer_end = perf_counter()
+                plaintext_processing_time += timer_end - timer_start
                 plaintext_sums.append(plaintext_sum)
+
                 # Averages
+                timer_start = perf_counter()
                 enc_power_avg = enc_building.get_avg_real_power(timestamp)
+                timer_end = perf_counter()
+                enc_processing_time += timer_end - timer_start
+
+                timer_start = perf_counter()
                 plaintext_power_avg = buildings[b_id].get_avg_real_power(timestamp)
                 plaintext_avgs.append(plaintext_power_avg)
+                timer_end = perf_counter()
+                plaintext_processing_time += timer_end - timer_start
 
                 # Decrypt
                 start_time = perf_counter()
@@ -91,6 +113,8 @@ def main():
                 enc_sums.append(dec_power_sum)
                 print("Decrypted sum.")
                 end_time = perf_counter()
+                time_taken = end_time - start_time
+                enc_processing_time += time_taken
                 dec_power_avg = decryptor.decrypt_target(enc_power_avg)
                 enc_avgs.append(dec_power_avg)
 
@@ -101,14 +125,14 @@ def main():
                 print("Homomorphic Sum:", dec_power_sum)
                 print("Actual Avg:", plaintext_power_avg)
                 print("Homomorphic Avg:", dec_power_avg)
-                time_taken = end_time - start_time
-                decrypt_times.append(time_taken)
                 print("Time to decrypt:", time_taken, "seconds")
                 print("---------")
                 rounds += 1
 
             b_id += 1
-            print("Average time for decryption:", sum(decrypt_times) / rounds, "seconds")
+            avg_plaintext_time = plaintext_processing_time / config.BUILDING_COUNT
+            print("Avg time to process encrypted buildings:", enc_processing_time / config.BUILDING_COUNT, "seconds")
+            print("Avg time to process plaintext buildings:", avg_plaintext_time, "seconds")
             print("Sums RMSE:", mean_squared_error(plaintext_sums, enc_sums))
 
             print("Avgs RMSE:", mean_squared_error(plaintext_avgs, enc_avgs))
