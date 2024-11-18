@@ -44,7 +44,7 @@ END_DATE = "2023-04-07"
 
 # ----- PROCESSING -----
 # How many virtual buildings to make
-BUILDING_COUNT = 20
+BUILDING_COUNT = 1
 # What building ID number to start at
 FIRST_BUILDING_ID = 0
 # Minimum and maximum count of units per building
