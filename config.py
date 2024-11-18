@@ -1,17 +1,16 @@
 # ----- GENERAL -----
 
 # Actions to perform
-# For DCT-related actions, see next section
 
 # Read from CSV files into SQLite database
 READ_FILES = False
 # Create virtual buildings using database
-CREATE_BUILDINGS = True
+CREATE_BUILDINGS = False
 # Database file target
 DATABASE = "data/records.db"
 # Set to true if you want to encrypt data before saving to file
-ENCRYPT = True
-# Sets number of readings per encryption vector
+ENCRYPT = False
+# Sets number of expected readings per encryption vector
 BATCH_SIZE = 96
 # Set to True if you'd prefer to save as pickle files
 SAVE_AS_PICKLE = True
@@ -23,6 +22,8 @@ PORTION_OF_CPU = 0.5
 CREATE_STATISTICS = False
 # Set to True if processing encrypted data
 DECRYPT = False
+# Enables all other DCT processing switches in dct/dct_config.py
+PERFORM_DCT = True
 
 # ----- TEMPORAL RESOLUTION -----
 
@@ -63,9 +64,6 @@ LOG_FILE = OUTPUT_DIR + 'building_processing.log'
 ROOT_DATA_DIR = "./data"
 # Name of target directory in root dir
 POWER_DIR = ROOT_DATA_DIR + "power/"
-
-# Enables all other DCT processing switches
-PERFORM_DCT = False
 
 # ----- ENCRYPTION AND RANDOMIZATION -----
 

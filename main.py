@@ -54,6 +54,7 @@ def main():
         timer_end = perf_counter()
         plaintext_processing_time = timer_end - timer_start
 
+        # Make the same buildings, but using FHE
         timer_start = perf_counter()
         encrypted_buildings = cb.make_buildings(config.BUILDING_COUNT, pickle=False, seed=config.SEED, encrypt=True)
         timer_end = perf_counter()
@@ -118,6 +119,8 @@ def main():
                 enc_avgs.append(dec_power_avg)
 
                 print("---------")
+                # If you want to be spammed by statistics, uncomment the below;
+                # otherwise, summary stats are provided after processing
                 #print("Building", enc_data["building_id"].iloc[0])
                 #print("Timestamp:", timestamp)
                 #print("Actual Sum:", plaintext_sum)
@@ -131,8 +134,10 @@ def main():
             avg_plaintext_time = plaintext_processing_time / config.BUILDING_COUNT
             print("Avg time to process encrypted buildings:", enc_processing_time / config.BUILDING_COUNT, "seconds")
             print("Avg time to process plaintext buildings:", avg_plaintext_time, "seconds")
-            print("Sums RMSE:", mean_squared_error(plaintext_sums, enc_sums))
 
+            # TODO: bug in RMSE averaging for creation of buildings of different sizes (e.g. min_size = 2, max_size = 10)
+            # RMSE for individual buildings is as expected, but averaged is not in that case
+            print("Sums RMSE:", mean_squared_error(plaintext_sums, enc_sums))
             print("Avgs RMSE:", mean_squared_error(plaintext_avgs, enc_avgs))
 
 
