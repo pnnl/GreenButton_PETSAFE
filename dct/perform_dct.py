@@ -9,7 +9,7 @@ from dct.dct_config import *
 
 DCT_TYPE = 2
 
-DROP_BELOW_THRESHOLD = True
+DROP_BELOW_THRESHOLD = False
 THRESHOLD_VAL = 1
 
 DROP_HIGH = False
@@ -231,87 +231,3 @@ def compare_averages(recomposed_data, original_data):
     dct_avg = recomposed_data.sum() / recomposed_data.size
     avg_difference = dct_avg - original_avg
     return avg_difference, dct_avg
-
-# Find best values to maintain accuracy of DCT data
-def fit_accuracy(
-        original_data, 
-        method: Optional[str] = None,
-        DROP_HIGH: Optional[bool] = DROP_HIGH,
-        PORTION_TO_DROP: Optional[float] = PORTION_TO_DROP,
-        KEEP_LARGEST_HIGH: Optional[bool] = KEEP_LARGEST_HIGH,
-        NUMBER_OF_LARGEST: Optional[int] = NUMBER_OF_LARGEST,
-        DROP_BELOW_THRESHOLD: Optional[bool] = DROP_BELOW_THRESHOLD,
-        THRESHOLD_VAL: Optional[int] = THRESHOLD_VAL):
-
-    def test_fit(
-            original_data,
-            DROP_HIGH: Optional[bool] = DROP_HIGH,
-            PORTION_TO_DROP: Optional[float] = PORTION_TO_DROP,
-            KEEP_LARGEST_HIGH: Optional[bool] = KEEP_LARGEST_HIGH,
-            NUMBER_OF_LARGEST: Optional[int] = NUMBER_OF_LARGEST,
-            DROP_BELOW_THRESHOLD: Optional[bool] = DROP_BELOW_THRESHOLD,
-            THRESHOLD_VAL: Optional[int] = THRESHOLD_VAL
-            ):
-        dct_matrix = decompose(original_data)
-        dct_matrix = drop_coefficients(dct_matrix, DROP_HIGH=DROP_HIGH, PORTION_TO_DROP=PORTION_TO_DROP, KEEP_LARGEST_HIGH=KEEP_LARGEST_HIGH,\
-                            NUMBER_OF_LARGEST=NUMBER_OF_LARGEST, DROP_BELOW_THRESHOLD=DROP_BELOW_THRESHOLD, THRESHOLD_VAL=THRESHOLD_VAL)
-        recomposed = recompose(dct_matrix)
-        print("Difference:", compare_averages(recomposed, original_data))
-        diff, dct_avg = compare_averages(recomposed, original_data)
-        return diff, dct_avg
-    
-    def check_best(value, avg_diff, dct_avg, current_best):
-        if avg_diff > current_best[1] and dct_avg > 0:
-            best["Average"] = (value, avg_diff)
-        return best
-
-    original_data = pd.Series(data=norm.normalize(original_data))
-    best = (0, 0) # value, average
-    best = {"Average": (0,0), \
-            "Min": (0,0), \
-            "Max": (0,0)}
-    match method:
-        case "threshold":
-            DROP_BELOW_THRESHOLD = True
-            print("Fitting for 'drop below threshold.'")
-            min_to_test = 2
-            max_to_test = 100
-            for i in range(min_to_test, max_to_test + 1):
-                THRESHOLD_VAL = i
-                diff, dct_avg = test_fit(original_data, DROP_BELOW_THRESHOLD=DROP_BELOW_THRESHOLD, THRESHOLD_VAL=THRESHOLD_VAL)
-                best = check_best(i, diff, dct_avg, best)
-
-        case "drop high":
-            DROP_HIGH = True
-            print("Fitting for 'drop high'")
-            min_to_test = 10
-            max_to_test = 100
-            for i in range(min_to_test, max_to_test + 1):
-                PORTION_TO_DROP = i / 100
-                diff, dct_avg = test_fit(original_data, DROP_HIGH=DROP_HIGH, PORTION_TO_DROP=PORTION_TO_DROP)
-                best = check_best(i, diff, dct_avg, best)
-
-        case "drop high keep max":
-            KEEP_LARGEST_HIGH = True
-            print("Fitting for 'drop high, keep maximum value(s).'")
-            min_to_test = 2
-            max_to_test = 100
-            for i in range(min_to_test, max_to_test + 1):
-                PORTION_TO_DROP = i / 100
-                min_to_keep = 2
-                max_to_keep = 10
-                for i in range(min_to_keep, max_to_keep + 1):
-                    NUMBER_OF_LARGEST = i
-                    diff, dct_avg = test_fit(original_data, KEEP_LARGEST_HIGH=KEEP_LARGEST_HIGH, PORTION_TO_DROP=PORTION_TO_DROP, \
-                                    NUMBER_OF_LARGEST=NUMBER_OF_LARGEST)
-                    best = check_best(i, diff, dct_avg, best)
-        case __:
-            print("""Available methods for coefficient reduction:
-              "threshold"
-              "drop high"
-              "drop high keep large"
-              """)
-            return None
-
-    print("Best fit for weighted average:", best["Average"][0], "with average difference of", best["Average"][1])
-    return best

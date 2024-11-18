@@ -1,15 +1,15 @@
 # ----- BUILDING SOURCE -----
 
-BUILDING_DIRECTORY = "data/dct-buildings"
+BUILDING_DIRECTORY = "data/dct-buildings/"
 
 # ----- DCT PROCESSING -----
 
 # Use DCT to "smooth out" data, obscuring some transitional events
 # Enables all other DCT processing switches
-PERFORM_DCT = False
+PERFORM_DCT = True
 
 # Get DCT values for each day, then graph them.
-DAILY_DCT_GRAPH = True
+DAILY_DCT_GRAPH = False
 
 # Aggregate data to temporal resolution specified by STAT_TEMPORAL_RESOLUTION
 # before performing DCT

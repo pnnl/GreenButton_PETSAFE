@@ -1,22 +1,20 @@
 import multiprocessing
-import pandas as pd
-import plotly.express as px
 #from time import perf_counter
 
-from dct import dct
+from dct import perform_dct
 import dct.dct_config as dctc
 import dct.normalization as norm
 import dct.fit_dct as fitdct
 import dct.retrieve_and_analyze as dctra
-from unpickle_buildings import unpickle_buildings, unpickle_resample_buildings
+from dct.unpickle_buildings import unpickle_buildings, unpickle_resample_buildings
 
 #from processor.commonDB import DBConn
 
 def main():
         if dctc.AGGREGATE_BEFORE_DCT == True:
-            buildings = unpickle_resample_buildings()
+            buildings = unpickle_resample_buildings(dctc.BUILDING_DIRECTORY)
         else:
-            buildings = unpickle_buildings()
+            buildings = unpickle_buildings(dctc.BUILDING_DIRECTORY)
         # Normalize the database to values between 0 and 1.
         if dctc.NORMALIZE == True:
             subdir = "normalized" # used to save coefficients to file
@@ -33,9 +31,9 @@ def main():
             #    method = config.METHOD
             #    best_fit = dct.fit_accuracy(this_building["real_power"], method)
             if dctc.STORE_DCT == False:
-                dct_matrix = dct.decompose(this_building["real_power"])
+                dct_matrix = perform_dct.decompose(this_building["real_power"])
                 #dct_matrix = dct.drop_coefficients(dct_matrix)
-                recomposed = dct.recompose(dct_matrix)
+                recomposed = perform_dct.recompose(dct_matrix)
                 print(dct_matrix)
 
                 # Graph DCT values with original data to see visual changes

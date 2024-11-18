@@ -4,7 +4,7 @@ import numpy as np
 import plotly.express as px
 
 import config
-from dct import dct
+from dct import perform_dct
 import dct.dct_config as dctc
 from list_files import list_files_in_dir
 
@@ -62,7 +62,7 @@ def retrieve_and_analyze():
                 raise SystemExit # For now
             
             if dctc.ANALYZE_DCT_PER_BUILDING == True:
-                dct.analyze_daily_buildings(coefficients)
+                perform_dct.analyze_daily_buildings(coefficients)
 
             #if config.ANALYZE_DCT_PER_BUILDING == True:
             #    building_coefficients = dct.analyze_per_building(coefficients)
@@ -72,7 +72,7 @@ def retrieve_and_analyze():
             #    with open(dirpath, "wb") as outfile:
             #        pickle.dump(building_coefficients, outfile)
             elif dctc.ANALYZE_DCT == True:
-                dct.analyze(coefficients)
+                perform_dct.analyze(coefficients)
 
 def graph_dct(dct_frame, buildings_frame):
     print("Preparing graph for building", id)

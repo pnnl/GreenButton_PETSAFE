@@ -7,7 +7,7 @@ from os import makedirs
 #from time import perf_counter
 
 import config
-from dct import dct
+from dct import perform_dct
 import dct.dct_config as dctc
 
 def fit_dct(this_building, subdir):
@@ -19,7 +19,7 @@ def fit_dct(this_building, subdir):
         for day in dates:
             # Get the day of data and do DCT on it
             day_data = this_building[this_building.index.date == day]
-            day_dct_matrix = dct.decompose(day_data["real_power"], log=False)
+            day_dct_matrix = perform_dct.decompose(day_data["real_power"], log=False)
 
             if dctc.HIGH_ONLY == True:
                 drop_index = int(dctc.HIGH_THRESHOLD * day_dct_matrix.size)
@@ -35,7 +35,7 @@ def fit_dct(this_building, subdir):
                 break
 
     elif dctc.ANALYZE_DCT_PER_BUILDING == True:
-        coefficients = dct.decompose(this_building["real_power"], log=False)
+        coefficients = perform_dct.decompose(this_building["real_power"], log=False)
     else:
         print("No operation chosen.")
 

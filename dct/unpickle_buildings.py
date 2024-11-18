@@ -1,24 +1,19 @@
 import pandas as pd
 import pickle
-#from time import perf_counter
 
 import config
-import dct.dct_config as dctc
 from list_files import list_files_in_dir
 
 # Building module-related imports
 from building_analysis.reader import Reader
 
-def prep_filename(dir):
+def prep_filepath(dir):
     if dir[-1] != "/":
         dir += "/"
-    return dir + "buildings/"
+    return dir
 
 def unpickle_buildings(dir):
-    filepath = prep_filename(dir)
-    if dir[-1] != "/":
-        dir += "/"
-    filepath = dir + "buildings/"
+    filepath = prep_filepath(dir)
     buildings_frame = pd.DataFrame()
     # Get all buildings from files and place in one big frame for processing
     try:
@@ -32,7 +27,7 @@ def unpickle_buildings(dir):
         raise SystemExit # For now
     
 def unpickle_resample_buildings(dir):
-    filepath = prep_filename(dir)
+    filepath = prep_filepath(dir)
     try:
         reader = Reader(config.START_DATE, config.END_DATE, resolution=config.STAT_TEMPORAL_RESOLUTION, read_dir=filepath)
         buildings = reader.get_data()

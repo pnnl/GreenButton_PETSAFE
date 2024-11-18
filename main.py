@@ -141,8 +141,6 @@ def main():
             print("Avgs RMSE:", mean_squared_error(plaintext_avgs, enc_avgs))
 
 
-
-
     # Calculate DCT on data and perform any selected operations with it
     if config.PERFORM_DCT == True:
         dct_main.main()
