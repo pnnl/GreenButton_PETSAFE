@@ -2,10 +2,14 @@ from scipy.fftpack import dct, idct
 from math import floor
 import numpy as np
 from typing import Optional
-import pandas as pd
 
-import dct.normalization as norm
-from dct.dct_config import *
+# Saving to file
+from config import OUTPUT_DIR
+from os.path import exists
+from os import makedirs
+from pickle import dump
+
+import dct.dct_config as dctc
 
 DCT_TYPE = 2
 
@@ -113,23 +117,20 @@ def decompose(
 # Zero some coefficients to "smooth" data
 def drop_coefficients(
         coefficients_array,
-        DROP_HIGH: Optional[bool] = DROP_HIGH,
         PORTION_TO_DROP: Optional[float] = PORTION_TO_DROP,
-        KEEP_LARGEST_HIGH: Optional[bool] = KEEP_LARGEST_HIGH,
         NUMBER_OF_LARGEST: Optional[int] = NUMBER_OF_LARGEST,
-        DROP_BELOW_THRESHOLD: Optional[bool] = DROP_BELOW_THRESHOLD,
         THRESHOLD_VAL: Optional[int] = THRESHOLD_VAL
         ):
     # Used to drop high values and/or add their max value(s) back in
     index_of_drop = floor(len(coefficients_array) * PORTION_TO_DROP)
 
     # We'll need to keep high freq values to add them back in later.
-    if KEEP_LARGEST_HIGH == True:
+    if dctc.DROP_METHOD.lower() == "drop high keep max":
         all_freqs = np.copy(coefficients_array)
         high_freqs = all_freqs[-index_of_drop:]
 
     # Zero all values whose absolute value is below a threshold
-    if DROP_BELOW_THRESHOLD == True:
+    if dctc.DROP_METHOD.lower() == "threshold":
         thresholds = [-THRESHOLD_VAL, THRESHOLD_VAL]
         print("Zeroing all coefficients with an absolute value below", THRESHOLD_VAL)
         # Zero all values below magnitude threshold
@@ -138,13 +139,13 @@ def drop_coefficients(
                 coefficients_array[coefficients_array == value] = 0
 
     # Zero all high frequency values over a certain portion of the array
-    if DROP_HIGH == True:
+    if dctc.DROP_METHOD.lower() == "drop high":
         print("Zeroing the upper", PORTION_TO_DROP, "of high-frequency coefficients.")
         # Drop high frequency values
         coefficients_array[-index_of_drop:] = 0
 
     # Add back in the most significant high frequency coefficients
-    if KEEP_LARGEST_HIGH == True:
+    if dctc.DROP_METHOD.lower() == "drop high keep max":
         for i in range(0, NUMBER_OF_LARGEST):
             value_to_keep = max(high_freqs)
             # TODO: deal with duplicate maxes
@@ -166,6 +167,7 @@ def recompose(coefficients_array):
     return data
 
 # Add noise to coefficients for differential privacy
+# TODO: this is currently very rough and privacy parameters are undecided.
 # TODO: right now, noise is added the same way for all coefficients.
 # Would some coefficients benefit from more or less noise to balance privacy
 # with accuracy? It seems likely.
@@ -179,55 +181,31 @@ def add_noise(coefficients_array):
         coefficients_array[coefficient] = noisy_coefficient
     return coefficients_array
 
-# Graph the distribution of DCT coefficients to make it easier to choose
-# threshold values
-def analyze(coefficients_array):
-    import plotly.express as px
-    data = pd.DataFrame(data=coefficients_array)
-    data_distribution = pd.DataFrame(data.value_counts())
-    data_distribution = data_distribution.reset_index()
-    data_distribution = data_distribution.rename(columns={0: "Coefficient"})
-    fig = px.histogram(data_distribution, x="Coefficient", y="count", marginal="box")
-    print("Showing graph in web browser")
-    fig.show()
-
-def analyze_daily_buildings(coefficients_frame):
-    print("Generating graphs (this will take a few minutes)...")
-    import plotly.express as px
-    fig = px.scatter(coefficients_frame)
-    print("Showing graph in web browser")
-    fig.show()
-
-def analyze_per_building(coefficients_2d_array):
-    # A list of numpy arrays; one array per day of data
-    print("Generating graph (this will take a few minutes)...")
-    import plotly.express as px
-    i = 0 # Used to name buildings in rows
-    top_coefficient_index = 5000 #50
-    for building in coefficients_2d_array:
-        j = 1 # Used to determine which coefficient is which
-        print("Preparing building", str(i))
-        for coefficient in building:
-            record = pd.DataFrame([[j, coefficient, "Building " + str(i)]], columns=["Coefficient", "Magnitude", "Building"])
-            #record = record.fillna(0)
-            j += 1
-            if "data" not in locals():
-                data = record
-            else:
-                if j <= top_coefficient_index: # 1-indexed, so "equal to" is included
-                    data = pd.concat([data, record])
-                else:
-                    break
-        print("Building", i, "done (", j, "coefficients).")
-        i += 1
-    fig = px.scatter(data, x="Coefficient", y="Magnitude", color="Building") # color="Building"
-    print("Showing graph in web browser")
-    print(data)
-    fig.show()
-    return data
 
 def compare_averages(recomposed_data, original_data):
     original_avg = original_data.sum() / original_data.size
     dct_avg = recomposed_data.sum() / recomposed_data.size
     avg_difference = dct_avg - original_avg
     return avg_difference, dct_avg
+
+# Save all DCT coefficients to file; location varies based on operation
+# to make it easier to retrieve coefficients made with specific method
+def save_to_file(coefficients, building_id, subdir):
+    filename = "Building-" + str(building_id) + "-coefficients.pkl"
+    print("Saving DCT coefficients to pickle file at", filename)
+    # Set directory path of output- output directory in config + "buildings" subdirectory
+    dirpath = OUTPUT_DIR + "/coefficients/"
+    if dctc.DCT_ONE_DAY == True:
+        dirpath = dirpath + "/one-day/"
+    if dctc.DAILY_DCT_GRAPH == True:
+        dirpath = dirpath + "/daily-coefficients/"
+    if dctc.ANALYZE_DCT_PER_BUILDING == True:
+        dirpath = dirpath + "/resampled-buildings/"
+    if dctc.HIGH_ONLY == True:
+        dirpath = dirpath + "/top-" + str(dctc.HIGH_THRESHOLD) + "/"
+    dirpath = dirpath + subdir + "/"
+    if not exists(dirpath):
+        makedirs(dirpath)
+    # Save as file to output dir
+    with open(dirpath + filename, "wb") as outfile:
+        dump(coefficients, outfile)

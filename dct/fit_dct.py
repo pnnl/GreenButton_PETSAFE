@@ -1,5 +1,4 @@
 import pandas as pd
-import plotly.express as px
 import pickle
 import numpy as np
 from os.path import exists

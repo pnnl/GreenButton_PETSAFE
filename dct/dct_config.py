@@ -11,27 +11,33 @@ PERFORM_DCT = True
 # Get DCT values for each day, then graph them.
 DAILY_DCT_GRAPH = False
 
-# Aggregate data to temporal resolution specified by STAT_TEMPORAL_RESOLUTION
+# Resample data to temporal resolution specified by config.STAT_TEMPORAL_RESOLUTION
 # before performing DCT
-AGGREGATE_BEFORE_DCT = False
+RESAMPLE_BEFORE_DCT = False
 
 # Perform DCT for one day instead of on the entire time period
 DCT_ONE_DAY = False
 
 # Test different methods of reducing DCT coefficients
-FIT_DCT = False
+DROP_COEFFICIENTS = False
 
 # Method used for fitting. Options:
 # "threshold"
 # "drop high"
 # "drop high keep max"
-METHOD = "threshold"
+DROP_METHOD = "threshold"
 
 # Normalize data to be between 0 and 1 before calculating DCT
 NORMALIZE = True
 
-# Graph the original data against the DCT-processed data before saving it
+# Enable/disable all graphing switches
 GRAPH_DCT = False
+# Graph coefficients as scatterplots
+GRAPH_AS_SCATTER = False
+# Graph coefficients as histograms
+GRAPH_AS_HIST = False
+# Graph original data against data recomposed from DCT coefficients
+GRAPH_DATA_AGAINST_RECOMPOSED = False
 
 # Save DCT coefficients to pickle files
 STORE_DCT = True
@@ -54,7 +60,11 @@ RETRIEVE_DCT = False
 SHOW_DCT = False
 
 # Graph the distribution of DCT coefficients
-ANALYZE_DCT = False
+GRAPH_OVERALL_COEFFICIENT_DIST = False
 
 # Graph the distribution of DCT coefficients per building
-ANALYZE_DCT_PER_BUILDING = False
+GRAPH_COEFFICIENTS_PER_BUILDING = False
+
+# Graph coefficients per day for a year of data; ~96 points per line, ~365 lines,
+# one graph per building
+GRAPH_BY_DAY = True
