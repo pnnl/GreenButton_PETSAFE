@@ -1,6 +1,7 @@
 from scipy.fftpack import dct, idct
 from math import floor
 import numpy as np
+import pandas as pd
 from typing import Optional
 
 # Saving to file
@@ -160,6 +161,26 @@ def drop_coefficients(
     print("Coefficient adjustment done.")
     return coefficients_array
 
+# Perform DCT on each day of data in frame;
+# frame should have a datetime index
+def dct_by_day(frame, column_for_dct):
+    # Get first and last timestamps for building
+    #start_datetime = frame.index[0]
+    #end_datetime = frame.index[-1]
+    # Split building data into days; do DCT per day
+    all_days =  pd.date_range(start=dctc.START_DATE, end=dctc.END_DATE, freq="d", normalize=True, inclusive="both")
+    for day in all_days:
+        day_data = frame[day:(day + pd.Timedelta(1, "d"))]
+        # Get coefficients for day
+        day_dct_coefficients = pd.Series(decompose(day_data[column_for_dct]), name=day).rename(day)
+         # Add to frame as column
+        if "coefficients_per_day" not in locals():
+            # Set up frame for graphing
+            coefficients_per_day = pd.DataFrame(day_dct_coefficients)
+        else:
+            coefficients_per_day = pd.concat([coefficients_per_day, day_dct_coefficients], axis=1)
+    return coefficients_per_day
+
 def recompose(coefficients_array):
     # Reconstruct the data from the coefficients array
     # Ortho norm ensures that inverse DCT gets the same values out that went in
@@ -197,9 +218,9 @@ def save_to_file(coefficients, building_id, subdir):
     dirpath = OUTPUT_DIR + "/coefficients/"
     if dctc.DCT_ONE_DAY == True:
         dirpath = dirpath + "/one-day/"
-    if dctc.DAILY_DCT_GRAPH == True:
+    if dctc.GRAPH_TARGET == "d":
         dirpath = dirpath + "/daily-coefficients/"
-    if dctc.ANALYZE_DCT_PER_BUILDING == True:
+    if dctc.RESAMPLE_BEFORE_DCT == True:
         dirpath = dirpath + "/resampled-buildings/"
     if dctc.HIGH_ONLY == True:
         dirpath = dirpath + "/top-" + str(dctc.HIGH_THRESHOLD) + "/"

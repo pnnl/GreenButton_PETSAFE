@@ -1,11 +1,10 @@
-import multiprocessing
-
 from dct import perform_dct
 from dct import graph_dct
 import dct.dct_config as dctc
 import dct.normalization as norm
 import dct.retrieve_and_analyze as dctra
 from dct.unpickle_buildings import unpickle_buildings, unpickle_resample_buildings
+import pandas as pd
 
 def main():
     if dctc.PERFORM_DCT == True: # Calculate DCT coefficients
@@ -25,21 +24,37 @@ def main():
 
         # DCT operations: calculating, zeroing coefficients, and recomposing afterwards
         # to get the data back into a usable form  
+        all_building_coefficient_frames = []
         for id in buildings["building_id"].unique():
             print("Performing DCT on building", id)
             # Get each building's data
             this_building = buildings[buildings["building_id"] == id]
-            # Perform DCT, decomposing into coefficients
-            dct_coefficients = perform_dct.decompose(this_building["real_power"])
 
-            if dctc.DROP_COEFFICIENTS == True: # Reduce number of non-zero coefficients
-                dct_coefficients = perform_dct.drop_coefficients(dct_coefficients)
-                # Recreate data from coefficients to detect any accuracy loss
-                recomposed = perform_dct.recompose(dct_coefficients)
+            # X lines where X = number of days in building;
+            # each line with ~96 points
+            if dctc.GRAPH_BY_DAY == True:
+                building_coefficients = perform_dct.dct_by_day(this_building, "real_power")
+                all_building_coefficient_frames.append(building_coefficients) # To allow concatenation into one plot later
+                #graph_dct.graph_coefficients_as_scatter(building_coefficients, x_label="Coefficient", y_label="Value")
+                #graph_dct.graph_coefficients_as_box(building_coefficients, title=f"Building {id} Coefficient Magnitudes", transpose=True)
 
-            # For each building, save DCT coefficients to file
-            elif dctc.STORE_DCT == True:
-                perform_dct.save_to_file(this_building, id, save_to)
+            else:
+                # Perform DCT on however much data is present, decomposing into coefficients
+                dct_coefficients = perform_dct.decompose(this_building["real_power"])
+
+                if dctc.DROP_COEFFICIENTS == True: # Reduce number of non-zero coefficients
+                    dct_coefficients = perform_dct.drop_coefficients(dct_coefficients)
+                    # Recreate data from coefficients to detect any accuracy loss
+                    recomposed = perform_dct.recompose(dct_coefficients)
+
+                # For each building, save DCT coefficients to file
+                elif dctc.STORE_DCT == True:
+                    perform_dct.save_to_file(this_building, id, save_to)
+
+        if dctc.GRAPH_BY_DAY == True:
+            graph_dct.graph_coefficients_as_box_all_buildings(all_building_coefficient_frames,
+                                                              title=f"Coefficient Magnitudes by Building",
+                                                              transpose=True)
 
     # Instead of calculating coefficients, retrieve existing coefficients saved previously
     if dctc.RETRIEVE_DCT == True:
@@ -47,10 +62,13 @@ def main():
 
     # Graph DCT coefficients...
     if dctc.GRAPH_DCT == True:
+        # TODO: can we combine or shorten these into one function call or a case/switch?
         if dctc.GRAPH_AS_HIST == True: # ...as a histogram
             graph_dct.graph_coefficients_as_hist(dct_coefficients)
         elif dctc.GRAPH_AS_SCATTER == True: # ...as a scatter plot
             graph_dct.graph_coefficients_as_scatter(dct_coefficients)
+        elif dctc.GRAPH_AS_BOX == True: # ...as a scatter plot
+            graph_dct.graph_coefficients_as_box(dct_coefficients)
         elif dctc.GRAPH_DATA_AGAINST_RECOMPOSED == True: # ...recomposed, alongside original data
             graph_dct.graph_recomposed_against_real(recomposed, buildings)
         else: # ...but we don't know how to graph them
@@ -59,7 +77,6 @@ def main():
 
 # Thanks, multiprocessing
 if __name__ == '__main__':
-    multiprocessing.freeze_support()
     try:
         main()
     except KeyboardInterrupt:

@@ -1,7 +1,6 @@
 import pandas as pd
 import pickle
 import numpy as np
-import plotly.express as px
 
 import config
 from dct import graph_dct
@@ -17,9 +16,9 @@ def prep_filepath():
     # TODO: break this into fewer checks not dependent on processing switches
     if dctc.DCT_ONE_DAY == True:
         filepath = filepath + "one-day/"
-    if dctc.DAILY_DCT_GRAPH == True:
+    if dctc.GRAPH_TARGET == "d":
         filepath = filepath + "daily-coefficients/"
-    if dctc.ANALYZE_DCT_PER_BUILDING == True:
+    if dctc.RESAMPLE_BEFORE_DCT == True:
         filepath = filepath + "resampled-buildings/"
     if dctc.HIGH_ONLY == True:
         filepath = filepath + "top-" + str(dctc.HIGH_THRESHOLD) + "/"
@@ -32,7 +31,7 @@ def prep_filepath():
 # Retrieve previously calculated DCT coefficients and perform operations using them
 def retrieve_and_analyze():
     filepath = prep_filepath()
-    if dctc.ANALYZE_DCT_PER_BUILDING == True or dctc.DAILY_DCT_GRAPH == True:
+    if dctc.GRAPH_COEFFICIENTS_PER_BUILDING == True or dctc.GRAPH_TARGET == "d":
         coefficients = pd.DataFrame()
     else:
         coefficients = np.empty(0, dtype=np.float64)
@@ -43,8 +42,8 @@ def retrieve_and_analyze():
                 # This will be a list of numpy arrays; one array per day of data
             if dctc.SHOW_DCT == True:
                 print(building_coefficients)
-            if dctc.DAILY_DCT_GRAPH == True:
-                graph_dct.graph_coefficients_by_dat(building_coefficients)
+            if dctc.GRAPH_TARGET == "d": # One graph for each day
+                graph_dct.graph_coefficients_as_box(building_coefficients)
                 break # Temp while testing
             elif dctc.GRAPH_COEFFICIENTS_PER_BUILDING == True:
                 coefficients[str(file)[79:-19]] = pd.Series(building_coefficients)
