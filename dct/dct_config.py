@@ -45,6 +45,10 @@ DROP_METHOD = "threshold"
 
 # ----- DCT OPERATIONS -----
 
+# Graph a curve created by averaging DCT coefficients
+# against actual demand curves to test visual similarity
+MAKE_DCT_AVG_CURVE = True
+
 # Retrieve saved DCT values for analysis or further use
 # Enables all other post-processing/operations switches
 RETRIEVE_DCT = False
@@ -55,7 +59,7 @@ SHOW_DCT = False
 # ----- GRAPHING ---------
 
 # Enable/disable all graphing switches
-GRAPH_DCT = True
+GRAPH_DCT = False
 # Graph coefficients as scatterplots
 GRAPH_AS_SCATTER = False
 # Graph coefficients as histograms
@@ -70,12 +74,12 @@ GRAPH_DATA_AGAINST_RECOMPOSED = False
 # "d": once per day
 # "y": once per year
 # "a": on all available data for period
-GRAPH_TARGET = "d"
+DCT_TARGET = "d"
 
 # Graph the distribution of all DCT coefficients
 GRAPH_OVERALL_COEFFICIENT_DIST = False
 # Graph coefficients per day for a year of data; ~96 points per line, ~365 lines,
 # one graph per building
-GRAPH_BY_DAY = True
+GRAPH_BY_DAY = False
 # Graph the distribution of DCT coefficients per building
 GRAPH_COEFFICIENTS_PER_BUILDING = False

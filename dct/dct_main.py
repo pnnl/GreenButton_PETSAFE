@@ -32,11 +32,24 @@ def main():
 
             # X lines where X = number of days in building;
             # each line with ~96 points
-            if dctc.GRAPH_BY_DAY == True:
+            if dctc.GRAPH_BY_DAY == True or dctc.DCT_TARGET == "d":
                 building_coefficients = perform_dct.dct_by_day(this_building, "real_power")
+                building_coefficients.index.name = 'Coefficient'
+                #print(building_coefficients)
                 all_building_coefficient_frames.append(building_coefficients) # To allow concatenation into one plot later
                 #graph_dct.graph_coefficients_as_scatter(building_coefficients, x_label="Coefficient", y_label="Value")
                 #graph_dct.graph_coefficients_as_box(building_coefficients, title=f"Building {id} Coefficient Magnitudes", transpose=True)
+                if dctc.MAKE_DCT_AVG_CURVE == True:
+                    building_coefficients = building_coefficients.transpose()
+                    days_in_year = 365 # Replace with length detection; this works temporarily
+                    avg = building_coefficients.sum() # Sums by rows, aka by coefficient
+                    avg = avg / days_in_year
+                    if "avg_coefficients" not in locals(): # Make the initial frame
+                        avg_coefficients = avg
+                        dct_count = 1
+                    else: # Add the building to the frame
+                        avg_coefficients += avg
+                        dct_count += 1
 
             else:
                 # Perform DCT on however much data is present, decomposing into coefficients
@@ -50,6 +63,14 @@ def main():
                 # For each building, save DCT coefficients to file
                 elif dctc.STORE_DCT == True:
                     perform_dct.save_to_file(this_building, id, save_to)
+            
+        # Average coefficients for all buildings
+        if dctc.MAKE_DCT_AVG_CURVE == True:
+            days_in_year = 365
+            avg_coefficients = avg_coefficients / dct_count
+            recomposed = perform_dct.recompose(avg_coefficients.values)
+            # Recreate a demand curve from the average coefficients, then graph it against
+            # seven randomly selected days of actual data, normalized first if applicable
 
         if dctc.GRAPH_BY_DAY == True:
             graph_dct.graph_coefficients_as_box_all_buildings(all_building_coefficient_frames,

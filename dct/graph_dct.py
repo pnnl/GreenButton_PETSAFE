@@ -133,3 +133,24 @@ def graph_recomposed_against_real(dct_frame, buildings_frame):
     fig.data[1].line.color = "#A9A9A9"
     print("Showing graph in web browser")
     fig.show()
+
+def graph_lines(
+        framelist: list, # One or more dataframes in a list
+        x_label: Optional[str] = None,
+        y_label: Optional[str] = None
+        ):
+    print("Generating graphs (this will take a few minutes)...")
+    # Prep axes labels
+    x_label = framelist[0].index if x_label == None else x_label
+    y_label = framelist[0].columns if y_label == None else y_label
+    # Prep figure
+    if len(framelist) == 1: # Just graphing one series- ideal situation
+        fig = px.line(framelist[0], labels={"index": x_label, "value": y_label}) # color="Building"
+    else: # Cobbling multiple frames together into one graph
+        for frame in framelist:
+            if "fig" not in locals():
+                fig = px.line(frame, labels={"index": x_label, "value": y_label}) # color="Building"
+            else:
+                fig = fig.add_trace(px.line(frame, labels={"index": x_label, "value": y_label}).data[0])
+    print("Showing graph in web browser")
+    fig.show()
