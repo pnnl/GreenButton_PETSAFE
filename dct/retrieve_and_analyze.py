@@ -103,6 +103,5 @@ def MAKE_AVERAGE_DCT_CURVE(building_data, building_id, dct_count, averaged_coeff
         #line.line.color = "#A9A9A9"
         line.opacity = 0.4
     fig.data[7].line.color = "red"
-    fig.show()
-    fig.write_image("data/graphs/" + title + ".png")
-    raise SystemExit
+    #fig.show()
+    fig.write_image("data/graphs/building-avg-reconstructed/" + title + ".png")
