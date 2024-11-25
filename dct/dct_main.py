@@ -5,6 +5,8 @@ import dct.normalization as norm
 import dct.retrieve_and_analyze as dctra
 from dct.unpickle_buildings import unpickle_buildings, unpickle_resample_buildings
 import pandas as pd
+from random import sample
+from datetime import datetime
 
 def main():
     if dctc.PERFORM_DCT == True: # Calculate DCT coefficients
@@ -35,14 +37,15 @@ def main():
             if dctc.GRAPH_BY_DAY == True or dctc.DCT_TARGET == "d":
                 building_coefficients = perform_dct.dct_by_day(this_building, "real_power")
                 building_coefficients.index.name = 'Coefficient'
-                #print(building_coefficients)
                 all_building_coefficient_frames.append(building_coefficients) # To allow concatenation into one plot later
                 #graph_dct.graph_coefficients_as_scatter(building_coefficients, x_label="Coefficient", y_label="Value")
                 #graph_dct.graph_coefficients_as_box(building_coefficients, title=f"Building {id} Coefficient Magnitudes", transpose=True)
                 if dctc.MAKE_DCT_AVG_CURVE == True:
+                    # Calculate the coefficients for one day, averaged for the year
+                    print(building_coefficients)
                     building_coefficients = building_coefficients.transpose()
-                    days_in_year = 365 # Replace with length detection; this works temporarily
-                    avg = building_coefficients.sum() # Sums by rows, aka by coefficient
+                    days_in_year = 365 # Replace with row count detection; this works temporarily
+                    avg = building_coefficients.sum() # Sums all 365 days of coefficients by rows, aka per coefficient
                     avg = avg / days_in_year
                     if "avg_coefficients" not in locals(): # Make the initial frame
                         avg_coefficients = avg
@@ -64,13 +67,10 @@ def main():
                 elif dctc.STORE_DCT == True:
                     perform_dct.save_to_file(this_building, id, save_to)
             
-        # Average coefficients for all buildings
-        if dctc.MAKE_DCT_AVG_CURVE == True:
-            days_in_year = 365
-            avg_coefficients = avg_coefficients / dct_count
-            recomposed = perform_dct.recompose(avg_coefficients.values)
-            # Recreate a demand curve from the average coefficients, then graph it against
-            # seven randomly selected days of actual data, normalized first if applicable
+            # Average coefficients for all buildings
+            if dctc.MAKE_DCT_AVG_CURVE == True:
+                print("Averaging building", id)
+                dctra.MAKE_AVERAGE_DCT_CURVE(this_building, id, dct_count, avg_coefficients)
 
         if dctc.GRAPH_BY_DAY == True:
             graph_dct.graph_coefficients_as_box_all_buildings(all_building_coefficient_frames,
