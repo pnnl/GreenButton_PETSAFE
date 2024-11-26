@@ -5,8 +5,7 @@ import dct.normalization as norm
 import dct.retrieve_and_analyze as dctra
 from dct.unpickle_buildings import unpickle_buildings, unpickle_resample_buildings
 import pandas as pd
-from random import sample
-from datetime import datetime
+from plotly.subplots import make_subplots
 
 def main():
     if dctc.PERFORM_DCT == True: # Calculate DCT coefficients
@@ -42,11 +41,9 @@ def main():
                 #graph_dct.graph_coefficients_as_box(building_coefficients, title=f"Building {id} Coefficient Magnitudes", transpose=True)
                 if dctc.MAKE_DCT_AVG_CURVE == True:
                     # Calculate the coefficients for one day, averaged for the year
-                    print(building_coefficients)
                     building_coefficients = building_coefficients.transpose()
-                    days_in_year = 365 # Replace with row count detection; this works temporarily
-                    avg = building_coefficients.sum() # Sums all 365 days of coefficients by rows, aka per coefficient
-                    avg = avg / days_in_year
+                    days_in_year = building_coefficients[0].size
+                    avg = building_coefficients.sum() / days_in_year # Sums all 365 days of coefficients by rows, aka per coefficient
                     if "avg_coefficients" not in locals(): # Make the initial frame
                         avg_coefficients = avg
                         dct_count = 1
@@ -70,7 +67,8 @@ def main():
             # Average coefficients for all buildings
             if dctc.MAKE_DCT_AVG_CURVE == True:
                 print("Averaging building", id)
-                dctra.MAKE_AVERAGE_DCT_CURVE(this_building, id, dct_count, avg_coefficients)
+                fig = dctra.MAKE_AVERAGE_DCT_CURVE(this_building, id, dct_count, avg_coefficients)
+                fig.show()
 
         if dctc.GRAPH_BY_DAY == True:
             graph_dct.graph_coefficients_as_box_all_buildings(all_building_coefficient_frames,

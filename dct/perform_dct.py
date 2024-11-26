@@ -171,6 +171,8 @@ def dct_by_day(frame, column_for_dct):
     all_days =  pd.date_range(start=dctc.START_DATE, end=dctc.END_DATE, freq="d", normalize=True, inclusive="both")
     for day in all_days:
         day_data = frame[day:(day + pd.Timedelta(1, "d"))]
+        # Timedelta is both-inclusive. We only want left-inclusive. Drop the very last entry.
+        day_data = day_data[:-1]
         # Get coefficients for day
         day_dct_coefficients = pd.Series(decompose(day_data[column_for_dct]), name=day).rename(day)
          # Add to frame as column
