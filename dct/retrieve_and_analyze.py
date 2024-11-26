@@ -96,12 +96,12 @@ def MAKE_AVERAGE_DCT_CURVE(building_data, building_id, dct_count, averaged_coeff
         actual_building_data[day] = pd.DataFrame(day_data["real_power"])
     actual_building_data = actual_building_data.set_index("Time")
 
-    actual_building_data["Averaged DCT"] = recomposed[:-1] # Data was right-inclusive TODO fix higher up
+    actual_building_data["Averaged DCT"] = recomposed
     title = 'Building ' + str(building_id) + ' Random Days VS Averaged DCT Reconstruction'
     fig = px.line(actual_building_data, labels={"index": "Time", "value": "Real Power"}, title=title)
-    for line in fig.data[0:7]:
+    for line in fig.data[0:-1]:
         #line.line.color = "#A9A9A9"
         line.opacity = 0.4
-    fig.data[7].line.color = "red"
+    fig.data[-1].line.color = "red"
     fig.write_image("data/graphs/building-avg-reconstructed/" + title + ".png")
     return fig
