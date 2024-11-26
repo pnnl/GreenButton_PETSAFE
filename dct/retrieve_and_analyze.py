@@ -70,8 +70,8 @@ def MAKE_AVERAGE_DCT_CURVE(building_data, building_id, dct_count, averaged_coeff
     # Recreate a demand curve from the average coefficients, then graph it against
     # seven randomly selected days of actual data, normalized first if applicable
     # Get range of all dates for this building
-    start_date = building_data.index[0]
-    end_date = building_data.index[-1]
+    start_date = dctc.START_DATE #building_data.index[0]
+    end_date = dctc.END_DATE #building_data.index[-1]
     all_days =  pd.date_range(start=start_date, end=end_date, freq="d", normalize=True, inclusive="left").tolist()
                 
     # Select random dates to graph
