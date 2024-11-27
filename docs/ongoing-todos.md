@@ -18,3 +18,18 @@
     - This also disallows multiprocessing and multithreading for encrypted data (relies on serializing code + objs)
     - Can retrieve key tags, but not *keys*. Still looking for possible methods to enable this.
     - Maybe pickle is the wrong approach here. SQLite?
+
+---
+
+## DCT averaged, then reconstructed for time period
+
+### Process:
+- Calculate DCT on every day within a time period.
+- Average values for each coefficient; sum all values for coefficient, divide by number of days
+- Reconstruct data from resulting average DCT coefficients
+
+### Notes:
+- For one year, poorly tracks patterns within a day; does show some notable trends, but only weakly
+- For 5-6 months, shows patterns better; reappearance of smaller peaks, slightly stronger tracking of demand
+- For 3 months, patterns noticeably present. Suggestive of seasonal changes affecting year-resolution daily average?
+- For one month, patterns noticeably present; still "softened" from original data, but jagged and shows trends for month's days

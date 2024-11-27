@@ -5,6 +5,8 @@ import numpy as np
 import plotly.express as px
 from random import sample
 from datetime import datetime
+from os.path import exists
+from os import makedirs
 
 import config
 from dct import graph_dct
@@ -64,7 +66,7 @@ def retrieve_and_analyze():
     elif dctc.GRAPH_OVERALL_COEFFICIENT_DIST == True:
         graph_dct.graph_coefficients_as_hist(coefficients)
 
-def MAKE_AVERAGE_DCT_CURVE(building_data, building_id, dct_count, averaged_coefficients):
+def make_average_dct_curve(building_data, building_id, dct_count, averaged_coefficients):
     avg_coefficients = averaged_coefficients / dct_count
     recomposed = perform_dct.recompose(avg_coefficients.values)
     # Recreate a demand curve from the average coefficients, then graph it against
@@ -75,9 +77,12 @@ def MAKE_AVERAGE_DCT_CURVE(building_data, building_id, dct_count, averaged_coeff
     all_days =  pd.date_range(start=start_date, end=end_date, freq="d", normalize=True, inclusive="left").tolist()
                 
     # Select random dates to graph
-    days_to_select = 7 # must be smaller than days in sample
+    days_to_select = dctc.COMPARISON_DATE_SAMPLE_SIZE # must be smaller than days in sample
     random_days = sample(all_days, days_to_select)
     random_days_just_dates = [day.strftime("%Y-%m-%d") for day in random_days] # Cut off times
+    if days_to_select > len(random_days_just_dates):
+        print("Sample size should be less than or equal to days in time period sampled.\nReducing to match days in time period.")
+        days_to_select = len(random_days_just_dates)
     # Grab all times for selected days
     random_days = [pd.date_range(start=date, end=date+pd.Timedelta(1, "d"), \
                                 freq="15min", normalize=True, inclusive="left").tolist() \
@@ -97,11 +102,16 @@ def MAKE_AVERAGE_DCT_CURVE(building_data, building_id, dct_count, averaged_coeff
     actual_building_data = actual_building_data.set_index("Time")
 
     actual_building_data["Averaged DCT"] = recomposed
-    title = 'Building ' + str(building_id) + ' Random Days VS Averaged DCT Reconstruction'
+    title = 'Building ' + str(building_id) + ' VS Averaged DCT Reconstruction from ' + dctc.START_DATE + " to " + dctc.END_DATE
     fig = px.line(actual_building_data, labels={"index": "Time", "value": "Real Power"}, title=title)
     for line in fig.data[0:-1]:
         #line.line.color = "#A9A9A9"
         line.opacity = 0.4
     fig.data[-1].line.color = "red"
-    fig.write_image("data/graphs/building-avg-reconstructed/" + title + ".png")
+    # Save to file
+    save_dir = "data/graphs/" + "building-" + str(building_id) + "/"
+    save_title = "no-weekends-" + dctc.START_DATE + " to " + dctc.END_DATE + '-Building ' + str(building_id) + '-Random-Days-VS-Averaged-DCT-Reconstruction-Normalized'
+    if not exists(save_dir):
+        makedirs(save_dir)
+    fig.write_image(save_dir + save_title + ".png")
     return fig

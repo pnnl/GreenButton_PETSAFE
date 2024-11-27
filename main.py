@@ -44,13 +44,17 @@ def main():
     
     # Create buildings from the data. 
     # Optionally, save them to a pickle file in OUTPUT_DIR/buildings/
+    compare_encryption_times = False
     if config.CREATE_BUILDINGS == True:
+        buildings = cb.make_buildings(config.BUILDING_COUNT, pickle=config.SAVE_AS_PICKLE, seed=config.SEED, encrypt=config.ENCRYPT)
+
+    elif compare_encryption_times == True:
         # Make buildings; both encrypted and decrypted
         # Temp: TODO save this to file instead. this works for now.
         # Current barrier to file saving is pickle's refusal to work with openfhe objects, including keypairs,
         # but no clear methods to save keys and cc obj to file in documentation.
         timer_start = perf_counter()
-        buildings = cb.make_buildings(config.BUILDING_COUNT, pickle=False, seed=config.SEED, encrypt=False)
+        buildings = cb.make_buildings(config.BUILDING_COUNT, pickle=True, seed=config.SEED, encrypt=False)
         timer_end = perf_counter()
         plaintext_processing_time = timer_end - timer_start
 

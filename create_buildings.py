@@ -55,6 +55,7 @@ def choose_random_ids(rng: Optional[int] = None):
     if config.MIN_SIZE == config.MAX_SIZE: # If we want a building of a specific size
         count = config.MIN_SIZE
     else: # If we need to generate the building's unit count within a provided range
+        count = -1
         while count < config.MIN_SIZE or count > config.MAX_SIZE or not count:
             count = int(dist.rvs(loc1=loc1, scale1=scale1, loc2=loc2, scale2=scale2, s=s, size=1)[0]) # Generate building size
     # Get possible IDs to choose from

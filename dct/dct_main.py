@@ -67,8 +67,14 @@ def main():
             # Average coefficients for all buildings
             if dctc.MAKE_DCT_AVG_CURVE == True:
                 print("Averaging building", id)
-                fig = dctra.MAKE_AVERAGE_DCT_CURVE(this_building, id, dct_count, avg_coefficients)
-                fig.show()
+                fig = dctra.make_average_dct_curve(this_building, id, dct_count, avg_coefficients)
+                #fig.show()
+
+                # Stop early to prevent graph spam if we only want to look at building 0 for testing purposes
+                # (Remember to test all to ensure building bias doesn't wind up ingrained into structure!)
+                one_building_only = False
+                if one_building_only == True:
+                    raise SystemExit
 
         if dctc.GRAPH_BY_DAY == True:
             graph_dct.graph_coefficients_as_box_all_buildings(all_building_coefficient_frames,

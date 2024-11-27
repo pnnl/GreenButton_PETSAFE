@@ -5,7 +5,7 @@
 # Read from CSV files into SQLite database
 READ_FILES = False
 # Create virtual buildings using database
-CREATE_BUILDINGS = False
+CREATE_BUILDINGS = True
 # Database file target
 DATABASE = "data/records.db"
 # Set to true if you want to encrypt data before saving to file
@@ -23,7 +23,7 @@ CREATE_STATISTICS = False
 # Set to True if processing encrypted data
 DECRYPT = False
 # Enables all other DCT processing switches in dct/dct_config.py
-PERFORM_DCT = True
+PERFORM_DCT = False
 
 # ----- TEMPORAL RESOLUTION -----
 
@@ -35,24 +35,24 @@ PERFORM_DCT = True
 # "m": month
 # "y": year
 # Not yet re-implemented in full; use with caution
-STAT_TEMPORAL_RESOLUTION = "d"
+STAT_TEMPORAL_RESOLUTION = "f"
 
 # What date range to retrieve statistics for
 LIMIT_DATE = True
-START_DATE = "2023-04-01"
-END_DATE = "2023-04-07"
+START_DATE = "2023-01-01"
+END_DATE = "2023-12-31"
 
 
 # ----- PROCESSING -----
 # How many virtual buildings to make
-BUILDING_COUNT = 1
+BUILDING_COUNT = 10
 # What building ID number to start at
 FIRST_BUILDING_ID = 0
 # Minimum and maximum count of units per building
-MIN_SIZE = 3
-MAX_SIZE = 3
+MIN_SIZE = 2
+MAX_SIZE = 10
 # Percentage of existing records necessary to accept an id as valid
-REQUIRED_PORTION = 0.75 
+REQUIRED_PORTION = 0.9
 
 # Output directory for prepped data
 OUTPUT_DIR = "./output/"
