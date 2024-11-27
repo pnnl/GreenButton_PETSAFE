@@ -5,7 +5,7 @@
 # Read from CSV files into SQLite database
 READ_FILES = False
 # Create virtual buildings using database
-CREATE_BUILDINGS = True
+CREATE_BUILDINGS = False
 # Database file target
 DATABASE = "data/records.db"
 # Set to true if you want to encrypt data before saving to file
@@ -23,7 +23,7 @@ CREATE_STATISTICS = False
 # Set to True if processing encrypted data
 DECRYPT = False
 # Enables all other DCT processing switches in dct/dct_config.py
-PERFORM_DCT = False
+PERFORM_DCT = True
 
 # ----- TEMPORAL RESOLUTION -----
 
@@ -35,7 +35,7 @@ PERFORM_DCT = False
 # "m": month
 # "y": year
 # Not yet re-implemented in full; use with caution
-STAT_TEMPORAL_RESOLUTION = "d"
+STAT_TEMPORAL_RESOLUTION = "f"
 
 # What date range to retrieve statistics for
 LIMIT_DATE = True
