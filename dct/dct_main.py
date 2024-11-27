@@ -5,7 +5,6 @@ import dct.normalization as norm
 import dct.retrieve_and_analyze as dctra
 from dct.unpickle_buildings import unpickle_buildings, unpickle_resample_buildings
 import pandas as pd
-from plotly.subplots import make_subplots
 
 def main():
     if dctc.PERFORM_DCT == True: # Calculate DCT coefficients
@@ -16,6 +15,7 @@ def main():
         else:
             # Just unpickle at saved resolution
             buildings = unpickle_buildings(dctc.BUILDING_DIRECTORY)
+            raise SystemExit
 
         if dctc.NORMALIZE == True: # Normalize the data to values between 0 and 1.
             buildings["real_power"] = norm.normalize(buildings["real_power"])

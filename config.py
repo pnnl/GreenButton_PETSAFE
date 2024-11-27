@@ -35,11 +35,11 @@ PERFORM_DCT = False
 # "m": month
 # "y": year
 # Not yet re-implemented in full; use with caution
-STAT_TEMPORAL_RESOLUTION = "f"
+STAT_TEMPORAL_RESOLUTION = "d"
 
 # What date range to retrieve statistics for
 LIMIT_DATE = True
-START_DATE = "2023-01-01"
+START_DATE = "2022-12-31"
 END_DATE = "2023-12-31"
 
 

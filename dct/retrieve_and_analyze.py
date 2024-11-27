@@ -110,7 +110,7 @@ def make_average_dct_curve(building_data, building_id, dct_count, averaged_coeff
     fig.data[-1].line.color = "red"
     # Save to file
     save_dir = "data/graphs/" + "building-" + str(building_id) + "/"
-    save_title = "no-weekends-" + dctc.START_DATE + " to " + dctc.END_DATE + '-Building ' + str(building_id) + '-Random-Days-VS-Averaged-DCT-Reconstruction-Normalized'
+    save_title = dctc.START_DATE + " to " + dctc.END_DATE + '-Building ' + str(building_id) + '-Random-Days-VS-Averaged-DCT-Reconstruction-Normalized'
     if not exists(save_dir):
         makedirs(save_dir)
     fig.write_image(save_dir + save_title + ".png")

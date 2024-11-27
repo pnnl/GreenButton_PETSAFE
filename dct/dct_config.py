@@ -1,6 +1,6 @@
 # ----- BUILDING SOURCE -----
 
-BUILDING_DIRECTORY = "output/buildings/"
+BUILDING_DIRECTORY = "data/buildings/"
 
 # ----- DCT PROCESSING -----
 
@@ -18,8 +18,8 @@ STORE_DCT = False
 
 # Date limiters
 LIMIT_DATE = True
-START_DATE = "2023-07-03"
-END_DATE = "2023-07-08"
+START_DATE = "2023-01-01"
+END_DATE = "2023-12-31"
 
 # Normalize data to be between 0 and 1 before calculating DCT
 NORMALIZE = True
@@ -46,7 +46,7 @@ DROP_METHOD = "threshold"
 # When graphing against actual demand curves, this determines how
 # many actual days to select as comparison points.
 # Make sure this value is smaller than the sample size.
-COMPARISON_DATE_SAMPLE_SIZE = 5
+COMPARISON_DATE_SAMPLE_SIZE = 7
 
 # ----- DCT OPERATIONS -----
 
