@@ -131,7 +131,7 @@ def drop_coefficients(
         high_freqs = all_freqs[-index_of_drop:]
 
     # Zero all values whose absolute value is below a threshold
-    if dctc.DROP_METHOD.lower() == "threshold":
+    elif dctc.DROP_METHOD.lower() == "threshold":
         thresholds = [-THRESHOLD_VAL, THRESHOLD_VAL]
         print("Zeroing all coefficients with an absolute value below", THRESHOLD_VAL)
         # Zero all values below magnitude threshold
@@ -140,7 +140,7 @@ def drop_coefficients(
                 coefficients_array[coefficients_array == value] = 0
 
     # Zero all high frequency values over a certain portion of the array
-    if dctc.DROP_METHOD.lower() == "drop high":
+    elif dctc.DROP_METHOD.lower() == "drop high":
         print("Zeroing the upper", PORTION_TO_DROP, "of high-frequency coefficients.")
         # Drop high frequency values
         coefficients_array[-index_of_drop:] = 0

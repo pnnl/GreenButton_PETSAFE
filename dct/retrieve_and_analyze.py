@@ -78,11 +78,11 @@ def make_average_dct_curve(building_data, building_id, dct_count, averaged_coeff
                 
     # Select random dates to graph
     days_to_select = dctc.COMPARISON_DATE_SAMPLE_SIZE # must be smaller than days in sample
+    if days_to_select > len(all_days):
+        print("Sample size should be less than or equal to days in time period sampled.\nReducing to match days in time period.")
+        days_to_select = len(all_days)
     random_days = sample(all_days, days_to_select)
     random_days_just_dates = [day.strftime("%Y-%m-%d") for day in random_days] # Cut off times
-    if days_to_select > len(random_days_just_dates):
-        print("Sample size should be less than or equal to days in time period sampled.\nReducing to match days in time period.")
-        days_to_select = len(random_days_just_dates)
     # Grab all times for selected days
     random_days = [pd.date_range(start=date, end=date+pd.Timedelta(1, "d"), \
                                 freq="15min", normalize=True, inclusive="left").tolist() \
@@ -113,5 +113,66 @@ def make_average_dct_curve(building_data, building_id, dct_count, averaged_coeff
     save_title = dctc.START_DATE + " to " + dctc.END_DATE + '-Building ' + str(building_id) + '-Random-Days-VS-Averaged-DCT-Reconstruction-Normalized'
     if not exists(save_dir):
         makedirs(save_dir)
-    fig.write_image(save_dir + save_title + ".png")
-    return fig
+    
+    save_images = False
+    if save_images == True:
+        fig.write_image(save_dir + save_title + ".png")
+
+    return fig, actual_building_data
+
+def DCT_with_DP(avg_frame, building_id, percent_to_drop):
+    actual_days = avg_frame.drop(["Averaged DCT"], axis=1) # Used to reconstruct data from signature
+    actual_avg = avg_frame["Averaged DCT"]
+    # Apply DP to the averaged coefficients
+    # Get coefficients back for the averaged DCT coefficient reconstruction
+    decomposed_dct = perform_dct.decompose(avg_frame["Averaged DCT"])
+    # Apply filter
+    recomposed_dct = perform_dct.drop_coefficients(decomposed_dct, PORTION_TO_DROP=percent_to_drop)
+    # Reconstruct and graph
+    modified_avg = perform_dct.recompose(recomposed_dct)
+    dp_title = "Averaged DCT: drop top " + str(percent_to_drop * 100) + "% coefficients to 0"
+    avg_frame[dp_title] = modified_avg # Place in graph frame
+
+    # Deconstruct data and reconstruct with modified average to see effect on stats
+    for day in actual_days.columns:
+        # Deconstruct to signature
+        day_signature = deconstruct_day_with_dct_avg(actual_days[day], actual_avg)
+        # Reconstruct using modified average with DP applied
+        reconstructed_day = reconstruct_day_with_dct_avg(day_signature, modified_avg)
+        # Add to frame for comparison
+        col_title = day.strftime("%Y-%m-%d") + " reconstructed with modified DCT average"
+        avg_frame[col_title] = reconstructed_day
+
+    title = 'Effects of Averaging DCT Coefficients with and without DP: Building ' + str(building_id) + ', ' + dctc.START_DATE + " to " + dctc.END_DATE
+    fig = px.line(avg_frame, labels={"index": "Time", "value": "Real Power"}, title=title)
+    averaged_dct_line_index = dctc.COMPARISON_DATE_SAMPLE_SIZE + 1
+    for line in fig.data[0:-averaged_dct_line_index]:
+        #line.line.color = "#A9A9A9"
+        line.opacity = 0.4
+    for line in fig.data[-averaged_dct_line_index + 2:]:
+        #line.line.color = "#A9A9A9"
+        line.opacity = 0.4
+    fig.data[-averaged_dct_line_index].line.color = "red"
+    fig.data[-averaged_dct_line_index - 1].line.color = "purple"
+    fig.show()
+
+    save_dir = "data/graphs/" + "building-" + str(building_id) + "/modified-averages/"
+    save_title = "drop-" + str(percent_to_drop) + "-from-" + dctc.START_DATE + " to " + dctc.END_DATE + '-Building ' + \
+        str(building_id) + '-' + str(dctc.COMPARISON_DATE_SAMPLE_SIZE) + "-Random-Days-VS-Averaged-DCT-Reconstruction-Normalized"
+    if not exists(save_dir):
+        makedirs(save_dir)
+    save_images = False
+    if save_images == True:
+        fig.write_image(save_dir + save_title + ".png")
+    raise SystemExit
+
+# Get how a day's power differs from the average for storage
+# day_real_power and day_avg should be Series objects or similar
+def deconstruct_day_with_dct_avg(day_real_power, day_avg):
+    day_signature = day_real_power - day_avg
+    return day_signature
+
+# Reconstruct a day using the average or a modified average.
+# day_signature and day_avg should be Series objects or similar
+def reconstruct_day_with_dct_avg(day_signature, day_avg):
+    return day_signature + day_avg
