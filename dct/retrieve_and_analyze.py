@@ -84,8 +84,8 @@ def make_average_dct_curve(building_data, building_id, dct_count, averaged_coeff
     random_days = sample(all_days, days_to_select)
 
     # UNCOMMENT TO FORCE DATE -----------------
-    forced_date = "2023-07-05"
-    random_days=[datetime.strptime(forced_date, "%Y-%m-%d")]
+    #forced_date = "2023-07-05"
+    #random_days=[datetime.strptime(forced_date, "%Y-%m-%d")]
     # UNCOMMENT TO FORCE DATE -----------------
 
     random_days_just_dates = [day.strftime("%Y-%m-%d") for day in random_days] # Cut off times
@@ -155,26 +155,25 @@ def DCT_with_DP(avg_frame, building_id, percent_to_drop):
                   color_discrete_sequence=px.colors.qualitative.Safe, width=3000)
     averaged_dct_line_index = dctc.COMPARISON_DATE_SAMPLE_SIZE + 1 # Index of average DCT
     for line in fig.data:
-        line.opacity = 0.8
-    for line in fig.data[0:-averaged_dct_line_index]:
-        #line.line.color = "#A9A9A9"
         line.opacity = 0.4
-    for line in fig.data[-averaged_dct_line_index + 2:]:
-        #line.line.color = "#A9A9A9"
-        line.opacity = 0.4
-    fig.data[-averaged_dct_line_index].line.color = "red"
-    fig.data[-averaged_dct_line_index - 1].line.color = "purple"
+    average_dct_line = fig.data[averaged_dct_line_index]
+    dct_after_drop = fig.data[averaged_dct_line_index - 1]
+    average_dct_line.line.color = "red"
+    average_dct_line.opacity = 1
+    dct_after_drop.line.color = "purple"
+    dct_after_drop.opacity = 1
     if building_id == 0:
         pass #fig.show()
 
-    save_dir = "data/graphs/" + "building-" + str(building_id) + "/modified-averages/one-day-in-week/"
+    save_dir = "data/graphs/" + "building-" + str(building_id) + "/modified-averages/one-month/april/"
     save_title = "full-week-drop-top-" + str(percent_to_drop) + "-from-" + dctc.START_DATE + " to " + dctc.END_DATE + '-Building ' + \
         str(building_id) + "-Random-Days-Count-" + str(dctc.COMPARISON_DATE_SAMPLE_SIZE) + "-VS-Averaged-DCT-Reconstruction-Normalized"
     save_images = True
     if save_images == True:
         if not exists(save_dir):
             makedirs(save_dir)
-        fig.write_image(save_dir + save_title + ".png")
+        fig.write_html(save_dir + save_title + ".html")
+        #fig.write_image(save_dir + save_title + ".png")
 
 # Get how a day's power differs from the average for storage
 # day_real_power and day_avg should be Series objects or similar

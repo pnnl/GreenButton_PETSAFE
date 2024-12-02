@@ -4,7 +4,6 @@ import dct.dct_config as dctc
 import dct.normalization as norm
 import dct.retrieve_and_analyze as dctra
 from dct.unpickle_buildings import unpickle_buildings, unpickle_resample_buildings
-import pandas as pd
 
 def main():
     if dctc.PERFORM_DCT == True: # Calculate DCT coefficients
@@ -103,7 +102,9 @@ def main():
 
 # Thanks, multiprocessing
 if __name__ == '__main__':
-    try:
-        main()
+    try: # Test threshold values of interest without having to enter them all by hand
+        for threshold in [0.25, 0.5, 0.75, 0.9, 0.95, 0.965, 0.98]:
+            dctc.HIGH_THRESHOLD = threshold
+            main()
     except KeyboardInterrupt:
         print("Stopping (please wait).")

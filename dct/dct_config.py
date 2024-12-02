@@ -18,8 +18,8 @@ STORE_DCT = False
 
 # Date limiters
 LIMIT_DATE = True
-START_DATE = "2023-07-03"
-END_DATE = "2023-07-08"
+START_DATE = "2023-04-01"
+END_DATE = "2023-04-30"
 
 # Normalize data to be between 0 and 1 before calculating DCT
 NORMALIZE = True
@@ -33,7 +33,7 @@ HIGH_ONLY = False
 # Cutoff point for considering something "high frequency"; e.g.
 # 0.25 treats the top 25% of coefficients as being "high frequency"
 # Must be between 0 and 1
-HIGH_THRESHOLD = 0.97
+HIGH_THRESHOLD = 0.5
 
 # Test different methods of reducing DCT coefficients
 DROP_COEFFICIENTS = False
@@ -46,7 +46,7 @@ DROP_METHOD = "drop high"
 # When graphing against actual demand curves, this determines how
 # many actual days to select as comparison points.
 # Make sure this value is smaller than the sample size.
-COMPARISON_DATE_SAMPLE_SIZE = 1
+COMPARISON_DATE_SAMPLE_SIZE = 7
 
 # ----- DCT OPERATIONS -----
 
