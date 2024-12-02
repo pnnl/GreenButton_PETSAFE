@@ -82,6 +82,12 @@ def make_average_dct_curve(building_data, building_id, dct_count, averaged_coeff
         print("Sample size should be less than or equal to days in time period sampled.\nReducing to match days in time period.")
         days_to_select = len(all_days)
     random_days = sample(all_days, days_to_select)
+
+    # UNCOMMENT TO FORCE DATE -----------------
+    forced_date = "2023-07-05"
+    random_days=[datetime.strptime(forced_date, "%Y-%m-%d")]
+    # UNCOMMENT TO FORCE DATE -----------------
+
     random_days_just_dates = [day.strftime("%Y-%m-%d") for day in random_days] # Cut off times
     # Grab all times for selected days
     random_days = [pd.date_range(start=date, end=date+pd.Timedelta(1, "d"), \
@@ -142,10 +148,14 @@ def DCT_with_DP(avg_frame, building_id, percent_to_drop):
         # Add to frame for comparison
         col_title = day.strftime("%Y-%m-%d") + " reconstructed with modified DCT average"
         avg_frame[col_title] = reconstructed_day
+        avg_frame[day.strftime("%Y-%m-%d") + " Minus Actual DCT Average"] = day_signature
 
     title = 'Effects of Averaging DCT Coefficients with and without DP: Building ' + str(building_id) + ', ' + dctc.START_DATE + " to " + dctc.END_DATE
-    fig = px.line(avg_frame, labels={"index": "Time", "value": "Real Power"}, title=title)
-    averaged_dct_line_index = dctc.COMPARISON_DATE_SAMPLE_SIZE + 1
+    fig = px.line(avg_frame, labels={"index": "Time", "value": "Real Power"}, title=title, \
+                  color_discrete_sequence=px.colors.qualitative.Safe, width=3000)
+    averaged_dct_line_index = dctc.COMPARISON_DATE_SAMPLE_SIZE + 1 # Index of average DCT
+    for line in fig.data:
+        line.opacity = 0.8
     for line in fig.data[0:-averaged_dct_line_index]:
         #line.line.color = "#A9A9A9"
         line.opacity = 0.4
@@ -154,17 +164,17 @@ def DCT_with_DP(avg_frame, building_id, percent_to_drop):
         line.opacity = 0.4
     fig.data[-averaged_dct_line_index].line.color = "red"
     fig.data[-averaged_dct_line_index - 1].line.color = "purple"
-    fig.show()
+    if building_id == 0:
+        pass #fig.show()
 
-    save_dir = "data/graphs/" + "building-" + str(building_id) + "/modified-averages/"
-    save_title = "drop-" + str(percent_to_drop) + "-from-" + dctc.START_DATE + " to " + dctc.END_DATE + '-Building ' + \
-        str(building_id) + '-' + str(dctc.COMPARISON_DATE_SAMPLE_SIZE) + "-Random-Days-VS-Averaged-DCT-Reconstruction-Normalized"
-    if not exists(save_dir):
-        makedirs(save_dir)
-    save_images = False
+    save_dir = "data/graphs/" + "building-" + str(building_id) + "/modified-averages/one-day-in-week/"
+    save_title = "full-week-drop-top-" + str(percent_to_drop) + "-from-" + dctc.START_DATE + " to " + dctc.END_DATE + '-Building ' + \
+        str(building_id) + "-Random-Days-Count-" + str(dctc.COMPARISON_DATE_SAMPLE_SIZE) + "-VS-Averaged-DCT-Reconstruction-Normalized"
+    save_images = True
     if save_images == True:
+        if not exists(save_dir):
+            makedirs(save_dir)
         fig.write_image(save_dir + save_title + ".png")
-    raise SystemExit
 
 # Get how a day's power differs from the average for storage
 # day_real_power and day_avg should be Series objects or similar

@@ -33,7 +33,7 @@ HIGH_ONLY = False
 # Cutoff point for considering something "high frequency"; e.g.
 # 0.25 treats the top 25% of coefficients as being "high frequency"
 # Must be between 0 and 1
-HIGH_THRESHOLD = 0.25
+HIGH_THRESHOLD = 0.97
 
 # Test different methods of reducing DCT coefficients
 DROP_COEFFICIENTS = False
