@@ -46,7 +46,10 @@ DROP_METHOD = "drop high"
 # When graphing against actual demand curves, this determines how
 # many actual days to select as comparison points.
 # Make sure this value is smaller than the sample size.
-COMPARISON_DATE_SAMPLE_SIZE = 2
+COMPARISON_DATE_SAMPLE_SIZE = 7
+
+# Whether to print additional debug information to console
+PRINT_DEBUG = False
 
 # ----- DCT OPERATIONS -----
 

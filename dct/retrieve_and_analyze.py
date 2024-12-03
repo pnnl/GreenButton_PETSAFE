@@ -82,7 +82,8 @@ def make_average_dct_curve(building_data, building_id, dct_count, averaged_coeff
     # Select random dates to graph
     days_to_select = dctc.COMPARISON_DATE_SAMPLE_SIZE # must be smaller than days in sample
     if days_to_select > len(all_days):
-        print("Sample size should be less than or equal to days in time period sampled.\nReducing to match days in time period.")
+        if dctc.PRINT_DEBUG == True:
+            print("Sample size should be less than or equal to days in time period sampled.\nReducing to match days in time period.")
         days_to_select = len(all_days)
     random_days = sample(all_days, days_to_select)
 
@@ -159,7 +160,8 @@ def DCT_with_DP(avg_frame, building_id, percent_to_drop):
         reconstructed_day = reconstruct_day_with_dct_avg(day_signature, modified_avg)
         # Get RMSE for the day
         day_rmse = rmse(actual_days[day].values, reconstructed_day.values)
-        print(f"RMSE for Building {building_id}, drop {percent_to_drop * 100}% on {day}: {day_rmse}")
+        if dctc.PRINT_DEBUG == True:
+            print(f"RMSE for Building {building_id}, drop {percent_to_drop * 100}% on {day}: {day_rmse}")
         rmse_per_day[day] = day_rmse
         # Add to frame for comparison
         col_title = day.strftime("%Y-%m-%d") + " reconstructed with modified DCT average"

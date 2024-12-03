@@ -133,7 +133,8 @@ def drop_coefficients(
     # Zero all values whose absolute value is below a threshold
     elif dctc.DROP_METHOD.lower() == "threshold":
         thresholds = [-THRESHOLD_VAL, THRESHOLD_VAL]
-        print("Zeroing all coefficients with an absolute value below", THRESHOLD_VAL)
+        if dctc.PRINT_DEBUG == True:
+            print("Zeroing all coefficients with an absolute value below", THRESHOLD_VAL)
         # Zero all values below magnitude threshold
         for value in coefficients_array:
             if value > thresholds[0] and value < thresholds[1]:
@@ -141,7 +142,8 @@ def drop_coefficients(
 
     # Zero all high frequency values over a certain portion of the array
     elif dctc.DROP_METHOD.lower() == "drop high":
-        print("Zeroing the upper", PORTION_TO_DROP, "of high-frequency coefficients.")
+        if dctc.PRINT_DEBUG == True:
+            print("Zeroing the upper", PORTION_TO_DROP, "of high-frequency coefficients.")
         # Drop high frequency values
         coefficients_array[-index_of_drop:] = 0
 
@@ -152,13 +154,15 @@ def drop_coefficients(
             # TODO: deal with duplicate maxes
             high_freqs = np.delete(high_freqs, np.where(high_freqs == value_to_keep))
             keep_position = np.where(all_freqs == value_to_keep)
-            print("Keeping", value_to_keep, "at", keep_position)
+            if dctc.PRINT_DEBUG == True:
+                print("Keeping", value_to_keep, "at", keep_position)
             coefficients_array[keep_position] = value_to_keep
 
     else:
-        print("Keeping all coefficients.")
-    #print(coefficients_array)
-    print("Coefficient adjustment done.")
+        if dctc.PRINT_DEBUG == True:
+            print("Keeping all coefficients.")
+    if dctc.PRINT_DEBUG == True:
+        print("Coefficient adjustment done.")
     return coefficients_array
 
 # Perform DCT on each day of data in frame;
@@ -215,7 +219,8 @@ def compare_averages(recomposed_data, original_data):
 # to make it easier to retrieve coefficients made with specific method
 def save_to_file(coefficients, building_id, subdir):
     filename = "Building-" + str(building_id) + "-coefficients.pkl"
-    print("Saving DCT coefficients to pickle file at", filename)
+    if dctc.PRINT_DEBUG == True:
+        print("Saving DCT coefficients to pickle file at", filename)
     # Set directory path of output- output directory in config + "buildings" subdirectory
     dirpath = OUTPUT_DIR + "/coefficients/"
     if dctc.DCT_ONE_DAY == True:
