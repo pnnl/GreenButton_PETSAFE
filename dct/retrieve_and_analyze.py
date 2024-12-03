@@ -15,6 +15,9 @@ from list_files import list_files_in_dir
 
 from dct import perform_dct
 
+# https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+pd.options.mode.copy_on_write = True
+
 def prep_filepath():
     # Fix left-off trailing slash
     if config.OUTPUT_DIR[-1] != "/":
@@ -88,17 +91,25 @@ def make_average_dct_curve(building_data, building_id, dct_count, averaged_coeff
     #random_days=[datetime.strptime(forced_date, "%Y-%m-%d")]
     # UNCOMMENT TO FORCE DATE -----------------
 
-    random_days_just_dates = [day.strftime("%Y-%m-%d") for day in random_days] # Cut off times
-    # Grab all times for selected days
-    random_days = [pd.date_range(start=date, end=date+pd.Timedelta(1, "d"), \
-                                freq="15min", normalize=True, inclusive="left").tolist() \
-                                for date in random_days]
-    random_days = sum(random_days, [])
-    random_days = [day.strftime("%Y-%m-%d %H:%M") for day in random_days]
-    random_data = building_data.query(f"index in {random_days}")
+    random_days.sort() # Ensures dates are in chronological order
+    # Get the data for the randomly sampled days
+    # Old ver: random_data = building_data.query(f"index in {random_days}")
+    # Reworked because type mismatches in isin will be deprecated, but we can't coerce index
+    # to a string within a query fstring, and adding a whole column just to remove it later
+    # seems unnecessary. There probably is still a better way to handle this: TODO find it.
+    # For now, this works.
+    for date in random_days:
+        date = date.date()
+        next_day = date+pd.Timedelta(1, "d")
+        if "random_data" not in locals():
+            random_data = building_data[date:next_day].iloc[:-1] # No right inclusion
+        else:
+            slice = building_data[date:next_day].iloc[:-1] # No right inclusion
+            random_data = random_data._append(slice)
+
     random_data["Date"] = random_data.index.date
-    for day in random_days_just_dates:   
-        day = datetime.strptime(day,'%Y-%m-%d').date()
+    for day in random_days:   
+        day = day.date()
         day_data = random_data[random_data["Date"] == day]
         if "actual_building_data" not in locals():
             actual_building_data = pd.DataFrame()
@@ -165,7 +176,7 @@ def DCT_with_DP(avg_frame, building_id, percent_to_drop):
     if building_id == 0:
         pass #fig.show()
 
-    save_dir = "data/graphs/" + "building-" + str(building_id) + "/modified-averages/one-month/april/"
+    save_dir = "data/graphs/" + "building-" + str(building_id) + "/modified-averages/quarterly/oct-dec/"
     save_title = "full-week-drop-top-" + str(percent_to_drop) + "-from-" + dctc.START_DATE + " to " + dctc.END_DATE + '-Building ' + \
         str(building_id) + "-Random-Days-Count-" + str(dctc.COMPARISON_DATE_SAMPLE_SIZE) + "-VS-Averaged-DCT-Reconstruction-Normalized"
     save_images = True
