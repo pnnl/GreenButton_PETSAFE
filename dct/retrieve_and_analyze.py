@@ -4,9 +4,9 @@ import numpy as np
 
 import plotly.express as px
 from random import sample
-from datetime import datetime
 from os.path import exists
 from os import makedirs
+from sklearn.metrics import root_mean_squared_error as rmse
 
 import config
 from dct import graph_dct
@@ -151,11 +151,16 @@ def DCT_with_DP(avg_frame, building_id, percent_to_drop):
     avg_frame[dp_title] = modified_avg # Place in graph frame
 
     # Deconstruct data and reconstruct with modified average to see effect on stats
+    rmse_per_day = {}
     for day in actual_days.columns:
         # Deconstruct to signature
         day_signature = deconstruct_day_with_dct_avg(actual_days[day], actual_avg)
         # Reconstruct using modified average with DP applied
         reconstructed_day = reconstruct_day_with_dct_avg(day_signature, modified_avg)
+        # Get RMSE for the day
+        day_rmse = rmse(actual_days[day].values, reconstructed_day.values)
+        print(f"RMSE for Building {building_id}, drop {percent_to_drop * 100}% on {day}: {day_rmse}")
+        rmse_per_day[day] = day_rmse
         # Add to frame for comparison
         col_title = day.strftime("%Y-%m-%d") + " reconstructed with modified DCT average"
         avg_frame[col_title] = reconstructed_day
@@ -185,6 +190,7 @@ def DCT_with_DP(avg_frame, building_id, percent_to_drop):
             makedirs(save_dir)
         fig.write_html(save_dir + save_title + ".html")
         #fig.write_image(save_dir + save_title + ".png")
+    return rmse_per_day
 
 # Get how a day's power differs from the average for storage
 # day_real_power and day_avg should be Series objects or similar
