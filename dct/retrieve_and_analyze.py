@@ -186,7 +186,7 @@ def DCT_with_DP(avg_frame, building_id, percent_to_drop):
     save_dir = "data/graphs/" + "building-" + str(building_id) + "/modified-averages/quarterly/oct-dec/"
     save_title = "full-week-drop-top-" + str(percent_to_drop) + "-from-" + dctc.START_DATE + " to " + dctc.END_DATE + '-Building ' + \
         str(building_id) + "-Random-Days-Count-" + str(dctc.COMPARISON_DATE_SAMPLE_SIZE) + "-VS-Averaged-DCT-Reconstruction-Normalized"
-    save_images = True
+    save_images = False
     if save_images == True:
         if not exists(save_dir):
             makedirs(save_dir)

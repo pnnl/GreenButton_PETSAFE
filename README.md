@@ -52,40 +52,19 @@ To set the date range, change `START_DATE` and `END_DATE` in config.py. Their va
     dec_power_sum = decryptor.decrypt_target(enc_power_sum)
 
 ## Calculate sum and average of real power for a building
-    building_id = 1
-    power_sum_building_1 = reader.get_building_power_sum(building_id)
-    power_avg_building_1 = reader.get_building_power_avg(building_id)
+    Needs to be updated for new mechanisms; TODO
 
 ---
 
 # Module Arguments
 
-## MeterDataParser
-- `file (str)`: a path to a file to process. Required.
-- `seed (int)`: a seed to initialize prng. Optional, default randomly chosen.
-- `building_size (int > 3)`: the number of sites to aggregate into a building. Optional, default `8`. Ignored if `distribution` is provided.
-- `distribution`: A probability distribution for building sizes. Optional, default None.
-- `key_location (str)`: the directory to store encryption keys in. Optional, default `"./keys/"`
-- `algorithm (str)`: the algorithm to use for encryption. Any additively homomorphic algorithm offered by LightPHE may be provided. Optional, default `"EllipticCurve-ElGamal"`.
-- `key_length (int)`: the length in bits of encryption keys. Optional, default `521`. This value should be changed to match recommendations for the chosen algorithm.
-- `decimal_places (int > 0)`: the number of decimal places to keep for encrypted data; many encryption algorithms do not work with floats, so this value is used to convert to integers without undesired loss of precision. Optional, default is `5`.
-- `encrypt (boolean)`: whether to encrypt data homomorphically. Default `True`.
-
-## Reader
-- `start_date (str)`: the start date of the period to read data for. Should be formatted as `"YYYY-MM-DD"`, eg. `"2023-12-01"`.
-- `end_date (str)`: the end date of the period to read data for. Optional, default is `None`. If not provided, the entire year listed in `start_date` will be read.
-
-## Decryptor
-- `key_location (str)`: the directory to read encryption keys from. Optional, default `"./keys/"`
-- `algorithm (str)`: the algorithm to use for decryption. Any additively homomorphic algorithm offered by LightPHE may be provided. Should match the value given to MeterDataParser when processing the data. Optional, default `"EllipticCurve-ElGamal"`.
-- `decimal_places (int > 0)`: the number of decimal places to keep for encrypted data; many encryption algorithms do not work with floats, so this value is used to convert from integers back to floats. Should match the value given to MeterDataParser when processing the data. Optional, default is `5`.
+TODO
 
 ---
 
 # Required packages
     lightphe
     pandas
-    multiprocessing
     typing
     matplotlib
     math
