@@ -21,7 +21,7 @@ DROP_HIGH = False
 PORTION_TO_DROP = 3/4
 
 KEEP_LARGEST_HIGH = False
-NUMBER_OF_LARGEST = 5
+NUMBER_OF_LARGEST = dctc.NUMBER_OF_LARGEST
 
 # Break data into cosine functions using DCT. Outputs an array of coefficients.
 def decompose(
@@ -141,7 +141,7 @@ def drop_coefficients(
                 coefficients_array[coefficients_array == value] = 0
 
     # Zero all high frequency values over a certain portion of the array
-    elif dctc.DROP_METHOD.lower() == "drop high":
+    if dctc.DROP_METHOD.lower() in ["drop high", "drop high keep max"]:
         if dctc.PRINT_DEBUG == True:
             print("Zeroing the upper", PORTION_TO_DROP, "of high-frequency coefficients.")
         # Drop high frequency values

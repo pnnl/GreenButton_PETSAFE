@@ -2,6 +2,7 @@ import pandas as pd
 import pickle
 import numpy as np
 from datetime import datetime
+from typing import Optional
 
 import plotly.express as px
 from random import sample
@@ -139,7 +140,14 @@ def make_average_dct_curve(building_data, building_id, dct_count, averaged_coeff
 
     return fig, actual_building_data
 
-def DCT_with_DP(avg_frame, dp_column, building_id, percent_to_drop):
+def DCT_with_DP(
+        avg_frame, 
+        dp_column, 
+        building_id, 
+        percent_to_drop: Optional[float] = 0,
+        keep_highest: Optional[int] = 0,
+        threshold: Optional[float] = 0
+        ):
     actual_days = avg_frame.drop(["Averaged DCT"], axis=1) # Used to reconstruct data from signature
     actual_avg = avg_frame["Averaged DCT"]
 
@@ -147,8 +155,8 @@ def DCT_with_DP(avg_frame, dp_column, building_id, percent_to_drop):
     modify_avg = False
     modify_day_signature = True
     save_images = True
-    dirname = "/modified-actual-minus-average/one-day-in-week/drop-highest/"
-    filename = "no-weekends-drop-top-" + str(percent_to_drop)
+    dirname = "/modified-actual-minus-average/one-day-in-week/drop-highest-keep-largest-n/drop-top-" + str(percent_to_drop * 100) + "/"
+    filename = "no-weekends-drop-top-" + str(percent_to_drop) + "-keep-largest-" + str(dctc.NUMBER_OF_LARGEST)
     graph_title = 'Effects of DCT Lowpass Filtering on Actual - Average Real Power and Its Reconstruction:'
 
     if modify_avg == True:
@@ -172,10 +180,12 @@ def DCT_with_DP(avg_frame, dp_column, building_id, percent_to_drop):
 
         if modify_day_signature == True:
             decomposed_sig = perform_dct.decompose(day_signature)
-            modified_sig_coeffs = perform_dct.drop_coefficients(decomposed_sig, PORTION_TO_DROP=percent_to_drop)
+            modified_sig_coeffs = perform_dct.drop_coefficients(decomposed_sig, PORTION_TO_DROP=percent_to_drop, NUMBER_OF_LARGEST=keep_highest)
+            print(modified_sig_coeffs)
+            raise SystemExit
             recomposed_sig = perform_dct.recompose(modified_sig_coeffs)
             reconstructed_day = reconstruct_day_with_dct_avg(recomposed_sig, modified_avg)
-            avg_frame["Modified Actual Minus Average: Zero Top " + str(percent_to_drop * 100) + "%"] = recomposed_sig
+            avg_frame["Modified Actual Minus Average: Zero Top " + str(percent_to_drop * 100) + "%, Keep Largest " + str(keep_highest)] = recomposed_sig
         else:
             # Reconstruct using modified average with DP applied
             reconstructed_day = reconstruct_day_with_dct_avg(day_signature, modified_avg)

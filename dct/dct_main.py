@@ -70,7 +70,7 @@ def main():
                     print("Averaging building", id)
                 fig, avg_frame = dctra.make_average_dct_curve(this_building, id, dct_count, avg_coefficients)
                 if dctc.DCT_AVG_DP == True:
-                    rmse = dctra.DCT_with_DP(avg_frame, "Averaged DCT", id, percent_to_drop=dctc.HIGH_THRESHOLD)
+                    rmse = dctra.DCT_with_DP(avg_frame, "Averaged DCT", id, percent_to_drop=dctc.HIGH_THRESHOLD, keep_highest=dctc.NUMBER_OF_LARGEST)
                     average_rmse = 0
                     for day in rmse:
                         average_rmse += rmse[day]
@@ -121,8 +121,10 @@ if __name__ == '__main__':
     # Yes, this should go in main(). Yes, I intend to rework it eventually to make that happen. TODO.
     print(f"Time resolution for DCT averaging: {dctc.START_DATE} to {dctc.END_DATE}")
     try: # Test threshold values of interest without having to enter them all by hand
-        for threshold in [0.65, 0.7, 0.75]: # 0.25, 0.5, 0.75, 0.9, 0.95, 0.98]:
-            dctc.HIGH_THRESHOLD = threshold
-            main()
+        #for threshold in [0.25, 0.5, 0.65, 0.7, 0.75, 0.9]: # 0.25, 0.5, 0.75, 0.9, 0.95, 0.98]:
+        #    dctc.HIGH_THRESHOLD = threshold
+        #    for keep_largest in [1, 2, 5, 10]:
+        #        dctc.NUMBER_OF_LARGEST = keep_largest
+                main()
     except KeyboardInterrupt:
         print("Stopping (please wait).")
