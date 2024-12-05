@@ -182,7 +182,6 @@ def DCT_with_DP(
             decomposed_sig = perform_dct.decompose(day_signature)
             modified_sig_coeffs = perform_dct.drop_coefficients(decomposed_sig, PORTION_TO_DROP=percent_to_drop, NUMBER_OF_LARGEST=keep_highest)
             print(modified_sig_coeffs)
-            raise SystemExit
             recomposed_sig = perform_dct.recompose(modified_sig_coeffs)
             reconstructed_day = reconstruct_day_with_dct_avg(recomposed_sig, modified_avg)
             avg_frame["Modified Actual Minus Average: Zero Top " + str(percent_to_drop * 100) + "%, Keep Largest " + str(keep_highest)] = recomposed_sig
