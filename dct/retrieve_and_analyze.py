@@ -147,7 +147,7 @@ def DCT_with_DP(avg_frame, dp_column, building_id, percent_to_drop):
     modify_avg = False
     modify_day_signature = True
     save_images = True
-    dirname = "/modified-actual-minus-average/one-day-in-week/"
+    dirname = "/modified-actual-minus-average/one-day-in-week/drop-highest/"
     filename = "no-weekends-drop-top-" + str(percent_to_drop)
     graph_title = 'Effects of DCT Lowpass Filtering on Actual - Average Real Power and Its Reconstruction:'
 
