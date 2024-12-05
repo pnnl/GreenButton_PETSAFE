@@ -15,7 +15,7 @@ import dct.dct_config as dctc
 DCT_TYPE = 2
 
 DROP_BELOW_THRESHOLD = False
-THRESHOLD_VAL = 1
+THRESHOLD_VAL = dctc.DROP_THRESHOLD
 
 DROP_HIGH = False
 PORTION_TO_DROP = 3/4

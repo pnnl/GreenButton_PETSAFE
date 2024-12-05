@@ -70,7 +70,8 @@ def main():
                     print("Averaging building", id)
                 fig, avg_frame = dctra.make_average_dct_curve(this_building, id, dct_count, avg_coefficients)
                 if dctc.DCT_AVG_DP == True:
-                    rmse = dctra.DCT_with_DP(avg_frame, "Averaged DCT", id, percent_to_drop=dctc.HIGH_THRESHOLD, keep_highest=dctc.NUMBER_OF_LARGEST)
+                    rmse = dctra.DCT_with_DP(avg_frame, "Averaged DCT", id, \
+                                             percent_to_drop=dctc.HIGH_THRESHOLD, keep_highest=dctc.NUMBER_OF_LARGEST, threshold=dctc.DROP_THRESHOLD)
                     average_rmse = 0
                     for day in rmse:
                         average_rmse += rmse[day]
@@ -90,7 +91,8 @@ def main():
             for rmse in all_rmse:
                 all_buildings_rmse_average += rmse
             all_buildings_rmse_average = all_buildings_rmse_average / len(all_rmse)
-            print(f"RMSE average for drop {dctc.HIGH_THRESHOLD * 100}%: {all_buildings_rmse_average}")
+            print(f"RMSE average: {all_buildings_rmse_average}")
+            #print(f"RMSE average for drop {dctc.HIGH_THRESHOLD * 100}%: {all_buildings_rmse_average}")
 
         if dctc.GRAPH_BY_DAY == True:
             graph_dct.graph_coefficients_as_box_all_buildings(all_building_coefficient_frames,
@@ -121,10 +123,11 @@ if __name__ == '__main__':
     # Yes, this should go in main(). Yes, I intend to rework it eventually to make that happen. TODO.
     print(f"Time resolution for DCT averaging: {dctc.START_DATE} to {dctc.END_DATE}")
     try: # Test threshold values of interest without having to enter them all by hand
-        for threshold in [0.25, 0.5, 0.65, 0.7, 0.75, 0.9]: # 0.25, 0.5, 0.75, 0.9, 0.95, 0.98]:
-            dctc.HIGH_THRESHOLD = threshold
-            for keep_largest in [1, 2, 5, 10]:
-                dctc.NUMBER_OF_LARGEST = keep_largest
-                main()
+        for threshold in [1, 2, 4, 8, 16, 32]:#[0.25, 0.5, 0.65, 0.7, 0.75, 0.9]: # 0.25, 0.5, 0.75, 0.9, 0.95, 0.98]:
+            #dctc.HIGH_THRESHOLD = threshold
+            dctc.DROP_THRESHOLD = threshold
+            #for keep_largest in [1, 2, 5, 10]:
+            #    dctc.NUMBER_OF_LARGEST = keep_largest
+            main()
     except KeyboardInterrupt:
         print("Stopping (please wait).")

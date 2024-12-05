@@ -41,10 +41,13 @@ DROP_COEFFICIENTS = False
 # "threshold"
 # "drop high"
 # "drop high keep max"
-DROP_METHOD = "drop high keep max"
+DROP_METHOD = "threshold"
 
 # If using drop high keep max: how many largest coefficients to keep
 NUMBER_OF_LARGEST = 5
+
+# If using threshold: at what value and below to drop coefficients to 0
+DROP_THRESHOLD = 10
 
 # When graphing against actual demand curves, this determines how
 # many actual days to select as comparison points.
@@ -52,7 +55,7 @@ NUMBER_OF_LARGEST = 5
 COMPARISON_DATE_SAMPLE_SIZE = 1
 
 # Whether to print additional debug information to console
-PRINT_DEBUG = True
+PRINT_DEBUG = False
 
 # ----- DCT OPERATIONS -----
 
