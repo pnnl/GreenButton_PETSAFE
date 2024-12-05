@@ -1,6 +1,7 @@
 import pandas as pd
 import pickle
 import numpy as np
+from datetime import datetime
 
 import plotly.express as px
 from random import sample
@@ -88,8 +89,8 @@ def make_average_dct_curve(building_data, building_id, dct_count, averaged_coeff
     random_days = sample(all_days, days_to_select)
 
     # UNCOMMENT TO FORCE DATE -----------------
-    #forced_date = "2023-07-05"
-    #random_days=[datetime.strptime(forced_date, "%Y-%m-%d")]
+    forced_date = "2023-07-05"
+    random_days=[datetime.strptime(forced_date, "%Y-%m-%d")]
     # UNCOMMENT TO FORCE DATE -----------------
 
     random_days.sort() # Ensures dates are in chronological order
@@ -138,37 +139,58 @@ def make_average_dct_curve(building_data, building_id, dct_count, averaged_coeff
 
     return fig, actual_building_data
 
-def DCT_with_DP(avg_frame, building_id, percent_to_drop):
+def DCT_with_DP(avg_frame, dp_column, building_id, percent_to_drop):
     actual_days = avg_frame.drop(["Averaged DCT"], axis=1) # Used to reconstruct data from signature
     actual_avg = avg_frame["Averaged DCT"]
-    # Apply DP to the averaged coefficients
-    # Get coefficients back for the averaged DCT coefficient reconstruction
-    decomposed_dct = perform_dct.decompose(avg_frame["Averaged DCT"])
-    # Apply filter
-    recomposed_dct = perform_dct.drop_coefficients(decomposed_dct, PORTION_TO_DROP=percent_to_drop)
-    # Reconstruct and graph
-    modified_avg = perform_dct.recompose(recomposed_dct)
-    dp_title = "Averaged DCT: drop top " + str(percent_to_drop * 100) + "% coefficients to 0"
-    avg_frame[dp_title] = modified_avg # Place in graph frame
+
+    # OPERATIONS
+    modify_avg = False
+    modify_day_signature = True
+    save_images = True
+    dirname = "/modified-actual-minus-average/one-day-in-week/"
+    filename = "no-weekends-drop-top-" + str(percent_to_drop)
+    graph_title = 'Effects of DCT Lowpass Filtering on Actual - Average Real Power and Its Reconstruction:'
+
+    if modify_avg == True:
+        # Apply DP to the averaged coefficients
+        # Get coefficients back for the averaged DCT coefficient reconstruction
+        decomposed_dct = perform_dct.decompose(avg_frame[dp_column])
+        # Apply filter
+        recomposed_dct = perform_dct.drop_coefficients(decomposed_dct, PORTION_TO_DROP=percent_to_drop)
+        # Reconstruct and graph
+        modified_avg = perform_dct.recompose(recomposed_dct)
+        dp_title = "Averaged DCT: drop top " + str(percent_to_drop * 100) + "% coefficients to 0"
+        avg_frame[dp_title] = modified_avg # Place in graph frame
+    else:
+        modified_avg = avg_frame[dp_column] # No changes made
 
     # Deconstruct data and reconstruct with modified average to see effect on stats
     rmse_per_day = {}
     for day in actual_days.columns:
         # Deconstruct to signature
         day_signature = deconstruct_day_with_dct_avg(actual_days[day], actual_avg)
-        # Reconstruct using modified average with DP applied
-        reconstructed_day = reconstruct_day_with_dct_avg(day_signature, modified_avg)
+
+        if modify_day_signature == True:
+            decomposed_sig = perform_dct.decompose(day_signature)
+            modified_sig_coeffs = perform_dct.drop_coefficients(decomposed_sig, PORTION_TO_DROP=percent_to_drop)
+            recomposed_sig = perform_dct.recompose(modified_sig_coeffs)
+            reconstructed_day = reconstruct_day_with_dct_avg(recomposed_sig, modified_avg)
+            avg_frame["Modified Actual Minus Average: Zero Top " + str(percent_to_drop * 100) + "%"] = recomposed_sig
+        else:
+            # Reconstruct using modified average with DP applied
+            reconstructed_day = reconstruct_day_with_dct_avg(day_signature, modified_avg)
+
         # Get RMSE for the day
         day_rmse = rmse(actual_days[day].values, reconstructed_day.values)
         if dctc.PRINT_DEBUG == True:
             print(f"RMSE for Building {building_id}, drop {percent_to_drop * 100}% on {day}: {day_rmse}")
         rmse_per_day[day] = day_rmse
         # Add to frame for comparison
-        col_title = day.strftime("%Y-%m-%d") + " reconstructed with modified DCT average"
+        col_title = day.strftime("%Y-%m-%d") + " reconstructed with modified coefficients"
         avg_frame[col_title] = reconstructed_day
         avg_frame[day.strftime("%Y-%m-%d") + " Minus Actual DCT Average"] = day_signature
 
-    title = 'Effects of Averaging DCT Coefficients with and without DP: Building ' + str(building_id) + ', ' + dctc.START_DATE + " to " + dctc.END_DATE
+    title = graph_title + ' Building ' + str(building_id) + ', ' + dctc.START_DATE + " to " + dctc.END_DATE
     fig = px.line(avg_frame, labels={"index": "Time", "value": "Real Power"}, title=title, \
                   color_discrete_sequence=px.colors.qualitative.Safe, width=3000)
     averaged_dct_line_index = dctc.COMPARISON_DATE_SAMPLE_SIZE + 1 # Index of average DCT
@@ -181,12 +203,11 @@ def DCT_with_DP(avg_frame, building_id, percent_to_drop):
     dct_after_drop.line.color = "purple"
     dct_after_drop.opacity = 1
     if building_id == 0:
-        pass #fig.show()
+        fig.show()
 
-    save_dir = "data/graphs/" + "building-" + str(building_id) + "/modified-averages/quarterly/oct-dec/"
-    save_title = "full-week-drop-top-" + str(percent_to_drop) + "-from-" + dctc.START_DATE + " to " + dctc.END_DATE + '-Building ' + \
+    save_dir = "data/graphs/" + "building-" + str(building_id) + dirname
+    save_title = filename + "-from-" + dctc.START_DATE + " to " + dctc.END_DATE + '-Building ' + \
         str(building_id) + "-Random-Days-Count-" + str(dctc.COMPARISON_DATE_SAMPLE_SIZE) + "-VS-Averaged-DCT-Reconstruction-Normalized"
-    save_images = False
     if save_images == True:
         if not exists(save_dir):
             makedirs(save_dir)
