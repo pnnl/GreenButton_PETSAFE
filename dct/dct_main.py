@@ -123,9 +123,9 @@ if __name__ == '__main__':
     # Yes, this should go in main(). Yes, I intend to rework it eventually to make that happen. TODO.
     print(f"Time resolution for DCT averaging: {dctc.START_DATE} to {dctc.END_DATE}")
     try: # Test threshold values of interest without having to enter them all by hand
-        for threshold in [1, 2, 4, 8, 16, 32]:#[0.25, 0.5, 0.65, 0.7, 0.75, 0.9]: # 0.25, 0.5, 0.75, 0.9, 0.95, 0.98]:
-            #dctc.HIGH_THRESHOLD = threshold
-            dctc.DROP_THRESHOLD = threshold
+        for threshold in [0.5, 0.6, 0.65, 0.7, 0.75]: #[0.25, 0.5, 0.65, 0.7, 0.75, 0.9]:
+            dctc.HIGH_THRESHOLD = threshold
+            #dctc.DROP_THRESHOLD = threshold
             #for keep_largest in [1, 2, 5, 10]:
             #    dctc.NUMBER_OF_LARGEST = keep_largest
             main()

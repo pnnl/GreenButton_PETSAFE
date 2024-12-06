@@ -90,8 +90,8 @@ def make_average_dct_curve(building_data, building_id, dct_count, averaged_coeff
     random_days = sample(all_days, days_to_select)
 
     # UNCOMMENT TO FORCE DATE -----------------
-    forced_date = "2023-07-05"
-    random_days=[datetime.strptime(forced_date, "%Y-%m-%d")]
+    #forced_date = "2023-07-05"
+    #random_days=[datetime.strptime(forced_date, "%Y-%m-%d")]
     # UNCOMMENT TO FORCE DATE -----------------
 
     random_days.sort() # Ensures dates are in chronological order
@@ -152,22 +152,24 @@ def DCT_with_DP(
     actual_avg = avg_frame["Averaged DCT"]
 
     # OPERATIONS
-    modify_avg = False
+    modify_avg = True
     modify_day_signature = True
     save_images = True
-    dirname = "/modified-actual-minus-average/one-day-in-week/drop-below-threshold/"
-    filename = "no-weekends-drop-below-" + str(threshold)
-    graph_title = 'Effects of Modified DCT Lowpass Filtering on Actual - Average Real Power and Its Reconstruction:'
+    dirname = "/modified-average-and-modified-actual-minus-average/full-week-no-weekends/"
+    filename = "no-weekends-drop-top-" + str(percent_to_drop)
+    graph_title = 'Effects of DCT Lowpass Filtering on Both Average and Actual - Average Real Power:'
 
     if modify_avg == True:
         # Apply DP to the averaged coefficients
         # Get coefficients back for the averaged DCT coefficient reconstruction
-        decomposed_dct = perform_dct.decompose(avg_frame[dp_column])
+        actual_dct_avg = avg_frame[dp_column]
+        decomposed_dct = perform_dct.decompose(actual_dct_avg)
         # Apply filter
-        recomposed_dct = perform_dct.drop_coefficients(decomposed_dct, PORTION_TO_DROP=percent_to_drop)
+        recomposed_dct = perform_dct.drop_coefficients(decomposed_dct, \
+                                    THRESHOLD_VAL=threshold, PORTION_TO_DROP=percent_to_drop, NUMBER_OF_LARGEST=keep_highest)
         # Reconstruct and graph
         modified_avg = perform_dct.recompose(recomposed_dct)
-        dp_title = "Averaged DCT: drop top " + str(percent_to_drop * 100) + "% coefficients to 0"
+        dp_title = "Averaged DCT: Zero top " + str(percent_to_drop * 100) + "% coefficients"
         avg_frame[dp_title] = modified_avg # Place in graph frame
     else:
         modified_avg = avg_frame[dp_column] # No changes made
@@ -178,25 +180,31 @@ def DCT_with_DP(
         # Deconstruct to signature
         day_signature = deconstruct_day_with_dct_avg(actual_days[day], actual_avg)
 
+        # Modify Actual - Average with DCT
         if modify_day_signature == True:
             decomposed_sig = perform_dct.decompose(day_signature)
-            modified_sig_coeffs = perform_dct.drop_coefficients(decomposed_sig, THRESHOLD_VAL=threshold)
-            #print(modified_sig_coeffs)
+            modified_sig_coeffs = perform_dct.drop_coefficients(decomposed_sig, \
+                                            THRESHOLD_VAL=threshold, PORTION_TO_DROP=percent_to_drop, NUMBER_OF_LARGEST=keep_highest)
             recomposed_sig = perform_dct.recompose(modified_sig_coeffs)
+            colname = f"{day} actual minus avg, zero top {percent_to_drop * 100}% coefficients"
+            avg_frame[colname] = recomposed_sig
+
             reconstructed_day = reconstruct_day_with_dct_avg(recomposed_sig, modified_avg)
+            #reconstructed_day_mod_avg = reconstruct_day_with_dct_avg(recomposed_sig, actual_avg)
+
             if dctc.DROP_METHOD == "drop high":
-                colname = "Modified Actual Minus Average: Zero Top " + str(percent_to_drop * 100) + "%"
+                colname = f"{day} Modified Actual Minus Average: Zero Top " + str(percent_to_drop * 100) + "%"
             elif dctc.DROP_METHOD == "drop high keep max":
-                colname = "Modified Actual Minus Average: Zero Top " + str(percent_to_drop * 100) + "%, Keep Largest " + str(keep_highest)
+                colname = f"{day} Modified Actual Minus Average: Zero Top " + str(percent_to_drop * 100) + "%, Keep Largest " + str(keep_highest)
             elif dctc.DROP_METHOD == "threshold":
-                colname = "Modified Actual Minus Average: reduce coefficients <= " + str(threshold) + " to 0"
+                colname = f"{day} Modified Actual Minus Average: reduce coefficients <= " + str(threshold) + " to 0"
             avg_frame[colname] = recomposed_sig
         else:
             # Reconstruct using modified average with DP applied
             reconstructed_day = reconstruct_day_with_dct_avg(day_signature, modified_avg)
 
         # Get RMSE for the day
-        day_rmse = rmse(actual_days[day].values, reconstructed_day.values)
+        day_rmse = rmse(actual_days[day].values, reconstructed_day)#.values)
         if dctc.PRINT_DEBUG == True:
             print(f"RMSE for Building {building_id} on {day}: {day_rmse}")
         rmse_per_day[day] = day_rmse

@@ -17,9 +17,10 @@ STORE_DCT = False
 # ----- MODIFIERS -----
 
 # Date limiters
+# Sample week, no weekends: 2023-07-03 to 2023-07-08
 LIMIT_DATE = True
 START_DATE = "2023-07-03"
-END_DATE = "2023-07-09"
+END_DATE = "2023-07-08"
 
 # Normalize data to be between 0 and 1 before calculating DCT
 NORMALIZE = True
@@ -41,7 +42,7 @@ DROP_COEFFICIENTS = False
 # "threshold"
 # "drop high"
 # "drop high keep max"
-DROP_METHOD = "threshold"
+DROP_METHOD = "drop high"
 
 # If using drop high keep max: how many largest coefficients to keep
 NUMBER_OF_LARGEST = 5
@@ -52,7 +53,7 @@ DROP_THRESHOLD = 10
 # When graphing against actual demand curves, this determines how
 # many actual days to select as comparison points.
 # Make sure this value is smaller than the sample size.
-COMPARISON_DATE_SAMPLE_SIZE = 1
+COMPARISON_DATE_SAMPLE_SIZE = 5
 
 # Whether to print additional debug information to console
 PRINT_DEBUG = False

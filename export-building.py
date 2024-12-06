@@ -2,8 +2,17 @@ import pandas as pd
 import pickle
 from os.path import exists
 from os import makedirs
+import datetime
+from json import dumps, JSONEncoder
 
 from list_files import list_files_in_dir
+
+# subclass JSONEncoder
+class DateTimeEncoder(JSONEncoder):
+    #Override the default method
+    def default(self, obj):
+        if isinstance(obj, (datetime.date, datetime.datetime)):
+            return obj.isoformat()
 
 def prep_filepath(dir):
     if dir[-1] != "/":
@@ -30,13 +39,59 @@ def select_building(frame, id):
 def select_dates(frame, start, end):
     return frame[start:end]
 
+def export_simple_csv(building_data, export_path):
+    # Export the building to CSV
+    if exists(export_path):
+        with open(export_path, "a") as outfile:
+            building_data.to_csv(outfile, header=False)
+    else:
+        with open(export_path, "w") as outfile:
+            building_data.to_csv(outfile)
+    print("Done.")
+
+def export_simple_json(building_data, export_path):
+    # Export the building to CSV
+    if exists(export_path):
+        mode = "w" #"a"
+    else:
+        mode = "w"
+    with open(export_path, mode) as outfile:
+            building_data = building_data.reset_index()
+            building_data.to_json(outfile, indent=4, orient='records')
+    print("Done.")
+
+def export_json_metadata(
+        metadata: dict, 
+        export_dir: str
+        ):
+    print(metadata)
+    if isinstance(metadata, dict):
+        print("Saving metadata.")
+        json_metadata = dumps(metadata, indent=4, cls=DateTimeEncoder)
+        print(json_metadata)
+        with open(export_dir + "metadata.json", "w") as outfile:
+            outfile.write(json_metadata)
+    else:
+        print("Metadata must be a dictionary list.")
+
+def extract_metadata(building_data, start_date, end_date):
+    metadata = {}
+    metadata["building_id"] = int(building_data["building_id"].iloc[0])
+    metadata["component_sites"] = building_data["point_id"].iloc[0][1:-1] # Cut out brackets
+    metadata["start_date"] = datetime.datetime.strptime(start_date,'%Y-%m-%d') # TODO: start date of full data?
+    metadata["end_date"] = datetime.datetime.strptime(end_date,'%Y-%m-%d') # TODO: does this need to be the end of the day (23:45)?
+    building_data = building_data.drop(columns=["building_id", "point_id"])
+    return metadata, building_data
+
 def main():
     read_dir = "data/buildings/"
     export_dir = "data/exports/"
-    export_filename = "all-in-one.csv"
-    buildings_to_export = [0,1,2,3,4,5,6,7,8,9]
+    export_filename = "bzero.json"
+    buildings_to_export = [0] #[0,1,2,3,4,5,6,7,8,9]
     start_date = "2023-10-02"
     end_date = "2023-10-08"
+
+    export_path = export_dir + export_filename
 
     # Sanity checks
     if not exists(export_dir):
@@ -47,15 +102,10 @@ def main():
     for id in buildings_to_export:
         building_data = select_building(buildings, id)
         building_data = select_dates(building_data, start_date, end_date)
-        # Export the building to CSV
-        export_path = export_dir + export_filename
-        if exists(export_path):
-            with open(export_path, "a") as outfile:
-                building_data.to_csv(outfile, header=False)
-        else:
-            with open(export_path, "w") as outfile:
-                building_data.to_csv(outfile)
-        print("Done.")
+        metadata, building_data = extract_metadata(building_data, start_date, end_date)
+        export_json_metadata(metadata, export_dir)
+        #export_simple_csv(building_data, export_path)
+        export_simple_json(building_data, export_path)
 
 if __name__ == '__main__':
     try:
