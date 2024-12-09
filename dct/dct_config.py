@@ -55,7 +55,7 @@ DROP_THRESHOLD = 10
 PERCENTAGE_KEPT = 1
 
 # If using roll down: what portion of the list to roll down; eg 0.75 moves the top 75% of coefficients down
-PORTION_ROLLED = 0.99
+PORTION_ROLLED = 0.75
 
 # When graphing against actual demand curves, this determines how
 # many actual days to select as comparison points.

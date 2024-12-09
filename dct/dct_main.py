@@ -96,7 +96,7 @@ def main():
                 import plotly.express as px
                 frame = pd.DataFrame(this_building["real_power"])
                 frame["Recomposed"] = recomposed
-                print(frame)
+                print(frame.iloc[-1])
                 fig = px.line(frame)
                 #fig.show()
                 raise SystemExit

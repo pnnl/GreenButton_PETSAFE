@@ -178,7 +178,10 @@ def shift_down_coefficients(coefficients_array):
     portion_to_shift = dctc.PERCENTAGE_KEPT
 
     num_coeffs = len(coefficients_array)
-    shift_index = int(num_coeffs * position_to_shift) # Round to nearest index
+    shift_index = int(num_coeffs - (num_coeffs * position_to_shift)) # Round to nearest index
+
+    print("Number:", num_coeffs)
+    print("Shift point:", shift_index)
     # Slice up the list for easier shifting
     coeffs_to_shift = coefficients_array[shift_index:]
     coeffs_to_keep = coefficients_array[:shift_index]
