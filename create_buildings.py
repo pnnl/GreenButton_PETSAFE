@@ -659,6 +659,7 @@ class Building:
         # For each timestamp in the ids list, sum all values
         if self.__encryption_enabled == False:
             aggregated_data = self.__data.groupby(by="timestamp").sum()
+            self.__data["duration"] = self.__data["duration"] / len(self.__ids)
         else:
             # Aggregating encrypted data requires the use of EvalAdd
             aggregated_data = pd.DataFrame()
