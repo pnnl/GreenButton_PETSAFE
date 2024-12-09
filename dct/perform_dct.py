@@ -185,6 +185,9 @@ def shift_down_coefficients(coefficients_array):
     # Slice up the list for easier shifting
     coeffs_to_shift = coefficients_array[shift_index:]
     coeffs_to_keep = coefficients_array[:shift_index]
+    print("Original value of last kept coefficient:", coeffs_to_keep[-1])
+    print("Num of coeffs to keep:", len(coeffs_to_keep))
+    print("Num of coeffs to shift:", len(coeffs_to_shift))
     # Shift down
     for coeff in coeffs_to_shift:
         value_to_shift = coeff * portion_to_shift # This can stay a float
@@ -195,6 +198,7 @@ def shift_down_coefficients(coefficients_array):
                 # Remember to handle cases where more than 50% are shifted down; grouping needed
                 pass
     coeffs_to_shift = [0 for remainder in coeffs_to_shift] # Zero the leftovers
+    print("Altered value of last kept coefficient:", coeffs_to_keep[-1])
     coefficients_array = [*coeffs_to_keep, *coeffs_to_shift] # Re-concatenate
     return coefficients_array
 
