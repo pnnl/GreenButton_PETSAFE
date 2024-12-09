@@ -139,6 +139,9 @@ def drop_coefficients(
         for value in coefficients_array:
             if value > thresholds[0] and value < thresholds[1]:
                 coefficients_array[coefficients_array == value] = 0
+    
+    elif dctc.DROP_METHOD.lower() == "roll down":
+        shift_down_coefficients(coefficients_array)
 
     # Zero all high frequency values over a certain portion of the array
     if dctc.DROP_METHOD.lower() in ["drop high", "drop high keep max"]:
@@ -163,6 +166,33 @@ def drop_coefficients(
             print("Keeping all coefficients.")
     if dctc.PRINT_DEBUG == True:
         print("Coefficient adjustment done.")
+    return coefficients_array
+
+def shift_down_coefficients(coefficients_array):
+    # How to handle the down shift
+    METHOD = "top only"
+
+    # At what position to start shifting down from; 0.5 shifts upper half down
+    position_to_shift = dctc.PORTION_ROLLED
+    # What percentage of each coefficient to shift down; remaining values are zeroed
+    portion_to_shift = dctc.PERCENTAGE_KEPT
+
+    num_coeffs = len(coefficients_array)
+    shift_index = int(num_coeffs * position_to_shift) # Round to nearest index
+    # Slice up the list for easier shifting
+    coeffs_to_shift = coefficients_array[shift_index:]
+    coeffs_to_keep = coefficients_array[:shift_index]
+    # Shift down
+    for coeff in coeffs_to_shift:
+        value_to_shift = coeff * portion_to_shift # This can stay a float
+        match METHOD:
+            case "top only": # Move all high coefficients into highest kept coefficient
+                coeffs_to_keep[-1] += value_to_shift # Add to top coefficient to keep
+            case "even across top": # Shift each high coefficient down into its own lower coefficient
+                # Remember to handle cases where more than 50% are shifted down; grouping needed
+                pass
+    coeffs_to_shift = [0 for remainder in coeffs_to_shift] # Zero the leftovers
+    coefficients_array = [*coeffs_to_keep, *coeffs_to_shift] # Re-concatenate
     return coefficients_array
 
 # Perform DCT on each day of data in frame;
@@ -237,3 +267,6 @@ def save_to_file(coefficients, building_id, subdir):
     # Save as file to output dir
     with open(dirpath + filename, "wb") as outfile:
         dump(coefficients, outfile)
+
+if __name__ == '__main__':
+    print("Please import perform_dct into another script and supply coefficients to your preferred function.")

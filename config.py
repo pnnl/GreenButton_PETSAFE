@@ -39,8 +39,8 @@ STAT_TEMPORAL_RESOLUTION = "f"
 
 # What date range to retrieve statistics for
 LIMIT_DATE = True
-START_DATE = "2022-12-31"
-END_DATE = "2023-12-31"
+START_DATE = "2023-07-03"
+END_DATE = "2023-07-08"
 
 
 # ----- PROCESSING -----

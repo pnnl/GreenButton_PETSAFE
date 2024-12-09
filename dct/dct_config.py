@@ -37,18 +37,25 @@ HIGH_ONLY = False
 HIGH_THRESHOLD = 0.5
 
 # Test different methods of reducing DCT coefficients
-DROP_COEFFICIENTS = False
-# Method used for dropping coefficients. Options:
-# "threshold"
-# "drop high"
-# "drop high keep max"
-DROP_METHOD = "drop high"
+DROP_COEFFICIENTS = True
+# Method used for dropping coefficients to 0. Options:
+# "threshold": drop all below a threshold value
+# "drop high": drop the upper X% of frequencies
+# "drop high keep max": drop the upper X% of frequencies, but keep the largest N
+# "roll down": move values of high frequency coefficients down by adding them to low frequency coefficients; then zero them
+DROP_METHOD = "roll down"
 
 # If using drop high keep max: how many largest coefficients to keep
 NUMBER_OF_LARGEST = 5
 
 # If using threshold: at what value and below to drop coefficients to 0
 DROP_THRESHOLD = 10
+
+# If using roll down: what percentage of each coefficient to move down
+PERCENTAGE_KEPT = 1
+
+# If using roll down: what portion of the list to roll down; eg 0.75 moves the top 75% of coefficients down
+PORTION_ROLLED = 0.99
 
 # When graphing against actual demand curves, this determines how
 # many actual days to select as comparison points.
@@ -62,7 +69,7 @@ PRINT_DEBUG = False
 
 # Graph a curve created by averaging DCT coefficients
 # against actual demand curves to test visual similarity
-MAKE_DCT_AVG_CURVE = True
+MAKE_DCT_AVG_CURVE = False
 
 # IF MAKE_DCT_AVG_CURVE is true:
 # Apply differential privacy measures to the average curve
@@ -75,6 +82,9 @@ RETRIEVE_DCT = False
 # Print the dataframe of coefficients
 SHOW_DCT = False
 
+# Calculate RMSE between actual and reconstructed from DCT
+CALC_RMSE = False
+
 # ----- GRAPHING ---------
 
 # Enable/disable all graphing switches
@@ -86,7 +96,7 @@ GRAPH_AS_HIST = False
 # Graph coefficients as box plot
 GRAPH_AS_BOX = False
 # Graph original data against data recomposed from DCT coefficients
-GRAPH_DATA_AGAINST_RECOMPOSED = False
+GRAPH_DATA_AGAINST_RECOMPOSED = True
 
 # Size of the period to do DCT on
 # Options:
@@ -98,7 +108,7 @@ DCT_TARGET = "d"
 # Graph the distribution of all DCT coefficients
 GRAPH_OVERALL_COEFFICIENT_DIST = False
 # Graph coefficients per day for a year of data; ~96 points per line, ~365 lines,
-# one graph per building
+# one graph per building; box plot of coefficient magnitude distribution
 GRAPH_BY_DAY = False
 # Graph the distribution of DCT coefficients per building
 GRAPH_COEFFICIENTS_PER_BUILDING = False
