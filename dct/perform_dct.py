@@ -180,12 +180,10 @@ def shift_down_coefficients(coefficients_array):
     num_coeffs = len(coefficients_array)
     shift_index = int(num_coeffs - (num_coeffs * position_to_shift)) # Round to nearest index
 
-    print("Number:", num_coeffs)
-    print("Shift point:", shift_index)
     # Slice up the list for easier shifting
     coeffs_to_shift = coefficients_array[shift_index:]
     coeffs_to_keep = coefficients_array[:shift_index]
-    print("Original value of last kept coefficient:", coeffs_to_keep[-1])
+    orig_coeff = coeffs_to_keep[-1]
     print("Num of coeffs to keep:", len(coeffs_to_keep))
     print("Num of coeffs to shift:", len(coeffs_to_shift))
     # Shift down
@@ -198,7 +196,10 @@ def shift_down_coefficients(coefficients_array):
                 # Remember to handle cases where more than 50% are shifted down; grouping needed
                 pass
     coeffs_to_shift = [0 for remainder in coeffs_to_shift] # Zero the leftovers
+    print("Original value of last kept coefficient:", orig_coeff)
     print("Altered value of last kept coefficient:", coeffs_to_keep[-1])
+    print("Change in value:", coeffs_to_keep[-1] - orig_coeff)
+    print("----------")
     coefficients_array = [*coeffs_to_keep, *coeffs_to_shift] # Re-concatenate
     return coefficients_array
 

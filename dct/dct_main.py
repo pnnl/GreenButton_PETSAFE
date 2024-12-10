@@ -8,6 +8,7 @@ from dct.unpickle_buildings import unpickle_buildings, unpickle_resample_buildin
 import pandas as pd
 
 def main():
+    # -------- PREP FOR DCT ----------
     if dctc.PERFORM_DCT == True: # Calculate DCT coefficients
         # Retrieve building data
         if dctc.RESAMPLE_BEFORE_DCT == True:
@@ -28,6 +29,8 @@ def main():
         all_building_coefficient_frames = []
         if dctc.CALC_RMSE == True:
             all_rmse = []
+
+        # For each building, perform DCT individually
         for id in buildings["building_id"].unique():
             if dctc.PRINT_DEBUG == True:
                 print("Performing DCT on building", id)
@@ -36,13 +39,14 @@ def main():
 
             # X lines where X = number of days in building;
             # each line with ~96 points
-            if dctc.GRAPH_BY_DAY == True: #or dctc.DCT_TARGET == "d":
+            if dctc.DCT_ACTION == "magnitude": #or dctc.DCT_TARGET == "d":
                 building_coefficients = perform_dct.dct_by_day(this_building, "real_power")
                 building_coefficients.index.name = 'Coefficient'
                 all_building_coefficient_frames.append(building_coefficients) # To allow concatenation into one plot later
                 #graph_dct.graph_coefficients_as_scatter(building_coefficients, x_label="Coefficient", y_label="Value")
                 #graph_dct.graph_coefficients_as_box(building_coefficients, title=f"Building {id} Coefficient Magnitudes", transpose=True)
-                if dctc.MAKE_DCT_AVG_CURVE == True:
+                
+                if dctc.DCT_ACTION in ["average", "mod average"]:
                     # Calculate the coefficients for one day, averaged for the year
                     building_coefficients = building_coefficients.transpose()
                     days_in_year = building_coefficients[0].size
@@ -57,6 +61,7 @@ def main():
             else:
                 # Cut data down to desired period
                 this_building = this_building[dctc.START_DATE:dctc.END_DATE]
+                building_id = this_building["building_id"].iloc[0]
                 # Perform DCT on however much data is present, decomposing into coefficients
                 dct_coefficients = perform_dct.decompose(this_building["real_power"])
 
@@ -70,13 +75,15 @@ def main():
                     perform_dct.save_to_file(this_building, id, save_to)
             
             # Average coefficients for all buildings
-            if dctc.MAKE_DCT_AVG_CURVE == True:
+            if dctc.DCT_ACTION in ["average", "mod average"]:
                 if dctc.PRINT_DEBUG == True:
                     print("Averaging building", id)
                 fig, avg_frame = dctra.make_average_dct_curve(this_building, id, dct_count, avg_coefficients)
-                if dctc.DCT_AVG_DP == True:
+
+                if dctc.DCT_ACTION == "mod average":
                     rmse = dctra.DCT_with_DP(avg_frame, "Averaged DCT", id, \
                                              percent_to_drop=dctc.HIGH_THRESHOLD, keep_highest=dctc.NUMBER_OF_LARGEST, threshold=dctc.DROP_THRESHOLD)
+                    
                     if dctc.CALC_RMSE == True:
                         average_rmse = 0
                         for day in rmse:
@@ -92,16 +99,13 @@ def main():
                 if one_building_only == True:
                     raise SystemExit
                 
-            else:
-                import plotly.express as px
+            else: # For now; a switch should be added for this
                 frame = pd.DataFrame(this_building["real_power"])
                 frame["Recomposed"] = recomposed
-                print(frame.iloc[-1])
-                fig = px.line(frame)
-                #fig.show()
-                raise SystemExit
+                graph_dct.graph_shifting_coefficients_down(frame, building_id)
 
-        if dctc.DCT_AVG_DP == True and dctc.CALC_RMSE == True:
+        # Calculate the RMSE average across buildings
+        if dctc.DCT_ACTION == "mod average" and dctc.CALC_RMSE == True:
             all_buildings_rmse_average = 0
             for rmse in all_rmse:
                 all_buildings_rmse_average += rmse
@@ -109,7 +113,7 @@ def main():
             print(f"RMSE average: {all_buildings_rmse_average}")
             #print(f"RMSE average for drop {dctc.HIGH_THRESHOLD * 100}%: {all_buildings_rmse_average}")
 
-        if dctc.GRAPH_BY_DAY == True:
+        if dctc.DCT_ACTION == "magnitude":
             graph_dct.graph_coefficients_as_box_all_buildings(all_building_coefficient_frames,
                                                               title=f"Coefficient Magnitudes by Building",
                                                               transpose=True)

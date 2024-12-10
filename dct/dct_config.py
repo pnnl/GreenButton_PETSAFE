@@ -68,6 +68,15 @@ PRINT_DEBUG = False
 
 # ----- DCT OPERATIONS -----
 
+# What operations to use DCT for
+# Options:
+# "magnitude": view the distribution of coefficient magnitudes for the target data
+# "actual": only use DCT to "smooth" the real power of buildings
+# "average": use DCT to create an average day
+# "mod average": "average", but test DCT drop methods on the created average; graph results
+# "signature": same as "average", but also perform (actual - average) to create a power signature
+DCT_ACTION = "actual"
+
 # Graph a curve created by averaging DCT coefficients
 # against actual demand curves to test visual similarity
 MAKE_DCT_AVG_CURVE = False
@@ -76,15 +85,18 @@ MAKE_DCT_AVG_CURVE = False
 # Apply differential privacy measures to the average curve
 DCT_AVG_DP = True
 
-# Retrieve saved DCT values for analysis or further use
-# Enables all other post-processing/operations switches
-RETRIEVE_DCT = False
-
 # Print the dataframe of coefficients
 SHOW_DCT = False
 
 # Calculate RMSE between actual and reconstructed from DCT
 CALC_RMSE = False
+
+# Size of the period to do DCT on
+# Options:
+# "d": once per day
+# "y": once per year
+# "a": on all available data for period
+DCT_TARGET = "d"
 
 # ----- GRAPHING ---------
 
@@ -99,17 +111,18 @@ GRAPH_AS_BOX = False
 # Graph original data against data recomposed from DCT coefficients
 GRAPH_DATA_AGAINST_RECOMPOSED = True
 
-# Size of the period to do DCT on
-# Options:
-# "d": once per day
-# "y": once per year
-# "a": on all available data for period
-DCT_TARGET = "d"
-
 # Graph the distribution of all DCT coefficients
 GRAPH_OVERALL_COEFFICIENT_DIST = False
+
 # Graph coefficients per day for a year of data; ~96 points per line, ~365 lines,
-# one graph per building; box plot of coefficient magnitude distribution
-GRAPH_BY_DAY = False
+# one graph per building; box plot of coefficient magnitude distribution by day
+GRAPH_COEFF_MAGNITUDE_DISTRIBUTION = False
+
 # Graph the distribution of DCT coefficients per building
 GRAPH_COEFFICIENTS_PER_BUILDING = False
+
+# ----- POST-PROCESSING ---------
+
+# Retrieve saved DCT values for analysis or further use
+# Enables post-processing/operations switches
+RETRIEVE_DCT = False

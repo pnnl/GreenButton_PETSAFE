@@ -1,6 +1,10 @@
 import pandas as pd
 import plotly.express as px
 from typing import Optional
+from os.path import exists
+from os import makedirs
+
+import dct.dct_config as dctc
 
 # Graph the distribution of DCT coefficients to make it easier to choose
 # threshold values
@@ -154,3 +158,21 @@ def graph_lines(
                 fig = fig.add_trace(px.line(frame, labels={"index": x_label, "value": y_label}).data[0])
     print("Showing graph in web browser")
     fig.show()
+
+def graph_shifting_coefficients_down(frame, building_id):
+    one_building_only = False
+    save_images = True
+    # Build the graph
+    fig = px.line(frame, title=f"Building {building_id} with High Coefficients Shifted Down (Added to Highest Kept Coefficient)")
+    save_dir = "data/graphs/dct-on-real-power-methods/" #+ "building-" + str(building_id) + "/"
+    save_title = "shift-down-" + str(dctc.PERCENTAGE_KEPT * 100) + "percent-of-top-" + str(dctc.PORTION_ROLLED * 100) + \
+        "-percent-coeffs-from-" + dctc.START_DATE + " to " + dctc.END_DATE + '-Building-' + \
+        str(building_id)
+    if save_images == True:
+        if not exists(save_dir):
+            makedirs(save_dir)
+        fig.write_html(save_dir + save_title + ".html")
+    else:
+        fig.show()
+    if one_building_only == True:
+        raise SystemExit
