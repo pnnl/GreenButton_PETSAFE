@@ -125,23 +125,25 @@ def drop_coefficients(
     # Used to drop high values and/or add their max value(s) back in
     index_of_drop = floor(len(coefficients_array) * PORTION_TO_DROP)
 
+    match dctc.DROP_METHOD.lower():
+
     # We'll need to keep high freq values to add them back in later.
-    if dctc.DROP_METHOD.lower() == "drop high keep max":
-        all_freqs = np.copy(coefficients_array)
-        high_freqs = all_freqs[-index_of_drop:]
+        case "drop high keep max":
+            all_freqs = np.copy(coefficients_array)
+            high_freqs = all_freqs[-index_of_drop:]
 
     # Zero all values whose absolute value is below a threshold
-    elif dctc.DROP_METHOD.lower() == "threshold":
-        thresholds = [-THRESHOLD_VAL, THRESHOLD_VAL]
-        if dctc.PRINT_DEBUG == True:
-            print("Zeroing all coefficients with an absolute value below", THRESHOLD_VAL)
-        # Zero all values below magnitude threshold
-        for value in coefficients_array:
-            if value > thresholds[0] and value < thresholds[1]:
-                coefficients_array[coefficients_array == value] = 0
+        case "threshold":
+            thresholds = [-THRESHOLD_VAL, THRESHOLD_VAL]
+            if dctc.PRINT_DEBUG == True:
+                print("Zeroing all coefficients with an absolute value below", THRESHOLD_VAL)
+            # Zero all values below magnitude threshold
+            for value in coefficients_array:
+                if value > thresholds[0] and value < thresholds[1]:
+                    coefficients_array[coefficients_array == value] = 0
     
-    elif dctc.DROP_METHOD.lower() == "roll down":
-        shift_down_coefficients(coefficients_array)
+        case "roll down":
+            shift_down_coefficients(coefficients_array)
 
     # Zero all high frequency values over a certain portion of the array
     if dctc.DROP_METHOD.lower() in ["drop high", "drop high keep max"]:
@@ -161,25 +163,28 @@ def drop_coefficients(
                 print("Keeping", value_to_keep, "at", keep_position)
             coefficients_array[keep_position] = value_to_keep
 
-    else:
-        if dctc.PRINT_DEBUG == True:
-            print("Keeping all coefficients.")
     if dctc.PRINT_DEBUG == True:
         print("Coefficient adjustment done.")
     return coefficients_array
 
-def shift_down_coefficients(coefficients_array):
-    # How to handle the down shift
-    METHOD = "top only"
 
+# Alter coefficient values by "shifting down":
+# If this is the coefficient set after DCT:
+# [2.7, 6, 0.5, 63, -9, 12, 2, -8]
+# Then applying this method with a value of 0.75 
+# (consider the top 75% of coefficients to be "high frequency") yields:
+# [2.7 , 66.5, 0, 0, 0, 0, 0, 0]
+# This method has a notable weakness: the effects of given parameters vary 
+# significantly between buildings. Some buildings will have noticeable curve distortion; 
+# others will have little to none, as the high frequency coefficients may cancel themselves out.
+def shift_down_coefficients(coefficients_array):
     # At what position to start shifting down from; 0.5 shifts upper half down
     position_to_shift = dctc.PORTION_ROLLED
     # What percentage of each coefficient to shift down; remaining values are zeroed
     portion_to_shift = dctc.PERCENTAGE_KEPT
-
+    # Other parameters needed to know where to shift down
     num_coeffs = len(coefficients_array)
     shift_index = int(num_coeffs - (num_coeffs * position_to_shift)) # Round to nearest index
-
     # Slice up the list for easier shifting
     coeffs_to_shift = coefficients_array[shift_index:]
     coeffs_to_keep = coefficients_array[:shift_index]
@@ -189,12 +194,7 @@ def shift_down_coefficients(coefficients_array):
     # Shift down
     for coeff in coeffs_to_shift:
         value_to_shift = coeff * portion_to_shift # This can stay a float
-        match METHOD:
-            case "top only": # Move all high coefficients into highest kept coefficient
-                coeffs_to_keep[-1] += value_to_shift # Add to top coefficient to keep
-            case "even across top": # Shift each high coefficient down into its own lower coefficient
-                # Remember to handle cases where more than 50% are shifted down; grouping needed
-                pass
+        coeffs_to_keep[-1] += value_to_shift # Add to top coefficient to keep
     coeffs_to_shift = [0 for remainder in coeffs_to_shift] # Zero the leftovers
     print("Original value of last kept coefficient:", orig_coeff)
     print("Altered value of last kept coefficient:", coeffs_to_keep[-1])
@@ -206,9 +206,6 @@ def shift_down_coefficients(coefficients_array):
 # Perform DCT on each day of data in frame;
 # frame should have a datetime index
 def dct_by_day(frame, column_for_dct):
-    # Get first and last timestamps for building
-    #start_datetime = frame.index[0]
-    #end_datetime = frame.index[-1]
     # Split building data into days; do DCT per day
     all_days =  pd.date_range(start=dctc.START_DATE, end=dctc.END_DATE, freq="d", normalize=True, inclusive="both")
     for day in all_days:
@@ -225,28 +222,14 @@ def dct_by_day(frame, column_for_dct):
             coefficients_per_day = pd.concat([coefficients_per_day, day_dct_coefficients], axis=1)
     return coefficients_per_day
 
+# Recreate data from DCT coefficients
 def recompose(coefficients_array):
     # Reconstruct the data from the coefficients array
     # Ortho norm ensures that inverse DCT gets the same values out that went in
     data = idct(coefficients_array, type=DCT_TYPE, norm="ortho")
     return data
 
-# Add noise to coefficients for differential privacy
-# TODO: this is currently very rough and privacy parameters are undecided.
-# TODO: right now, noise is added the same way for all coefficients.
-# Would some coefficients benefit from more or less noise to balance privacy
-# with accuracy? It seems likely.
-def add_noise(coefficients_array):
-    location = 0
-    scale = 1 # TODO: figure out what to set this to
-    rng = np.random.default_rng()
-    for coefficient in coefficients_array:
-        noise = rng.laplace(location, scale)
-        noisy_coefficient = coefficient + noise
-        coefficients_array[coefficient] = noisy_coefficient
-    return coefficients_array
-
-
+# Find the difference between the average values of actual and recreated data
 def compare_averages(recomposed_data, original_data):
     original_avg = original_data.sum() / original_data.size
     dct_avg = recomposed_data.sum() / recomposed_data.size
@@ -261,8 +244,6 @@ def save_to_file(coefficients, building_id, subdir):
         print("Saving DCT coefficients to pickle file at", filename)
     # Set directory path of output- output directory in config + "buildings" subdirectory
     dirpath = OUTPUT_DIR + "/coefficients/"
-    if dctc.DCT_ONE_DAY == True:
-        dirpath = dirpath + "/one-day/"
     if dctc.GRAPH_TARGET == "d":
         dirpath = dirpath + "/daily-coefficients/"
     if dctc.RESAMPLE_BEFORE_DCT == True:

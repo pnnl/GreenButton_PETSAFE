@@ -24,12 +24,12 @@ def main():
         else:
             save_to = "non-normalized"
 
-        # DCT operations: calculating, zeroing coefficients, and recomposing afterwards
-        # to get the data back into a usable form  
+        # Will be used to hold multi-building data for later use
         all_building_coefficient_frames = []
         if dctc.CALC_RMSE == True:
-            all_rmse = []
+            all_rmse = [] # root mean square error
 
+        # -------- PERFORM DCT ----------
         # For each building, perform DCT individually
         for id in buildings["building_id"].unique():
             if dctc.PRINT_DEBUG == True:
@@ -39,18 +39,17 @@ def main():
 
             # X lines where X = number of days in building;
             # each line with ~96 points
-            if dctc.DCT_ACTION == "magnitude": #or dctc.DCT_TARGET == "d":
+            if dctc.DCT_ACTION in ["average", "mod average", "magnitude"]:
                 building_coefficients = perform_dct.dct_by_day(this_building, "real_power")
                 building_coefficients.index.name = 'Coefficient'
                 all_building_coefficient_frames.append(building_coefficients) # To allow concatenation into one plot later
-                #graph_dct.graph_coefficients_as_scatter(building_coefficients, x_label="Coefficient", y_label="Value")
-                #graph_dct.graph_coefficients_as_box(building_coefficients, title=f"Building {id} Coefficient Magnitudes", transpose=True)
-                
-                if dctc.DCT_ACTION in ["average", "mod average"]:
-                    # Calculate the coefficients for one day, averaged for the year
+
+                if dctc.DCT_ACTION != "magnitude": # Find the average DCT coefficients from those daily coefficients
+                    # Prep formatting to make this simpler
                     building_coefficients = building_coefficients.transpose()
-                    days_in_year = building_coefficients[0].size
-                    avg = building_coefficients.sum() / days_in_year # Sums all 365 days of coefficients by rows, aka per coefficient
+                    days_in_sample = building_coefficients[0].size
+                    # Calculate the coefficients for one day, averaged for the time period
+                    avg = building_coefficients.sum() / days_in_sample # Sums by rows, aka per coefficient
                     if "avg_coefficients" not in locals(): # Make the initial frame
                         avg_coefficients = avg
                         dct_count = 1
@@ -59,21 +58,23 @@ def main():
                         dct_count += 1
 
             else:
-                # Cut data down to desired period
+                # Cut data down to desired time period
                 this_building = this_building[dctc.START_DATE:dctc.END_DATE]
                 building_id = this_building["building_id"].iloc[0]
                 # Perform DCT on however much data is present, decomposing into coefficients
                 dct_coefficients = perform_dct.decompose(this_building["real_power"])
 
-                if dctc.DROP_COEFFICIENTS == True: # Reduce number of non-zero coefficients
+                if dctc.DROP_COEFFICIENTS == True: # Reduce some coefficients to 0
                     dct_coefficients = perform_dct.drop_coefficients(dct_coefficients)
-                    # Recreate data from coefficients to detect any accuracy loss
-                    recomposed = perform_dct.recompose(dct_coefficients)
+
+                # Recreate data from coefficients to detect any accuracy loss
+                recomposed = perform_dct.recompose(dct_coefficients)
 
                 # For each building, save DCT coefficients to file
-                elif dctc.STORE_DCT == True:
+                if dctc.STORE_DCT == True:
                     perform_dct.save_to_file(this_building, id, save_to)
             
+            # -------- PROCESS DCT ----------
             # Average coefficients for all buildings
             if dctc.DCT_ACTION in ["average", "mod average"]:
                 if dctc.PRINT_DEBUG == True:
@@ -84,6 +85,7 @@ def main():
                     rmse = dctra.DCT_with_DP(avg_frame, "Averaged DCT", id, \
                                              percent_to_drop=dctc.HIGH_THRESHOLD, keep_highest=dctc.NUMBER_OF_LARGEST, threshold=dctc.DROP_THRESHOLD)
                     
+                    # Calculate RMSE for the building between actual power and reconstructed power
                     if dctc.CALC_RMSE == True:
                         average_rmse = 0
                         for day in rmse:
@@ -111,32 +113,20 @@ def main():
                 all_buildings_rmse_average += rmse
             all_buildings_rmse_average = all_buildings_rmse_average / len(all_rmse)
             print(f"RMSE average: {all_buildings_rmse_average}")
-            #print(f"RMSE average for drop {dctc.HIGH_THRESHOLD * 100}%: {all_buildings_rmse_average}")
 
+        # Graph the distribution of coefficient values per coefficient
         if dctc.DCT_ACTION == "magnitude":
             graph_dct.graph_coefficients_as_box_all_buildings(all_building_coefficient_frames,
                                                               title=f"Coefficient Magnitudes by Building",
                                                               transpose=True)
 
-    # Instead of calculating coefficients, retrieve existing coefficients saved previously
-    if dctc.RETRIEVE_DCT == True:
-        dctra.retrieve_and_analyze()
 
     # Graph DCT coefficients...
-    if dctc.GRAPH_DCT == True:
-        # TODO: can we combine or shorten these into one function call or a case/switch?
-        if dctc.GRAPH_AS_HIST == True: # ...as a histogram
-            graph_dct.graph_coefficients_as_hist(dct_coefficients)
-        elif dctc.GRAPH_AS_SCATTER == True: # ...as a scatter plot
-            graph_dct.graph_coefficients_as_scatter(dct_coefficients)
-        elif dctc.GRAPH_AS_BOX == True: # ...as a scatter plot
-            graph_dct.graph_coefficients_as_box(dct_coefficients)
-        elif dctc.GRAPH_DATA_AGAINST_RECOMPOSED == True: # ...recomposed, alongside original data
-            graph_dct.graph_recomposed_against_real(recomposed, buildings)
-        else: # ...but we don't know how to graph them
-            print("No graphing method specified.")
+    if dctc.GRAPH_DCT == True and dctc.GRAPH_DATA_AGAINST_RECOMPOSED == True: # ...recomposed, alongside original data
+        graph_dct.graph_recomposed_against_real(recomposed, buildings)
 
-# Test threshold values of interest without having to enter them all by hand     
+# Test threshold values of interest without having to enter them all by hand  
+# If using, run this instead of main()   
 def test_thresholds():
     print(f"Time resolution for DCT averaging: {dctc.START_DATE} to {dctc.END_DATE}")
     try: # Test threshold values of interest without having to enter them all by hand
@@ -148,6 +138,8 @@ def test_thresholds():
             main()
     except KeyboardInterrupt:
         print("Stopping (please wait).")
+
+
 
 if __name__ == '__main__':
     try:

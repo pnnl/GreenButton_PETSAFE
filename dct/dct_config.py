@@ -8,9 +8,6 @@ BUILDING_DIRECTORY = "data/buildings/"
 # Enables all other DCT processing switches
 PERFORM_DCT = True
 
-# Perform DCT for one day instead of on the entire time period
-DCT_ONE_DAY = False
-
 # Save DCT coefficients to pickle files
 STORE_DCT = False
 
@@ -75,15 +72,16 @@ PRINT_DEBUG = False
 # "average": use DCT to create an average day
 # "mod average": "average", but test DCT drop methods on the created average; graph results
 # "signature": same as "average", but also perform (actual - average) to create a power signature
-DCT_ACTION = "actual"
+# "mod average sig": same as "mod average", but also perform (actual - average) to create a power signature (TODO: fix for new variable test setup)
+DCT_ACTION = "mod average"
 
 # Graph a curve created by averaging DCT coefficients
 # against actual demand curves to test visual similarity
-MAKE_DCT_AVG_CURVE = False
+#MAKE_DCT_AVG_CURVE = False
 
 # IF MAKE_DCT_AVG_CURVE is true:
 # Apply differential privacy measures to the average curve
-DCT_AVG_DP = True
+#DCT_AVG_DP = True
 
 # Print the dataframe of coefficients
 SHOW_DCT = False
@@ -102,27 +100,5 @@ DCT_TARGET = "d"
 
 # Enable/disable all graphing switches
 GRAPH_DCT = False
-# Graph coefficients as scatterplots
-GRAPH_AS_SCATTER = False
-# Graph coefficients as histograms
-GRAPH_AS_HIST = False
-# Graph coefficients as box plot
-GRAPH_AS_BOX = False
 # Graph original data against data recomposed from DCT coefficients
 GRAPH_DATA_AGAINST_RECOMPOSED = True
-
-# Graph the distribution of all DCT coefficients
-GRAPH_OVERALL_COEFFICIENT_DIST = False
-
-# Graph coefficients per day for a year of data; ~96 points per line, ~365 lines,
-# one graph per building; box plot of coefficient magnitude distribution by day
-GRAPH_COEFF_MAGNITUDE_DISTRIBUTION = False
-
-# Graph the distribution of DCT coefficients per building
-GRAPH_COEFFICIENTS_PER_BUILDING = False
-
-# ----- POST-PROCESSING ---------
-
-# Retrieve saved DCT values for analysis or further use
-# Enables post-processing/operations switches
-RETRIEVE_DCT = False

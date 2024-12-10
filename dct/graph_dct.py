@@ -96,6 +96,7 @@ def graph_coefficients_as_box_all_buildings(
     fig.show()
     all_buildings_fig.show()
 
+# Graph each building's coefficient distribution
 def graph_coefficients_by_building(coefficients_2d_array):
     # A list of numpy arrays; one array per day of data
     print("Generating graph (this will take a few minutes)...")
@@ -138,6 +139,7 @@ def graph_recomposed_against_real(dct_frame, buildings_frame):
     print("Showing graph in web browser")
     fig.show()
 
+# Graph frames as multiple lines on the same graph
 def graph_lines(
         framelist: list, # One or more dataframes in a list
         x_label: Optional[str] = None,
@@ -159,6 +161,7 @@ def graph_lines(
     print("Showing graph in web browser")
     fig.show()
 
+# Graph the effects of shifting coefficients down
 def graph_shifting_coefficients_down(frame, building_id):
     one_building_only = False
     save_images = True
