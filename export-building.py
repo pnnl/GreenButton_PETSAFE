@@ -4,6 +4,7 @@ from os.path import exists
 from os import makedirs
 import datetime
 from json import dumps, JSONEncoder
+from shutil import make_archive, rmtree
 
 from list_files import list_files_in_dir
 
@@ -79,7 +80,7 @@ def export_json_metadata(
         print("Saving metadata.")
         json_metadata = dumps(metadata, indent=4, cls=DateTimeEncoder)
         # TODO: find a way to write all metadata entries to one file coherently?
-        with open(export_dir + bid + "-metadata.json", "w") as outfile:
+        with open(export_dir + str(bid) + "-metadata.json", "w") as outfile:
             outfile.write(json_metadata)
     else:
         print("Metadata must be a dictionary list.")
@@ -104,12 +105,17 @@ def main():
     start_date = "2023-10-02"
     end_date = "2023-10-08"
 
-    # Leave this alone, though; it gets used later
-    export_path = export_dir + export_filename
-
-    # Sanity checks
+    # Sanity checks; set up directories
     if not exists(export_dir):
         makedirs(export_dir)
+    if not exists(export_dir + "/data"):
+        makedirs(export_dir + "/data")
+    
+    # Prep filenames
+    today = datetime.datetime.today().strftime('%Y-%m-%d')
+    building_list_string = '-'.join(str(x) for x in buildings_to_export)
+    zipfile_name = export_dir + "data/" + today + "-" + building_list_string
+    export_path = zipfile_name + export_filename
 
     # Get requested buildings between requested dates
     buildings = unpickle_buildings(read_dir)
@@ -117,9 +123,15 @@ def main():
         building_data = select_building(buildings, id)
         building_data = select_dates(building_data, start_date, end_date)
         metadata, building_data = extract_metadata(building_data, start_date, end_date)
-        export_json_metadata(metadata, export_dir)
+        export_json_metadata(metadata, export_dir + "data/")
         #export_simple_csv(building_data, export_path)
         export_simple_json(building_data, export_path)
+    
+    # Zip up the results
+    make_archive(export_dir + today + "-buildings-" + building_list_string, 'zip', export_dir + "/data")
+
+    # Delete the WIP directory; no longer needed
+    rmtree("data/exports/data")
 
 if __name__ == '__main__':
     try:

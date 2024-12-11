@@ -116,9 +116,10 @@ def main():
 
         # Graph the distribution of coefficient values per coefficient
         if dctc.DCT_ACTION == "magnitude":
-            graph_dct.graph_coefficients_as_box_all_buildings(all_building_coefficient_frames,
+            fig, frame = graph_dct.graph_coefficients_as_box_all_buildings(all_building_coefficient_frames,
                                                               title=f"Coefficient Magnitudes by Building",
                                                               transpose=True)
+            fig.show()
 
 
     # Graph DCT coefficients...

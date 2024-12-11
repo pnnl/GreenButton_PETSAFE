@@ -93,8 +93,9 @@ def graph_coefficients_as_box_all_buildings(
     print("Showing box plot in web browser")
     all_buildings_fig.update_layout(title_text=title, width=10000) # Long enough to see all buildings side by side
     fig.update_layout(title_text=title, height=(row_count*row_height), width=10000) # Long enough to see all buildings side by side
-    fig.show()
-    all_buildings_fig.show()
+    #fig.show()
+    #all_buildings_fig.show()
+    return fig, frame
 
 # Graph each building's coefficient distribution
 def graph_coefficients_by_building(coefficients_2d_array):
