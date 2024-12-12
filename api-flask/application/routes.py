@@ -10,6 +10,5 @@ def get_index():
 # depending on auth status? Is error 401/403 enough? Check best practices
 @app.route("/buildings/<id>/coefficients")
 def get_coefficients(id):
-    frame = prepare_coefficients(id)
     # TODO: format frame into something easier to parse in JSON, like "frequency": "value"
-    return jsonify({"coefficients": frame})
+    return jsonify({"coefficients": prepare_coefficients(id)})

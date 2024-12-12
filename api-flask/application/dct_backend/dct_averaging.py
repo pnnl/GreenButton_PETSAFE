@@ -8,10 +8,8 @@ from os import makedirs
 from sklearn.metrics import root_mean_squared_error as rmse
 
 # These need to be replaced by function arguments or hardcoding
-import config
-import dct.dct_config as dctc
 
-from dct import perform_dct
+from dct_backend import basic_dct as perform_dct
 
 # https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
 pd.options.mode.copy_on_write = True

@@ -1,20 +1,43 @@
 from scipy.fftpack import dct, idct
+from sklearn.preprocessing import minmax_scale
 import pandas as pd
 from typing import Optional
 
-# This needs to be replaced by function arguments
-import dct.dct_config as dctc
-
 DCT_TYPE = 2
 
-DROP_BELOW_THRESHOLD = False
-THRESHOLD_VAL = dctc.DROP_THRESHOLD
+# Config
+# TODO: REPLACE THESE WITH ARGUMENTS!
 
-DROP_HIGH = False
+START_DATE = "2023-07-03"
+END_DATE = "2023-07-08"
+
 PORTION_TO_DROP = 3/4
 
-KEEP_LARGEST_HIGH = False
-NUMBER_OF_LARGEST = dctc.NUMBER_OF_LARGEST
+# Method used for dropping coefficients to 0. Options:
+# "threshold": drop all below a threshold value
+# "drop high": drop the upper X% of frequencies
+# "drop high keep max": drop the upper X% of frequencies, but keep the largest N
+# "roll down": move values of high frequency coefficients down by adding them to low frequency coefficients; then zero them
+DROP_METHOD = "roll down"
+
+# If using drop high keep max: how many largest coefficients to keep
+NUMBER_OF_LARGEST = 5
+
+# If using threshold: at what value and below to drop coefficients to 0
+DROP_THRESHOLD = 10
+THRESHOLD_VAL = DROP_THRESHOLD
+
+# Cutoff point for considering something "high frequency"; e.g.
+# 0.25 treats the top 25% of coefficients as being "high frequency"
+# Must be between 0 and 1
+PORTION_TO_DROP = 0.5
+
+# If using roll down: what percentage of each coefficient to move down
+PERCENTAGE_KEPT = 1
+
+# If using roll down: what portion of the list to roll down; eg 0.75 moves the top 75% of coefficients down
+# THIS HAS MAJOR AND HARD TO PREDICT EFFECTS; some values will be negative, meaning it's not always a value increase as more is shifted!
+PORTION_ROLLED = 0.75
 
 # Break data into cosine functions using DCT. Outputs an array of coefficients.
 def decompose(
@@ -112,7 +135,7 @@ def decompose(
 # frame should have a datetime index
 def dct_by_day(frame, column_for_dct):
     # Split building data into days; do DCT per day
-    all_days =  pd.date_range(start=dctc.START_DATE, end=dctc.END_DATE, freq="d", normalize=True, inclusive="both")
+    all_days =  pd.date_range(start=START_DATE, end=END_DATE, freq="d", normalize=True, inclusive="both")
     for day in all_days:
         day_data = frame[day:(day + pd.Timedelta(1, "d"))]
         # Timedelta is both-inclusive. We only want left-inclusive. Drop the very last entry.
@@ -140,6 +163,11 @@ def compare_averages(recomposed_data, original_data):
     dct_avg = recomposed_data.sum() / recomposed_data.size
     avg_difference = dct_avg - original_avg
     return avg_difference, dct_avg
+
+# data should be a pandas frame column (series)
+def normalize(data):
+    data = data.to_numpy()
+    return minmax_scale(data)
 
 if __name__ == '__main__':
     print("Please import perform_dct into another script and supply coefficients to your preferred function.")
