@@ -1,11 +1,11 @@
 import pandas as pd
 from datetime import datetime
 
-from processor.commonDB import DBConn
-from config import METER_DATABASE_PATH
+from site_data_querying.commonDB import DBConn
+import database_config as config
 
 def get_site_real(point_id, start_date, end_date):
-    with DBConn.create_connection(METER_DATABASE_PATH) as conn:
+    with DBConn.create_connection(config.METER_DATABASE_PATH) as conn:
         print("Connected to database.")
         # We only need to query each id once. Convert to set to get unique.
         query = f"SELECT * FROM POWER WHERE point_id == {point_id}"
