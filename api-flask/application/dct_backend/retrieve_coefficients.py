@@ -2,6 +2,7 @@ from dct_backend import basic_dct
 from dct_backend.unpickle_buildings import unpickle_buildings
 
 # Should this be allowed to make bulk id requests?
+# Calculates DCT coefficients for each DAY in the sample period
 def prepare_coefficients(id):
     # Retrieve buildings and normalize them
     # TODO: Only retrieve requested building (this was taken from when we wanted to do all of them each time)

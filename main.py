@@ -2,7 +2,7 @@ import pandas as pd
 import pickle
 
 import config
-import benchmark_encryption as benchmark
+import tools.benchmark_encryption as benchmark
 from list_files import list_files_in_dir
 import dct.dct_main as dct_main
 
