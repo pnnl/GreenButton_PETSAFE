@@ -70,7 +70,7 @@ def make_average_dct_curve(building_data, building_id, dct_count, averaged_coeff
         day_data = day_data.reset_index()
         actual_building_data[day] = pd.DataFrame(day_data["real_power"])
     actual_building_data = actual_building_data.set_index("Time")
-
+    # Start building the graph frame on top of the randomly selected data
     actual_building_data["Averaged DCT"] = recomposed
     title = 'Building ' + str(building_id) + ' VS Averaged DCT Reconstruction from ' + dctc.START_DATE + " to " + dctc.END_DATE
     fig = px.line(actual_building_data, labels={"index": "Time", "value": "Real Power"}, title=title)

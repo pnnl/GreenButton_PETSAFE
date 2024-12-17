@@ -3,6 +3,7 @@ from sklearn.preprocessing import minmax_scale
 import pandas as pd
 from typing import Optional
 
+# Chosen because it can be reversed perfectly
 DCT_TYPE = 2
 
 # Config
@@ -34,10 +35,6 @@ PORTION_TO_DROP = 0.5
 
 # If using roll down: what percentage of each coefficient to move down
 PERCENTAGE_KEPT = 1
-
-# If using roll down: what portion of the list to roll down; eg 0.75 moves the top 75% of coefficients down
-# THIS HAS MAJOR AND HARD TO PREDICT EFFECTS; some values will be negative, meaning it's not always a value increase as more is shifted!
-PORTION_ROLLED = 0.75
 
 # Break data into cosine functions using DCT. Outputs an array of coefficients.
 def decompose(
@@ -154,8 +151,7 @@ def dct_by_day(frame, column_for_dct):
 def recompose(coefficients_array):
     # Reconstruct the data from the coefficients array
     # Ortho norm ensures that inverse DCT gets the same values out that went in
-    data = idct(coefficients_array, type=DCT_TYPE, norm="ortho")
-    return data
+    return idct(pd.DataFrame(coefficients_array), type=DCT_TYPE, norm="ortho")
 
 # Find the difference between the average values of actual and recreated data
 def compare_averages(recomposed_data, original_data):

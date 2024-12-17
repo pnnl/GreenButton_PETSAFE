@@ -1,24 +1,35 @@
 from flask import Flask, jsonify, request, abort
-from dct_backend.retrieve_coefficients import prepare_coefficients
+from dct_backend.retrieve_coefficients import prepare_coefficients, average_coefficients
 from dct_backend.unpickle_buildings import unpickle_buildings
+import database_config
 
+# Checks for start and end date arguments in routing, then ensures
+# that the dates are valid, exist in the data, and that end > start.
+# Returns the dates if these checks pass.
 def check_for_date_limiter_arguments(request):
-    start_date, end_date = None
+    # Fallbacks
+    start_date = None
+    end_date = None
     # Determine if we have any date filtering
     start_date = request.args.get('start')
     end_date = request.args.get('end')
-    # TODO sanity check: do we HAVE these dates available?
+    # TODO sanity check: are these dates formatted in a valid way?
+    # TODO sanity check: do we HAVE these dates available? If not, 404
+    # Does end come AFTER start? If not, request is malformed (400 error?)
     return start_date, end_date
 
 # Check that the requested ID actually exists
+# If it does, returns the id
+# Otherwise, aborts request (404: building does not exist, not found error)
 def sanity_check_building_id(id):
-    buildings = unpickle_buildings("../../data/buildings/")
+    buildings = unpickle_buildings(database_config.BUILDING_DATABASE_PATH)
     all_ids = set(buildings["building_id"])
     if id in all_ids:
-        return id
-    else: # This should be used to trigger a 400 error in the code- building doesn't exist, bad request
-        return None
+        return id # Building exists
+    else:
+        abort(404) # Building does not exist; bad request
 
+# Run the app and define its routing
 def init_app():
     app = Flask(__name__) # instance_relative_config=False
     # app.config.from_object('config.Config')
@@ -26,9 +37,8 @@ def init_app():
     # If we need plugins, their inits go here
 
     with app.app_context():
-        # Include routing
-        #from . import routes
         from .dct_backend import basic_dct, alter_coefficients, basic_dct, retrieve_site_data #, dct_averaging
+        from .database_config import BUILDING_DATABASE_PATH
         # Blueprint registration goes here, e.g. app.register_blueprint(auth.auth_bp)
 
         # By default, a route only answers to GET requests.
@@ -43,19 +53,20 @@ def init_app():
         # Needs permission checks- third parties should not have access,
         # non-owners should only hae DP access
         # Return the actual power data for a given site
+        # TODO Would it be useful (and safe) to also return links to what buildings the site is in?
         @app.route("/sites/<int:point_id>")
         def get_point_data(point_id):
-            # TODO: Sanity check point_id exists
+            # TODO: Sanity check point_id exists (relies on querying database)
             # Determine if we have any date filtering
             start, end = check_for_date_limiter_arguments(request)
             point_data = retrieve_site_data.get_site_real(point_id, start, end)
             return point_data.to_json(orient="columns") # TODO Check that orient makes sense
         
         # Returns what sites a given building contains
+        # TODO: also return links to view those sites' power IF user is authorized to see that
         @app.route("/buildings/<int:id>/sites")
         def get_sites_in_building(id):
-            if sanity_check_building_id(id) == None:
-                abort(404) # Building does not exist; bad request
+            sanity_check_building_id(id) # Make sure building exists!
             sites = retrieve_site_data.list_component_sites(id)
             return sites.to_json(orient="columns") # TODO Check that orient makes sense
         
@@ -65,39 +76,90 @@ def init_app():
         # depending on auth status? Is error 401/403 enough? Check best practices
         # Third parties should only have DP access
         # Calculates DCT coefficients for each DAY in the sample period
+        # Returns JSON in format:
+        # TODO document here
         @app.route("/buildings/<int:id>/coefficients")
         def get_coefficients_for_each_day(id):
-            if sanity_check_building_id(id) == None:
-                abort(404) # Building does not exist; bad request
-            # TODO: change return privacy depending on querying party
+            sanity_check_building_id(id) # Make sure building exists!
+            # TODO: change return privacy depending on querying party?
             all_coefficients = prepare_coefficients(id)
             # TODO: format frame into something easier to parse in JSON, like "frequency": "value"
             # At minimum, make datetimes obviously datetimes (currently UNIX stamps, which may be confusing to humans)
             # Right now it's hard to understand and that will be a problem in the future. Make it easier to work with
             return all_coefficients.to_json(orient="columns")
         
+        # Would this be better as /buildings/id/coefficients?avg=true ?
+        # Returns JSON in format:
+        # Coefficient: Value
         @app.route("/buildings/<int:id>/coefficients/average")
         def get_average_coefficients(id):
-            if sanity_check_building_id(id) == None:
-                abort(404) # Building does not exist; bad request
+            sanity_check_building_id(id) # Make sure building exists!
             # TODO: change return privacy depending on querying party
             all_coefficients = prepare_coefficients(id)
-            all_coefficients = all_coefficients.transpose()
-            days_in_sample = all_coefficients[0].size
-            # Calculate the coefficients for one day, averaged for the time period
-            avg = all_coefficients.sum() / days_in_sample # Sums by rows, aka per coefficient
-            if "avg_coefficients" not in locals(): # Make the initial frame
-                avg_coefficients = avg
-                dct_count = 1
-            else: # Add the building to the frame
-                avg_coefficients += avg
-                dct_count += 1
-            avg_coefficients = avg_coefficients / dct_count
-            print(avg_coefficients)
+            avg_coefficients = average_coefficients(all_coefficients)
             # TODO: add frame comment so it's clear what this is and how it's useful
-            # Format:
-            # Coefficient: value
             return avg_coefficients.to_json(orient="columns")
+        
+        # APIs for protection profiles
+        # /buildings/<id>/methodname?parameter=n
+
+        # /buildings/<id>/methodname
+        # Arguments: 
+        # strength=050 (range: 000 to 100)
+        # start=2023-07-03 (YYYY-mm-dd) (TODO: optional?)
+        # end=2023-07-08 (YYYY-mm-dd) (must come after start; TODO optional?)
+        # Returns JSON in format:
+        @app.route("/buildings/<int:id>/signature/lowpass")
+        def lowpass_filter_actual_minus_average(id):
+                sanity_check_building_id(id) # Make sure building exists!
+            #try:
+                # Get and sanity check arguments
+                # Lowpass strength
+                strength = float(request.args.get('strength'))
+                # Check validity of argument
+                if not strength or not 100 >= strength >= 000:
+                    abort(400) # Malformed request
+                if strength > 1:
+                    strength = strength / 100 # Convert to percentage for use
+                # Start and end dates; get and check validity
+                start, end = check_for_date_limiter_arguments(request)
+                # Get the average DCT coefficients for the period
+                all_coefficients = prepare_coefficients(id)
+                avg_coefficients = average_coefficients(all_coefficients)
+                # Lowpass filter the average coefficients
+                altered_avg_coeffs = alter_coefficients.drop_coefficients(avg_coefficients, \
+                                                        method="drop high", PORTION_TO_DROP=strength) # Lowpass
+                # Reconstruct average data from actual average coefficients
+                actual_avg = basic_dct.recompose(avg_coefficients)
+                # Reconstruct average data from altered average coefficients
+                altered_avg = basic_dct.recompose(altered_avg_coeffs)
+                # Create "signature" for a random day in the sample: actual real power minus actual average
+                this_building = retrieve_site_data.get_building(id, unpickle_buildings(database_config.BUILDING_DATABASE_PATH))
+                # Select random day first
+                # TODO: REWORK FOR INFLUX
+                random_days, random_day_data = retrieve_site_data.get_random_day_in_sample(start, end, this_building)
+                day = random_days[0]
+                # TODO Temp error method; this could probably be exploited. Find a better way to do cross-file error handling
+                if isinstance(random_days, int):
+                    abort(random_days)
+                # Build signature
+                # Building frame to graph on top of random day selected actual
+                print(random_day_data.columns)
+                random_day_data[day + " signature"] = random_day_data["real_power"] - actual_avg
+                # Show effects of altering average: signature + modified average
+                # The difference between actual and modified average for each point will affect sig + modified
+                # and produce visual changes; higher filtering = more "smoothing" and amplitude loss
+                random_day_data[day + " Reconstructed with modified average"] = random_day_data[day + " signature"] + altered_avg
+                print(random_day_data)
+                return random_day_data.to_json(orient="columns") # TODO: check orient makes sense for this case
+            #except Exception as ex:
+                #print(ex)
+                #abort(400) # Works for now; consider whether this is proper response (500-range?)
+                # Be more specific with errors
+
+        # --------------- USER DATA -------------------
+
+        # Return what meters the user has added to their profile?
         
 
     return app

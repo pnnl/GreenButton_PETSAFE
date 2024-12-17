@@ -17,3 +17,17 @@ def prepare_coefficients(id):
         return building_coefficients
     except ValueError:
         return "No data for building. Does building exist?"
+    
+def average_coefficients(all_coefficients):
+    all_coefficients = all_coefficients.transpose()
+    days_in_sample = all_coefficients[0].size
+    # Calculate the coefficients for one day, averaged for the time period
+    avg = all_coefficients.sum() / days_in_sample # Sums by rows, aka per coefficient
+    if "avg_coefficients" not in locals(): # Make the initial frame
+        avg_coefficients = avg
+        dct_count = 1
+    else: # Add the building to the frame
+        avg_coefficients += avg
+        dct_count += 1
+    avg_coefficients = avg_coefficients / dct_count
+    return avg_coefficients.transpose()
