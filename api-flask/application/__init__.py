@@ -146,13 +146,19 @@ def init_app():
                 if isinstance(random_days, int):
                     abort(random_days)
                 # Build signature
+                # Fix average formatting to conform to frame
+                index = random_day_data.index
+                actual_avg = pd.Series(squeeze(actual_avg)).set_axis(index)
+                altered_avg = pd.Series(squeeze(altered_avg)).set_axis(index)
                 # Building frame to graph on top of random day selected actual
-                random_day_data[day_str + " signature"] = random_day_data["real_power"] - pd.Series(squeeze(actual_avg))
+                random_day_data["DCT Average"] = actual_avg
+                random_day_data["Modified DCT Average"] = altered_avg
+                random_day_data[day_str + " signature"] = random_day_data["real_power"] - actual_avg
                 # Show effects of altering average: signature + modified average
                 # The difference between actual and modified average for each point will affect sig + modified
                 # and produce visual changes; higher filtering = more "smoothing" and amplitude loss
                 random_day_data[day_str + " Reconstructed with modified average"] = random_day_data[day_str + " signature"] \
-                                                                                + pd.Series(squeeze(altered_avg))
+                                                                                    + altered_avg
                 print(random_day_data)
                 return random_day_data.to_json(orient="columns") # TODO: check orient makes sense for this case
             #except Exception as ex:
