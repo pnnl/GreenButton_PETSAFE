@@ -151,7 +151,13 @@ def dct_by_day(frame, column_for_dct):
 def recompose(coefficients_array):
     # Reconstruct the data from the coefficients array
     # Ortho norm ensures that inverse DCT gets the same values out that went in
-    return idct(pd.DataFrame(coefficients_array), type=DCT_TYPE, norm="ortho")
+    data = idct(pd.DataFrame(coefficients_array), type=DCT_TYPE, norm="ortho")
+    # data is a list of numpy arrays. Change it into a list of numbers. The arrays get in the way.
+    # Currently this is causing a bunch of NaN values in the output of the API
+    data = list(data.flat)
+    cleaned_data = [x.astype(float) for x in data]
+    print(cleaned_data)
+    return cleaned_data
 
 # Find the difference between the average values of actual and recreated data
 def compare_averages(recomposed_data, original_data):

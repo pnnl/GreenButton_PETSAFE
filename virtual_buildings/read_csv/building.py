@@ -1,0 +1,217 @@
+import pandas
+import numpy
+import logging
+from os import environ
+from os.path import exists
+from multiprocessing import Lock
+from typing import Optional
+from config import ENCRYPT_COLS, OUTPUT_DIR
+from logger_config import config_logger
+
+# Setting copy on write for PANDAS as recommended here:
+# https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+pandas.options.mode.copy_on_write = True
+
+# Set up logger
+logger = config_logger()
+
+# Value obtained from print(str(logging.ERROR))
+# LightPHE needs to be reminded not to spam the terminal sometimes
+environ['LIGHTPHE_LOG_LEVEL'] = "40" # Errors and critical only
+
+# TODO: store which sites went into building (encrypted)
+# TODO: encrypt different sensitive columns with different keys
+
+# Could not create buildings for ./data/2021-Full_v8.1/2021/power/power-fifteen-20210101.csv
+    # Length of values (9) does not match length of index (96)
+
+class Building:
+    def __init__(
+            self,
+            ids: list, # a list of ids to place in the building
+            data, # a data frame of meter readings including (at minimum) the ids in ids
+            decimal_places: Optional[int] = 5, # The number of decimal places to preserve
+            logging_id: Optional[int] = None # ID to use for logging; if none, does not specify
+            ):
+        self.__DROP_COLUMNS = ['regname', 'max_t']
+        self.__data = data
+        self.__ids = ids
+        self.__bid = str(logging_id) # Needs to be concatenated with strings for logging
+        self.resolution = "fifteen minutes"
+
+        # Used to convert floats to int so encryption works as expected.
+        # Floats will be multiplied by this amount to ensure conversion doesn't
+        # lose precision- e.g. 10,000 covers 4 decimal places of precision.
+        # DECIMAL_PLACES contains the number of places expected at most.
+        # Must be greater than 0.
+        self.__CONVERSION_SCALAR = 10**decimal_places
+        # Aggregate data into buildings
+        self.__data = self.__define_building()
+
+    # Aggregates sites into a building.
+    # Takes a list of site id numbers and a data frame containing (at minimum)
+    # the data associated with those id numbers (ee_site_id)
+    # Combines the data associated with those id numbers to form one frame
+    # that's the sum of all its component sites. Outputs that frame.
+    def __define_building(self):
+        dataframe = self.__data
+        ids = self.__ids
+        self.size = len(ids)
+        # Get a building to start the frame
+        # Check for an empty id list
+        #if len(ids) > 0:
+        if ids.any():
+            building = self.__clean_frame(dataframe[dataframe["ee_site_id"] == ids[0]])
+            ids = numpy.delete(ids, 0)
+            # Add the rest in
+            for id in ids:
+                site = self.__clean_frame(dataframe[dataframe["ee_site_id"] == id])
+                try:
+                    building = building.add(site, fill_value=0) # There shouldn't be NAs, but just in case...
+                except TypeError as ex:
+                    with Lock():
+                        logger.error("Building " + self.__bid + ": Could not create building due to incompatible data types: " + str(ex))
+        else:
+            with Lock():
+                logger.error("Building " + self.__bid + ": No building ids supplied.")
+            return None
+        building = self.__correct_power_factor(building)
+        # Save the sites that went into the building
+        building["sites"] = str([str(id) for id in ids])
+        # Returns empty frame if none of the supplied ids match the data supplied
+        return building
+    
+    def __resample_data(self, period, resolution):
+        siteids = self.__data["sites"]
+        self.__data = self.__data.drop("sites") # Str type doesn't work with resample
+        try:
+            self.__data = self.__data.resample(period).sum()
+            self.__data = self.__correct_power_factor(self.__data)
+        except Exception as ex:
+            with Lock():
+                logger.error("Building " + self.__bid + ": Could not resample: " + ex)
+        self.__data["sites"] = siteids # replace when done
+        self.resolution = resolution
+    
+    def aggregate_hourly(self):
+        self.__resample_data('60min', 'hourly')
+        return self.__data
+
+    def aggregate_daily(self):
+        self.__resample_data('1440min', 'daily')
+        return self.__data
+    
+    # TODO: calculate signature to prove data accuracy/validity
+    # def __calculate_signature(self):
+
+    # TODO: return signature
+    # def get_signature(self):
+    
+    # A wrapper for encrypt_column() that calls it for each column to encrypt.
+    # Directly modifies site data; returns nothing, but encrypts self.__data's values.
+    def encrypt(self, keys):
+        self.__keys = keys
+        for column in self.__data.columns:
+            if column in ENCRYPT_COLS:
+                self.__data[column] = self.__data[column].apply(self.__encrypt_column)
+
+    # Encrypts a single column of a data frame.
+    # Takes the column as input.
+    # Returns the encrypted column.
+    def __encrypt_column(self, target):
+        # TODO: consider importing floor to deal with poorly-chosen scalar values
+        return self.__keys.encrypt(int(float(target) * self.__CONVERSION_SCALAR))
+    
+    # Prepares a data frame for processing; sets the indices, drops
+    # indicated columns, and deals with any missing values.
+    # Takes a frame as input.
+    # Returns a cleaned frame.
+    def __clean_frame(self, frame):
+        try:
+            # Drop unnecessary columns
+            frame = frame.drop(self.__DROP_COLUMNS, axis=1)
+            # Fill missing intervals with NA using the 15-min increment list to create a complete index
+            # (if 02:15-02:29 is missing, then this creates this interval with NA values in its columns)
+            self.__start_datetime = pandas.to_datetime(frame["min_t"].iloc[0])
+            self.__end_datetime = self.__start_datetime + pandas.Timedelta(1, "d") # one day ahead
+            fifteen_min_increments = pandas.date_range(start=self.__start_datetime, end=self.__end_datetime, freq="15min", normalize=True, inclusive="left")
+            new_index = pandas.Index(fifteen_min_increments, name="min_t")
+            frame["min_t"] = frame["min_t"].apply(pandas.to_datetime)
+            frame = frame.set_index(["min_t"]).reindex(new_index)
+            frame = self.__fill_missing(frame, 3) # Fill in missing data as best possible
+        except KeyError:
+            #print("Frame already clean.")
+            pass
+        return frame
+    
+    def __fill_missing(
+            self,
+            frame, # the dataframe
+            outage_threshold: int # minimum number of missed readings to consider it an outage
+            ):
+        try:
+            # Forward-fill and back-fill any missing values (NA) with the previous existing value
+            # eg. a sequence of [4, NA, 5] becomes [4, 4, 5]; 
+            # [NA, 4, 5] becomes [4, 4, 5]
+            frame = frame.infer_objects(copy=False)
+            frame = frame.ffill(limit=outage_threshold)
+            frame = frame.bfill(limit=outage_threshold)
+            # Log the fills
+            with Lock():
+                # TODO: note what sites and times are missing
+                logger.info("Building " + self.__bid + ": missing data for site " + str(frame["ee_site_id"].iloc[0]) + \
+                            ". Partially imputed with forward and backward fill.")
+            # check for NA and fill with similar historical data from same year (such as "last Monday")
+            # unfinished; working on it
+            na_rows = frame.loc[pandas.isna(frame["power"]), :].index
+            if not na_rows.empty:
+                with Lock():
+                    logger.warning("Site " + str(frame["ee_site_id"].iloc[0]) + " missing rows: " + \
+                                   str(na_rows[0]) + " to " + str(na_rows[-1]))
+                    # Get similar data from one week ago
+                    # TODO: expand to check other potentially similar days in the recent past- same day of week, similar temp, season, etc.
+                    week_ago_date = (self.__start_datetime - pandas.Timedelta(7, "d")).date()
+                    week_ago_file = OUTPUT_DIR + str(week_ago_date) + ".csv"
+                    # Fill with prev data from year if available
+                    # TODO
+                    if exists(week_ago_file):
+                        print("One week ago:", week_ago_date)
+                        # TODO: historical fill goes here
+                    else:
+                        with Lock():
+                            logger.warning("Could not impute with historical data: " + str(week_ago_date) + " not processed. Filling with zeroes instead.")
+        except Exception as ex:
+            with Lock():
+                logger.error("Building " + self.__bid + ": Could not impute: " + str(ex) + ".\nFilling with zeros instead.")
+        frame = frame.fillna(0) # Catch anything the fill methods missed
+        return frame
+    
+    def __correct_power_factor(self, building):
+        # Fix the power factor
+        building["pf"] = building["power"] / building["apparent_power"]
+        return building
+
+    # Returns the data frame for the building.
+    def get_data(self):
+        return self.__data
+    
+    # Returns the building id number.
+    def get_id(self):
+        return self.__data["ee_site_id"].iloc[0]
+    
+    # Sets the building id number.
+    # Returns the new id.
+    def change_id(self, id):
+        self.__data["ee_site_id"] = id
+        return id
+    
+    # Returns the sum of the building's power (should be resolution of one day)
+    def get_power_sum(self):
+        return self.__data["power"].sum()
+    
+    # Returns the resolution of the building
+    def get_resolution(self):
+        return self.resolution
+    
+    def get_size(self):
+        return self.size

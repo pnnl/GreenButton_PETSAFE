@@ -111,6 +111,8 @@ def init_app():
         # Returns JSON in format:
         @app.route("/buildings/<int:id>/signature/lowpass")
         def lowpass_filter_actual_minus_average(id):
+                import pandas as pd
+                from numpy import squeeze
                 sanity_check_building_id(id) # Make sure building exists!
             #try:
                 # Get and sanity check arguments
@@ -139,17 +141,18 @@ def init_app():
                 # TODO: REWORK FOR INFLUX
                 random_days, random_day_data = retrieve_site_data.get_random_day_in_sample(start, end, this_building)
                 day = random_days[0]
+                day_str = day.strftime("%Y-%m-%d")
                 # TODO Temp error method; this could probably be exploited. Find a better way to do cross-file error handling
                 if isinstance(random_days, int):
                     abort(random_days)
                 # Build signature
                 # Building frame to graph on top of random day selected actual
-                print(random_day_data.columns)
-                random_day_data[day + " signature"] = random_day_data["real_power"] - actual_avg
+                random_day_data[day_str + " signature"] = random_day_data["real_power"] - pd.Series(squeeze(actual_avg))
                 # Show effects of altering average: signature + modified average
                 # The difference between actual and modified average for each point will affect sig + modified
                 # and produce visual changes; higher filtering = more "smoothing" and amplitude loss
-                random_day_data[day + " Reconstructed with modified average"] = random_day_data[day + " signature"] + altered_avg
+                random_day_data[day_str + " Reconstructed with modified average"] = random_day_data[day_str + " signature"] \
+                                                                                + pd.Series(squeeze(altered_avg))
                 print(random_day_data)
                 return random_day_data.to_json(orient="columns") # TODO: check orient makes sense for this case
             #except Exception as ex:

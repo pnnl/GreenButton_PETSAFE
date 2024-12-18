@@ -93,7 +93,8 @@ def get_random_day_in_sample(
             # Likewise with a separate time column
             actual_building_data["Time"] = day_data.index.time
         day_data = day_data.reset_index()
-        actual_building_data[day] = pd.DataFrame(day_data["real_power"])
+        # Used for multiple days: actual_building_data[day] = pd.DataFrame(day_data["real_power"])
+        actual_building_data["real_power"] = pd.DataFrame(day_data["real_power"])
     # Use time as an index to allow graphing more easily
     actual_building_data = actual_building_data.set_index("Time")
     return random_days, actual_building_data
