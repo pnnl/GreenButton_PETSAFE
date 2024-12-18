@@ -1,4 +1,6 @@
 from flask import Flask, jsonify, request, abort
+from datetime import datetime
+
 from dct_backend.retrieve_coefficients import prepare_coefficients, average_coefficients
 from dct_backend.unpickle_buildings import unpickle_buildings
 import database_config
@@ -14,9 +16,15 @@ def check_for_date_limiter_arguments(request):
     # Determine if we have any date filtering
     start_date = request.args.get('start')
     end_date = request.args.get('end')
-    # TODO sanity check: are these dates formatted in a valid way?
+    # Sanity check: are these dates formatted in a valid way?
+    try:
+        dt_start = datetime.strptime(start_date, "%Y-%m-%d")
+        dt_end = datetime.strptime(end_date, "%Y-%m-%d")
+        assert dt_end > dt_start
+        # Does end come AFTER start? If not, request is malformed
+    except (ValueError, AssertionError): # Malformed date
+        abort(400)
     # TODO sanity check: do we HAVE these dates available? If not, 404
-    # Does end come AFTER start? If not, request is malformed (400 error?)
     return start_date, end_date
 
 # Check that the requested ID actually exists
