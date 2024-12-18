@@ -33,7 +33,7 @@ def drop_coefficients(
     # Zero all high frequency values over a certain portion of the array
     if method.lower() in ["drop high", "drop high keep max"]:
         #if dctc.PRINT_DEBUG == True:
-        #    print("Zeroing the upper", PORTION_TO_DROP, "of high-frequency coefficients.")
+        print("Zeroing the upper", PORTION_TO_DROP, "of high-frequency coefficients.")
         # Drop high frequency values
         coefficients_array[-index_of_drop:] = 0
 

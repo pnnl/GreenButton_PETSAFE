@@ -151,7 +151,8 @@ def dct_by_day(frame, column_for_dct):
 def recompose(coefficients_array):
     # Reconstruct the data from the coefficients array
     # Ortho norm ensures that inverse DCT gets the same values out that went in
-    data = idct(pd.DataFrame(coefficients_array), type=DCT_TYPE, norm="ortho")
+    coefficients_array = list(coefficients_array) # Fixes a KeyError
+    data = idct(coefficients_array, type=DCT_TYPE, norm="ortho")
     # data is a list of numpy arrays. Change it into a flat list of Python floats for graphing.
     data = list(data.flat)
     cleaned_data = [x.item() for x in data]

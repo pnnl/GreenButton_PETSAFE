@@ -8,6 +8,7 @@ import database_config
 # Returns the dates if these checks pass.
 def check_for_date_limiter_arguments(request):
     # Fallbacks
+    # TODO: fall back to whole data span? Or is None sensible? Think about it
     start_date = None
     end_date = None
     # Determine if we have any date filtering
@@ -37,7 +38,7 @@ def init_app():
     # If we need plugins, their inits go here
 
     with app.app_context():
-        from .dct_backend import basic_dct, alter_coefficients, basic_dct, retrieve_site_data #, dct_averaging
+        from .dct_backend import basic_dct, alter_coefficients, basic_dct, retrieve_site_data, retrieve_coefficients #, dct_averaging
         from .database_config import BUILDING_DATABASE_PATH
         # Blueprint registration goes here, e.g. app.register_blueprint(auth.auth_bp)
 
@@ -111,60 +112,20 @@ def init_app():
         # Returns JSON in format:
         @app.route("/buildings/<int:id>/signature/lowpass")
         def lowpass_filter_actual_minus_average(id):
-                import pandas as pd
-                from numpy import squeeze
-                sanity_check_building_id(id) # Make sure building exists!
-            #try:
-                # Get and sanity check arguments
-                # Lowpass strength
-                strength = float(request.args.get('strength'))
-                # Check validity of argument
-                if not strength or not 100 >= strength >= 000:
-                    abort(400) # Malformed request
-                if strength > 1:
-                    strength = strength / 100 # Convert to percentage for use
-                # Start and end dates; get and check validity
-                start, end = check_for_date_limiter_arguments(request)
-                # Get the average DCT coefficients for the period
-                all_coefficients = prepare_coefficients(id)
-                avg_coefficients = average_coefficients(all_coefficients)
-                # Lowpass filter the average coefficients
-                altered_avg_coeffs = alter_coefficients.drop_coefficients(avg_coefficients, \
-                                                        method="drop high", PORTION_TO_DROP=strength) # Lowpass
-                # Reconstruct average data from actual average coefficients
-                actual_avg = basic_dct.recompose(avg_coefficients)
-                # Reconstruct average data from altered average coefficients
-                altered_avg = basic_dct.recompose(altered_avg_coeffs)
-                # Create "signature" for a random day in the sample: actual real power minus actual average
-                this_building = retrieve_site_data.get_building(id, unpickle_buildings(database_config.BUILDING_DATABASE_PATH))
-                # Select random day first
-                # TODO: REWORK FOR INFLUX
-                random_days, random_day_data = retrieve_site_data.get_random_day_in_sample(start, end, this_building)
-                day = random_days[0]
-                day_str = day.strftime("%Y-%m-%d")
-                # TODO Temp error method; this could probably be exploited. Find a better way to do cross-file error handling
-                if isinstance(random_days, int):
-                    abort(random_days)
-                # Build signature
-                # Fix average formatting to conform to frame
-                index = random_day_data.index
-                actual_avg = pd.Series(squeeze(actual_avg)).set_axis(index)
-                altered_avg = pd.Series(squeeze(altered_avg)).set_axis(index)
-                # Building frame to graph on top of random day selected actual
-                random_day_data["DCT Average"] = actual_avg
-                random_day_data["Modified DCT Average"] = altered_avg
-                random_day_data[day_str + " signature"] = random_day_data["real_power"] - actual_avg
-                # Show effects of altering average: signature + modified average
-                # The difference between actual and modified average for each point will affect sig + modified
-                # and produce visual changes; higher filtering = more "smoothing" and amplitude loss
-                random_day_data[day_str + " Reconstructed with modified average"] = random_day_data[day_str + " signature"] \
-                                                                                    + altered_avg
-                print(random_day_data)
-                return random_day_data.to_json(orient="columns") # TODO: check orient makes sense for this case
-            #except Exception as ex:
-                #print(ex)
-                #abort(400) # Works for now; consider whether this is proper response (500-range?)
-                # Be more specific with errors
+            sanity_check_building_id(id) # Make sure building exists!
+            # Get and sanity check arguments
+            # Lowpass strength
+            strength = float(request.args.get('strength'))
+            # Check validity of argument
+            if not strength or not 100 >= strength >= 000:
+                abort(400) # Malformed request
+            if strength > 1: # If the user asked for strength like strength=75, not strength=075
+                strength = strength / 100 # Convert to percentage for use
+            # Start and end dates; get and check validity
+            start, end = check_for_date_limiter_arguments(request)
+            # Perform lowpass filtering on DCT data
+            lowpass_data_frame = retrieve_coefficients.lowpass_filter_output(id, start, end, strength)
+            return lowpass_data_frame.to_json(orient="columns") # TODO: check orient makes sense for this case
 
         # --------------- USER DATA -------------------
 
