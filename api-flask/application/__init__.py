@@ -16,12 +16,13 @@ def check_for_date_limiter_arguments(request):
     # Determine if we have any date filtering
     start_date = request.args.get('start')
     end_date = request.args.get('end')
-    # Sanity check: are these dates formatted in a valid way?
-    try:
-        dt_start = datetime.strptime(start_date, "%Y-%m-%d")
-        dt_end = datetime.strptime(end_date, "%Y-%m-%d")
-        assert dt_end > dt_start
-        # Does end come AFTER start? If not, request is malformed
+    try: # Validity check: are these dates formatted in a valid way?
+        if dt_start:
+            dt_start = datetime.strptime(start_date, "%Y-%m-%d")
+        if dt_end:
+            dt_end = datetime.strptime(end_date, "%Y-%m-%d")
+        if dt_start and dt_end:
+            assert dt_end > dt_start # Does end come AFTER start? If not, request is malformed
     except (ValueError, AssertionError): # Malformed date
         abort(400)
     # TODO sanity check: do we HAVE these dates available? If not, 404
