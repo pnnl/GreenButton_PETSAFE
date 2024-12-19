@@ -101,7 +101,7 @@ def main():
     read_dir = "data/buildings/"
     export_dir = "data/exports/"
     export_filename = "bzero.json"
-    buildings_to_export = [0] #[0,1,2,3,4,5,6,7,8,9]
+    buildings_to_export = range(0, 20)
     start_date = "2023-10-02"
     end_date = "2023-10-08"
 

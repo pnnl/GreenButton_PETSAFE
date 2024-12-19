@@ -88,5 +88,12 @@ def import_from_pickled_buildings(pickle_dir, client):
             pass
 
 if __name__ == "__main__":
+    from dct_backend import list_files
     client = init_database()
-    import_from_json(client=client, filename="testfile.json")
+    read_from_dir = "../../data/exports/"
+    for file in list_files(read_from_dir):
+        # TODO: incorporate metadata (in its own bucket?)
+        if "metadata" not in file:
+            import_from_json(client=client, filename=file)
+        else: # metadata file
+            pass
