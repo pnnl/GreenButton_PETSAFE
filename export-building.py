@@ -8,6 +8,15 @@ from shutil import make_archive, rmtree
 
 from list_files import list_files_in_dir
 
+# Variables for controlling exports; change as needed
+buildings_to_export = range(0, 30)
+start_date = "2023-01-01"
+end_date = "2023-12-31"
+
+# Ensure read_dir and export_dir end with slashes
+read_dir = "output/buildings/"
+export_dir = "output/export/"
+
 # subclass JSONEncoder
 # Overriding to enable datetime processing: datetime object -> UNIX timestamp
 class DateTimeEncoder(JSONEncoder):
@@ -97,13 +106,6 @@ def extract_metadata(building_data, start_date, end_date):
     return metadata, building_data
 
 def main():
-    # Variables for controlling exports; change as needed
-    read_dir = "output/buildings/"
-    export_dir = "output/export/"
-    buildings_to_export = range(0, 30)
-    start_date = "2023-01-01"
-    end_date = "2023-12-31"
-
     # Sanity checks; set up directories
     if not exists(export_dir):
         makedirs(export_dir)
@@ -132,7 +134,7 @@ def main():
 
     # Delete the WIP directory; no longer needed
     # TODO automate name
-    rmtree("output/export/data")
+    rmtree(export_dir + "data")
 
 if __name__ == '__main__':
     try:
