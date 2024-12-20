@@ -5,7 +5,7 @@
 # Read from CSV files into SQLite database
 READ_FILES = False
 # Create virtual buildings using database
-CREATE_BUILDINGS = True
+CREATE_BUILDINGS = False
 # Database file target
 DATABASE = "data/records.db"
 # Set to true if you want to encrypt data before saving to file
@@ -45,12 +45,12 @@ END_DATE = "2023-12-31"
 
 # ----- PROCESSING -----
 # How many virtual buildings to make
-BUILDING_COUNT = 10
+BUILDING_COUNT = 1
 # What building ID number to start at
-FIRST_BUILDING_ID = 20
+FIRST_BUILDING_ID = 21
 # Minimum and maximum count of units per building
 MIN_SIZE = 2
-MAX_SIZE = 10
+MAX_SIZE = 2
 # Percentage of existing records necessary to accept an id as valid
 REQUIRED_PORTION = 0.9
 

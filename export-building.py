@@ -98,12 +98,11 @@ def extract_metadata(building_data, start_date, end_date):
 
 def main():
     # Variables for controlling exports; change as needed
-    read_dir = "data/buildings/"
-    export_dir = "data/exports/"
-    export_filename = "bzero.json"
-    buildings_to_export = range(0, 20)
-    start_date = "2023-10-02"
-    end_date = "2023-10-08"
+    read_dir = "output/buildings/"
+    export_dir = "output/export/"
+    buildings_to_export = range(0, 30)
+    start_date = "2023-01-01"
+    end_date = "2023-12-31"
 
     # Sanity checks; set up directories
     if not exists(export_dir):
@@ -114,12 +113,13 @@ def main():
     # Prep filenames
     today = datetime.datetime.today().strftime('%Y-%m-%d')
     building_list_string = '-'.join(str(x) for x in buildings_to_export)
-    zipfile_name = export_dir + "data/" + today + "-" + building_list_string
-    export_path = zipfile_name + export_filename
+    zipfile_name = export_dir + "data/" + today
 
     # Get requested buildings between requested dates
     buildings = unpickle_buildings(read_dir)
     for id in buildings_to_export:
+        building_name = f"building-{id}"
+        export_path = zipfile_name + building_name + ".json"
         building_data = select_building(buildings, id)
         building_data = select_dates(building_data, start_date, end_date)
         metadata, building_data = extract_metadata(building_data, start_date, end_date)
@@ -131,7 +131,8 @@ def main():
     make_archive(export_dir + today + "-buildings-" + building_list_string, 'zip', export_dir + "/data")
 
     # Delete the WIP directory; no longer needed
-    rmtree("data/exports/data")
+    # TODO automate name
+    rmtree("output/export/data")
 
 if __name__ == '__main__':
     try:

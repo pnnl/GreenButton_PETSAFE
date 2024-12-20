@@ -17,9 +17,9 @@ def check_for_date_limiter_arguments(request):
     start_date = request.args.get('start')
     end_date = request.args.get('end')
     try: # Validity check: are these dates formatted in a valid way?
-        if dt_start:
+        if start_date:
             dt_start = datetime.strptime(start_date, "%Y-%m-%d")
-        if dt_end:
+        if end_date:
             dt_end = datetime.strptime(end_date, "%Y-%m-%d")
         if dt_start and dt_end:
             assert dt_end > dt_start # Does end come AFTER start? If not, request is malformed

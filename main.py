@@ -47,6 +47,14 @@ def main():
         else:
             buildings = cb.make_buildings(config.BUILDING_COUNT, pickle=config.SAVE_AS_PICKLE, seed=config.SEED, encrypt=config.ENCRYPT)
 
+    else:
+        # Show it works
+        buildings = unpickle_buildings()
+        show = buildings[buildings["building_id"] == 0]["real_power"]
+        import plotly.express as px
+        fig = px.line(show)
+        fig.show()
+
 
     # Calculate DCT on data and perform any selected operations with it
     if config.PERFORM_DCT == True:

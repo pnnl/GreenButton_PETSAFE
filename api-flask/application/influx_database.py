@@ -2,6 +2,7 @@ import influxdb_client_3 as influx
 from typing import Optional
 from os import environ
 import pandas as pd
+from datetime import datetime
 
 host = "http://127.0.0.1:8086"
 bucket = "Buildings"
@@ -20,6 +21,21 @@ write_options = influx.WriteOptions(batch_size=500,
                             max_retry_delay=30_000,
                             exponential_base=2)
 
+def validate_date_range(start_date, end_date):
+    # TODO: do we need to check whether the dates are a certain distance apart, too?
+    try: # Validity check: are these dates formatted in a valid way?
+        if start_date:
+            dt_start = datetime.strptime(start_date, "%Y-%m-%d")
+        if end_date:
+            dt_end = datetime.strptime(end_date, "%Y-%m-%d")
+        if dt_start and dt_end:
+            assert dt_end > dt_start # Does end come AFTER start? If not, request is malformed
+    except (ValueError, AssertionError): # Malformed date
+        # TODO: return something better
+        return "Invalid date range"
+    # TODO sanity check: do we HAVE these dates available? If not, 404
+    return "Valid date range"
+
 def init_database():
     # Init the database
     try:
@@ -37,17 +53,11 @@ def close_client(client):
     else:
         return "Database does not exist"
 
-def write_point(client, point):
-    # Sanity checks on point and database validity
-    pass
-    # Initialize write client
-    write_client = client.write_api(write_options=SYNCHRONOUS)
-    # Write the point
-    pass
-
 def read_points_in_range(client, start_datetime, end_datetime):
     # Sanity checks on date range
-    pass
+    if validate_date_range(start_datetime, end_datetime) == "Valid date range":
+        # Query for data between the points
+        pass
 
 def import_from_json(
         client, 
@@ -90,8 +100,9 @@ def import_from_pickled_buildings(pickle_dir, client):
 if __name__ == "__main__":
     from dct_backend import list_files
     client = init_database()
-    read_from_dir = "../../data/exports/"
-    for file in list_files(read_from_dir):
+    read_from_dir = "./dec-2024-exports/"
+    for file in list_files.list_files_in_dir(read_from_dir, append_path=True):
+        print("Reading", file)
         # TODO: incorporate metadata (in its own bucket?)
         if "metadata" not in file:
             import_from_json(client=client, filename=file)
