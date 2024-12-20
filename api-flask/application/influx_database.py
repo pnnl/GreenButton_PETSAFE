@@ -75,7 +75,7 @@ def import_from_json(
         # Retrieve the file data
         # TODO error handling
         client.write_file(file=filename, measurement_name=measurement, write_precision="s", \
-                          tag_columns=["building_id", "duration"], timestamp_column="timestamp")
+                          tag_columns=["building_id"], timestamp_column="timestamp")
         return "Success"
     elif json_data:
         # Write from json

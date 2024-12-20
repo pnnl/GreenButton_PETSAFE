@@ -89,7 +89,7 @@ def export_json_metadata(
         print("Saving metadata.")
         json_metadata = dumps(metadata, indent=4, cls=DateTimeEncoder)
         # TODO: find a way to write all metadata entries to one file coherently?
-        with open(export_dir + str(bid) + "-metadata.json", "w") as outfile:
+        with open(export_dir + "-" + str(bid) + "-metadata.json", "w") as outfile:
             outfile.write(json_metadata)
     else:
         print("Metadata must be a dictionary list.")

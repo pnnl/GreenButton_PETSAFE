@@ -1,8 +1,12 @@
 import influxdb_client_3 as influx
 from typing import Optional
 from os import environ
+from shutil import rmtree
 from datetime import datetime
 import zipfile
+from os import makedirs
+from os.path import exists
+from list_files import list_files_in_dir
 
 host = "http://127.0.0.1:8086"
 bucket = "Buildings"
@@ -61,7 +65,7 @@ def import_from_json(
         # Retrieve the file data
         # TODO error handling
         client.write_file(file=filename, measurement_name=measurement, write_precision="s", \
-                          tag_columns=["building_id", "duration"], timestamp_column="timestamp")
+                          tag_columns=["building_id"], timestamp_column="timestamp")
         return "Success"
     elif json_data:
         # Write from json
@@ -69,18 +73,26 @@ def import_from_json(
     client.close()
 
 if __name__ == "__main__":
-    import list_files
     client = init_database()
-    read_from_dir = "./output/export"
-    for file in list_files.list_files_in_dir(read_from_dir, append_path=True):
+    read_from_dir = "./output/export/"
+    # Setup directory for unzipped files
+    if not exists(read_from_dir + "extracted"):
+            makedirs(read_from_dir + "extracted")
+    # Unzip files
+    for file in list_files_in_dir(read_from_dir, append_path=True):
         print("Reading", file)
         # UNZIP THE FILE
         if ".zip" in file:
             with zipfile.ZipFile(file,"r") as zip_ref:
-                zip_ref.extractall("extracted")
-        # Read again from its contents and import those
+                zip_ref.extractall(file, read_from_dir + "extracted")
+    # Read again from its contents and import those
+    for file in list_files_in_dir(read_from_dir + "extracted", append_path=True):
         # TODO: incorporate metadata (in its own bucket?)
         if "metadata" not in file:
-            import_from_json(client=client, filename=file)
+            try:
+                import_from_json(client=client, filename=file)
+            except influx.ApiException:
+                print("Could not import. Is token valid?")
         else: # metadata file
             pass
+    rmtree(read_from_dir + "extracted")
