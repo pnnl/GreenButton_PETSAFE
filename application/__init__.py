@@ -35,15 +35,22 @@ def check_for_date_limiter_arguments(request):
 def sanity_check_building_id(id):
     try:
         client = idb.init_database()
+        # Setup apis
+        query_api = client.query_api()
         # TODO: parameterize, not fstring
-        query = f"SELECT 1 FROM POWER WHERE building_id = {id} LIMIT 1;"
-        print(query)
-        reader = client.query(query=query, language="sql", mode="pandas")
-        results = reader.read_all()
+        #query = f"SELECT 1 FROM POWER WHERE building_id = {id} LIMIT 1;"
+        query = f'from(bucket:"{bucket}")\
+        |> range(start: {data_startdate}, stop: {data_enddate})\
+        |> filter(fn:(r) => r._measurement == "power" and r._field == "real_power" and r.building_id == "{id}")'
+        results = query_api.query(query=query)
+        # Test if we have any results
+        print(results)
         idb.close_client(client)
         #buildings = unpickle_buildings(database_config.BUILDING_DATABASE_PATH)
     except Exception as ex:
         print(ex)
+        # Refine this as needed; for now, assume the code is at fault
+        abort(500)
     #all_ids = set(buildings["building_id"])
     #if id in all_ids:
         #return id # Building exists

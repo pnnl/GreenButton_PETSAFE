@@ -9,3 +9,6 @@ host = "http://127.0.0.1:8086"
 bucket = "Buildings"
 token = environ.get("INFLUXDB_TOKEN")
 org = "PNNL"
+
+data_startdate = "2023-01-01T00:00:00Z"
+data_enddate = "2024-01-01T00:00:00Z"

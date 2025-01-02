@@ -1,4 +1,4 @@
-import influxdb_client_3 as influx
+import influxdb_client as influx
 from typing import Optional
 from os.path import exists, splitext
 from datetime import datetime
@@ -38,7 +38,7 @@ def validate_date_range(start_date, end_date):
 def init_database():
     # Init the database
     try:
-        client = influx.InfluxDBClient3(host=host, org=org, token=token, database=bucket)
+        client = influx.InfluxDBClient(url=host, org=org, token=token)
         # TODO: write and read options, config; batch write may be of interest
         return client
     except Exception as ex:
@@ -59,25 +59,38 @@ def read_points_in_range(
         end_datetime: Optional[datetime] = None,
         building_id: Optional[int] = None
         ):
+    # Setup apis
+    query_api = client.query_api()
     # Return all data
     if start_datetime == None and end_datetime == None:
-        query = f"SELECT * FROM POWER"
+        #query = f"SELECT * FROM POWER"
+        query = f'from(bucket:"{bucket}")\
+        |> range(start: {data_startdate}, stop: {data_enddate})\
+        |> filter(fn:(r) => r._measurement == "power" and r._field == "real_power"'
         if building_id != None:
             try:
                 building_id = int(building_id)
             except:
                 return "Cannot query: building id must be an integer"
             # TODO: parameterized, not fstring
-            query = query + f" WHERE building_id == {building_id}"
-        results = client.query(org=org, query=query, language="sql", mode="pandas")
+            query = query + f' and r.building_id == "{building_id}"'
+        query = query + ")" # Close the open paren
+        results = query_api.query_data_frame(query=query)
         return results
     # Sanity checks on date range
     if validate_date_range(start_datetime, end_datetime) == "Valid date range":
         # Query for data between the points
         # TODO: parameterized, not fstring
         # fstring is known injection vulnerability
-        query = f"SELECT * FROM POWER WHERE timestamp BETWEEN '{start_datetime}' AND '{end_datetime};"
-        results = client.query(query=query, language="sql", mode="pandas")
+        #query = f"SELECT * FROM POWER WHERE timestamp BETWEEN '{start_datetime}' AND '{end_datetime};"
+        # TODO: FORMATTING.
+        # TODO: It's giving me row IDs, not power values.
+        query = f'from(bucket:"{bucket}")\
+        |> range(start: {start_datetime}, stop: {end_datetime})\
+        |> filter(fn:(r) => r._measurement == "power" and r._field == "real_power" and r.building_id == "{building_id}")\
+        |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")'
+        results = query_api.query_data_frame(query=query)
+        print(query)
         print(results)
         return results
 
@@ -85,6 +98,8 @@ def import_from_json(
         client, 
         filename: Optional[str] = None,
         json_data: Optional[str] = None):
+    # Setup APIs
+    write_api = client.write_api(write_options=SYNCHRONOUS)
     # Accepted filetypes: .feather, .parquet, .csv, .json, .orc
     if filename and json_data:
         # Should we process both? Risk of conflicts; TODO
