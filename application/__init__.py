@@ -3,7 +3,8 @@ from datetime import datetime
 
 from dct_backend.retrieve_coefficients import prepare_coefficients, average_coefficients
 from dct_backend.unpickle_buildings import unpickle_buildings
-import database_config
+from database_config import *
+import influx_database as idb
 
 # Checks for start and end date arguments in routing, then ensures
 # that the dates are valid, exist in the data, and that end > start.
@@ -32,10 +33,22 @@ def check_for_date_limiter_arguments(request):
 # If it does, returns the id
 # Otherwise, aborts request (404: building does not exist, not found error)
 def sanity_check_building_id(id):
-    buildings = unpickle_buildings(database_config.BUILDING_DATABASE_PATH)
-    all_ids = set(buildings["building_id"])
-    if id in all_ids:
-        return id # Building exists
+    try:
+        client = idb.init_database()
+        # TODO: parameterize, not fstring
+        query = f"SELECT 1 FROM POWER WHERE building_id = {id} LIMIT 1;"
+        print(query)
+        reader = client.query(query=query, language="sql", mode="pandas")
+        results = reader.read_all()
+        idb.close_client(client)
+        #buildings = unpickle_buildings(database_config.BUILDING_DATABASE_PATH)
+    except Exception as ex:
+        print(ex)
+    #all_ids = set(buildings["building_id"])
+    #if id in all_ids:
+        #return id # Building exists
+    if results:
+        return id
     else:
         abort(404) # Building does not exist; bad request
 
@@ -47,8 +60,8 @@ def init_app():
     # If we need plugins, their inits go here
 
     with app.app_context():
-        from .dct_backend import basic_dct, alter_coefficients, basic_dct, retrieve_site_data, retrieve_coefficients #, dct_averaging
-        from .database_config import BUILDING_DATABASE_PATH
+        from dct_backend import basic_dct, alter_coefficients, basic_dct, retrieve_site_data, retrieve_coefficients #, dct_averaging
+        from database_config import BUILDING_DATABASE_PATH
         # Blueprint registration goes here, e.g. app.register_blueprint(auth.auth_bp)
 
         # By default, a route only answers to GET requests.
@@ -79,6 +92,19 @@ def init_app():
             sanity_check_building_id(id) # Make sure building exists!
             sites = retrieve_site_data.list_component_sites(id)
             return sites.to_json(orient="columns") # TODO Check that orient makes sense
+        
+        @app.route("/buildings/<int:id>/realpower")
+        def get_building_real_power(id):
+            sanity_check_building_id(id) # Make sure building exists!
+            # Prep client
+            client = idb.init_database()
+            # Get real power
+            power = idb.read_points_in_range(client=client, building_id=id)
+            idb.close_client(client)
+            # TODO: format frame into something easier to parse in JSON, like "frequency": "value"
+            # At minimum, make datetimes obviously datetimes (currently UNIX stamps, which may be confusing to humans)
+            # Right now it's hard to understand and that will be a problem in the future. Make it easier to work with
+            return power.to_json(orient="columns")
         
         # --------------- DCT DATA -------------------
         
