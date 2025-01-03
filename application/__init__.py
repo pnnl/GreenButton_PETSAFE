@@ -41,21 +41,17 @@ def sanity_check_building_id(id):
         #query = f"SELECT 1 FROM POWER WHERE building_id = {id} LIMIT 1;"
         query = f'from(bucket:"{bucket}")\
         |> range(start: {data_startdate}, stop: {data_enddate})\
-        |> filter(fn:(r) => r._measurement == "power" and r._field == "real_power" and r.building_id == "{id}")'
+        |> filter(fn:(r) => r._measurement == "power" and r._field == "real_power" and r.building_id == "{id}")\
+        |> limit(n: 1)'
         results = query_api.query(query=query)
-        # Test if we have any results
-        print(results)
         idb.close_client(client)
-        #buildings = unpickle_buildings(database_config.BUILDING_DATABASE_PATH)
     except Exception as ex:
         print(ex)
         # Refine this as needed; for now, assume the code is at fault
         abort(500)
-    #all_ids = set(buildings["building_id"])
-    #if id in all_ids:
-        #return id # Building exists
+    # Test if we have any results
     if results:
-        return id
+        return id # Building exists
     else:
         abort(404) # Building does not exist; bad request
 
@@ -111,7 +107,7 @@ def init_app():
             # TODO: format frame into something easier to parse in JSON, like "frequency": "value"
             # At minimum, make datetimes obviously datetimes (currently UNIX stamps, which may be confusing to humans)
             # Right now it's hard to understand and that will be a problem in the future. Make it easier to work with
-            return power.to_json(orient="columns")
+            return power.to_json(orient="records")
         
         # --------------- DCT DATA -------------------
         

@@ -64,9 +64,9 @@ def read_points_in_range(
     # Return all data
     if start_datetime == None and end_datetime == None:
         #query = f"SELECT * FROM POWER"
-        query = f'from(bucket:"{bucket}")\
-        |> range(start: {data_startdate}, stop: {data_enddate})\
-        |> filter(fn:(r) => r._measurement == "power" and r._field == "real_power"'
+        query = f'from(bucket:"{bucket}") \
+|> range(start: {data_startdate}, stop: {data_enddate}) \
+|> filter(fn:(r) => r._measurement == "power" and r._field == "real_power"'
         if building_id != None:
             try:
                 building_id = int(building_id)
@@ -75,7 +75,11 @@ def read_points_in_range(
             # TODO: parameterized, not fstring
             query = query + f' and r.building_id == "{building_id}"'
         query = query + ")" # Close the open paren
+        query = query + ' |> keep(columns: ["_time", "_field", "_value", "building_id"])'
+        query = query + ' |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")' # For performance
         results = query_api.query_data_frame(query=query)
+        del results["result"] # It's just full of "_result", not needed data
+        del results["table"] # Client doesn't need to know which table it came from
         return results
     # Sanity checks on date range
     if validate_date_range(start_datetime, end_datetime) == "Valid date range":
@@ -90,8 +94,6 @@ def read_points_in_range(
         |> filter(fn:(r) => r._measurement == "power" and r._field == "real_power" and r.building_id == "{building_id}")\
         |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")'
         results = query_api.query_data_frame(query=query)
-        print(query)
-        print(results)
         return results
 
 def import_from_json(
