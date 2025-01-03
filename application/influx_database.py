@@ -160,7 +160,7 @@ if __name__ == "__main__":
     # Read data into database
     from dct_backend import list_files
     client = init_database()
-    read_from_dir = "./dec-2024-exports/"
+    read_from_dir = "./import-to-database/"
     for file in list_files.list_files_in_dir(read_from_dir, append_path=True):
         print("Reading", file)
         # TODO: incorporate metadata (in its own bucket?)
