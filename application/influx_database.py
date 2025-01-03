@@ -20,6 +20,10 @@ write_options = influx.WriteOptions(batch_size=500,
                             max_retry_delay=30_000,
                             exponential_base=2)
 
+# Determine whether a provided date range:
+# 1. is formatted in ISO format: YYYY-mm-dd
+# 2. is correctly ordered (end is after start)
+# TODO: also validate that these dates do exist in the data?
 def validate_date_range(start_date, end_date):
     # TODO: do we need to check whether the dates are a certain distance apart, too?
     try: # Validity check: are these dates formatted in a valid way?
@@ -35,6 +39,11 @@ def validate_date_range(start_date, end_date):
     # TODO sanity check: do we HAVE these dates available? If not, 404
     return "Valid date range"
 
+
+# Create a client object for use in reading and writing data.
+# Returns the client object
+# NOTE: reading requires initializing a query API object from the client object
+# NOTE: client object should be closed with close_client() when finished using it
 def init_database():
     # Init the database
     try:
@@ -44,6 +53,8 @@ def init_database():
     except Exception as ex:
         print("Could not initialize connection:", ex)
 
+
+# Close the client object if it exists
 def close_client(client):
     # Sanity check that client exists
     if client:
@@ -53,17 +64,19 @@ def close_client(client):
     else:
         return "Database client does not exist"
 
+# Return real_power data for a given building between two dates, or all real_power data if dates not specified
+# TODO: return different data depending on privacy profile settings
 def read_points_in_range(
         client, 
+        building_id,
         start_datetime: Optional[datetime] = None, 
         end_datetime: Optional[datetime] = None,
-        building_id: Optional[int] = None
         ):
-    # Setup apis
+    # Setup read api object
     query_api = client.query_api()
-    # Return all data
-    if start_datetime == None and end_datetime == None:
-        #query = f"SELECT * FROM POWER"
+    if start_datetime == None and end_datetime == None: # Return all data
+        # Roughly equivalent to
+        # "SELECT time, building_id, real_power FROM POWER WHERE building_id == {building_id})
         query = f'from(bucket:"{bucket}") \
 |> range(start: {data_startdate}, stop: {data_enddate}) \
 |> filter(fn:(r) => r._measurement == "power" and r._field == "real_power"'
@@ -81,14 +94,13 @@ def read_points_in_range(
         del results["result"] # It's just full of "_result", not needed data
         del results["table"] # Client doesn't need to know which table it came from
         return results
-    # Sanity checks on date range
+    # Return subset of data between two dates
+    # Sanity checks on date range come first
     if validate_date_range(start_datetime, end_datetime) == "Valid date range":
         # Query for data between the points
         # TODO: parameterized, not fstring
         # fstring is known injection vulnerability
         #query = f"SELECT * FROM POWER WHERE timestamp BETWEEN '{start_datetime}' AND '{end_datetime};"
-        # TODO: FORMATTING.
-        # TODO: It's giving me row IDs, not power values.
         query = f'from(bucket:"{bucket}")\
         |> range(start: {start_datetime}, stop: {end_datetime})\
         |> filter(fn:(r) => r._measurement == "power" and r._field == "real_power" and r.building_id == "{building_id}")\
@@ -96,6 +108,8 @@ def read_points_in_range(
         results = query_api.query_data_frame(query=query)
         return results
 
+# Import data into database from a compatible file or raw JSON
+# Currently, only file imports are functional
 def import_from_json(
         client, 
         filename: Optional[str] = None,
@@ -141,6 +155,7 @@ def import_from_pickled_buildings(pickle_dir, client):
         with client.write_api(write_options=SYNCHRONOUS) as write_client:
             pass
 
+# If this is run on its own, assume we're just importing data and act accordingly
 if __name__ == "__main__":
     # Read data into database
     from dct_backend import list_files
