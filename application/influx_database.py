@@ -1,4 +1,6 @@
 import influxdb_client as influx
+from influxdb_client.client.write_api import SYNCHRONOUS
+import influxdb_client_3 as influx3
 from typing import Optional
 from os.path import exists, splitext
 from datetime import datetime
@@ -53,6 +55,15 @@ def init_database():
     except Exception as ex:
         print("Could not initialize connection:", ex)
 
+# Can only write, not read; may write more quickly, enables from_file writes
+def init_v3_client():
+    # Init the database
+    try:
+        client = influx3.InfluxDBClient3(host=host, database=bucket, token=token, org=org)
+        # TODO: write and read options, config; batch write may be of interest
+        return client
+    except Exception as ex:
+        print("Could not initialize connection:", ex)
 
 # Close the client object if it exists
 def close_client(client):
@@ -111,11 +122,10 @@ def read_points_in_range(
 # Import data into database from a compatible file or raw JSON
 # Currently, only file imports are functional
 def import_from_json(
-        client, 
         filename: Optional[str] = None,
         json_data: Optional[str] = None):
     # Setup APIs
-    write_api = client.write_api(write_options=SYNCHRONOUS)
+    client = init_v3_client()
     # Accepted filetypes: .feather, .parquet, .csv, .json, .orc
     if filename and json_data:
         # Should we process both? Risk of conflicts; TODO
@@ -132,7 +142,8 @@ def import_from_json(
         # Retrieve the file data
         # TODO error handling
         client.write_file(file=filename, measurement_name=measurement, write_precision="s", \
-                          tag_columns=["building_id"], timestamp_column="timestamp")
+                          tag_columns=["building_id", "privacy"], timestamp_column="timestamp")
+        client.close()
         return "Success"
     elif json_data:
         # Write directly from json
@@ -155,8 +166,19 @@ def import_from_pickled_buildings(pickle_dir, client):
         with client.write_api(write_options=SYNCHRONOUS) as write_client:
             pass
 
+def delete_building_data(client):
+    delete_api = client.delete_api()
+    start = "1970-01-01T00:00:00Z"
+    stop = "2025-02-01T00:00:00Z"
+    delete_api.delete(start, stop, '_measurement="real_power"', bucket=bucket, org=org)
+    print("Data successfully cleared.")
+
 # If this is run on its own, assume we're just importing data and act accordingly
 if __name__ == "__main__":
+    # Remove old data
+    client = init_database()
+    delete_building_data(client)
+    close_client(client)
     # Read data into database
     from dct_backend import list_files
     client = init_database()
@@ -165,7 +187,7 @@ if __name__ == "__main__":
         print("Reading", file)
         # TODO: incorporate metadata (in its own bucket?)
         if "metadata" not in file:
-            import_from_json(client=client, filename=file)
+            import_from_json(filename=file)
         else: # metadata file
             pass
     client.close()
