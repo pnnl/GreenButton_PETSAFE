@@ -103,7 +103,9 @@ def init_app():
             # Prep client
             client = idb.init_database()
             # Get real power
-            power = idb.read_points_in_range(client=client, building_id=id)
+            # TODO: different tag depending on permissions granted by OAuth status
+            # For now, raw is what's in the database
+            power = idb.read_points_in_range(client=client, building_id=id, privacy_tag="raw")
             idb.close_client(client)
             # TODO: make datetimes obviously datetimes (currently UNIX stamps, which may be confusing to humans)
             # Right now it's hard to understand and that will be a problem in the future. Make it easier to work with

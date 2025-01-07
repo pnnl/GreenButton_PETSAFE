@@ -78,8 +78,9 @@ def close_client(client):
 # Return real_power data for a given building between two dates, or all real_power data if dates not specified
 # TODO: return different data depending on privacy profile settings
 def read_points_in_range(
-        client, 
-        building_id,
+        client: object, 
+        building_id: int,
+        privacy_tag: str,
         start_datetime: Optional[datetime] = None, 
         end_datetime: Optional[datetime] = None,
         ):
@@ -90,7 +91,7 @@ def read_points_in_range(
         # "SELECT time, building_id, real_power FROM POWER WHERE building_id == {building_id})
         query = f'from(bucket:"{bucket}") \
 |> range(start: {data_startdate}, stop: {data_enddate}) \
-|> filter(fn:(r) => r._measurement == "power" and r._field == "real_power"'
+|> filter(fn:(r) => r._measurement == "power" and r._field == "real_power" and r.privacy == "{privacy_tag}'
         if building_id != None:
             try:
                 building_id = int(building_id)
