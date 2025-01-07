@@ -63,8 +63,7 @@ def init_app():
     # If we need plugins, their inits go here
 
     with app.app_context():
-        from dct_backend import basic_dct, alter_coefficients, basic_dct, retrieve_site_data, retrieve_coefficients #, dct_averaging
-        from database_config import BUILDING_DATABASE_PATH
+        from dct_backend import retrieve_site_data, retrieve_coefficients #, dct_averaging
         # Blueprint registration goes here, e.g. app.register_blueprint(auth.auth_bp)
 
         # By default, a route only answers to GET requests.
@@ -82,13 +81,14 @@ def init_app():
         # TODO Would it be useful (and safe) to also return links to what buildings the site is in?
         @app.route("/sites/<int:point_id>")
         def get_point_data(point_id):
-            # TODO: Sanity check point_id exists (relies on querying database)
+            # TODO: Sanity check point_id exists (relies on querying non-Influx database)
             # Determine if we have any date filtering
             start, end = check_for_date_limiter_arguments(request)
             point_data = retrieve_site_data.get_site_real(point_id, start, end)
             return point_data.to_json(orient="columns") # TODO Check that orient makes sense
         
         # Returns what sites a given building contains
+        # Relies on non-Influx metadata database
         # TODO: also return links to view those sites' power IF user is authorized to see that
         @app.route("/buildings/<int:id>/sites")
         def get_sites_in_building(id):
@@ -96,6 +96,7 @@ def init_app():
             sites = retrieve_site_data.list_component_sites(id)
             return sites.to_json(orient="columns") # TODO Check that orient makes sense
         
+        # Display real power readings for a given building
         @app.route("/buildings/<int:id>/realpower")
         def get_building_real_power(id):
             sanity_check_building_id(id) # Make sure building exists!
@@ -104,8 +105,7 @@ def init_app():
             # Get real power
             power = idb.read_points_in_range(client=client, building_id=id)
             idb.close_client(client)
-            # TODO: format frame into something easier to parse in JSON, like "frequency": "value"
-            # At minimum, make datetimes obviously datetimes (currently UNIX stamps, which may be confusing to humans)
+            # TODO: make datetimes obviously datetimes (currently UNIX stamps, which may be confusing to humans)
             # Right now it's hard to understand and that will be a problem in the future. Make it easier to work with
             return power.to_json(orient="records")
         
