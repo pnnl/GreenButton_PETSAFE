@@ -166,19 +166,19 @@ def import_from_pickled_buildings(pickle_dir, client):
         with client.write_api(write_options=SYNCHRONOUS) as write_client:
             pass
 
-def delete_building_data(client):
+def delete_building_data():
+    client = init_database()
     delete_api = client.delete_api()
     start = "1970-01-01T00:00:00Z"
     stop = "2025-02-01T00:00:00Z"
     delete_api.delete(start, stop, '_measurement="real_power"', bucket=bucket, org=org)
     print("Data successfully cleared.")
+    close_client(client)
 
 # If this is run on its own, assume we're just importing data and act accordingly
 if __name__ == "__main__":
     # Remove old data
-    client = init_database()
-    delete_building_data(client)
-    close_client(client)
+    #delete_building_data()
     # Read data into database
     from dct_backend import list_files
     client = init_database()
