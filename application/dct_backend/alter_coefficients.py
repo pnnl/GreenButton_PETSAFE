@@ -58,16 +58,21 @@ def generate_noise(
         array_length: int, # Number of noise values to generate
         tolerance: float # Maximum expected absolute value of noise
         ):
+    # What form of noise to generate
     method = "gaussian"
+
     match method:
         case "uniform random":
             from random import randrange
             noise = [randrange(-tolerance, tolerance + 1, 1) for i in range(array_length)]
         case "gaussian":
+            # TODO: Refine constants to shape distribution properly
             from random import gauss
             mu = 0
             sigma = tolerance
             noise = [gauss(sigma=sigma, mu=mu) for i in range(array_length)]
+        case "spectral":
+            return "Not implemented"
     print(noise)
     return noise
 
