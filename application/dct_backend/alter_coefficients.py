@@ -56,13 +56,19 @@ def drop_coefficients(
 # These can be used to modify coefficients for DP
 def generate_noise(
         array_length: int, # Number of noise values to generate
-        tolerance: float # Maximum absolute value of noise
+        tolerance: float # Maximum expected absolute value of noise
         ):
-    method = "uniform random"
+    method = "gaussian"
     match method:
         case "uniform random":
             from random import randrange
             noise = [randrange(-tolerance, tolerance + 1, 1) for i in range(array_length)]
+        case "gaussian":
+            from random import gauss
+            mu = 0
+            sigma = tolerance
+            noise = [gauss(sigma=sigma, mu=mu) for i in range(array_length)]
+    print(noise)
     return noise
 
 # Apply a given array of noise to the coefficients
@@ -72,3 +78,6 @@ def apply_noise(coeffs, noise_array):
         return coeffs
     else:
         return "Length of noise array must match number of coefficients"
+    
+if __name__ == "__main__":
+    generate_noise(10, 10)
