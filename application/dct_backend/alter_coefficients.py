@@ -51,3 +51,24 @@ def drop_coefficients(
     #if dctc.PRINT_DEBUG == True:
     #    print("Coefficient adjustment done.")
     return coefficients_array
+
+# Generate noise values of a given length
+# These can be used to modify coefficients for DP
+def generate_noise(
+        array_length: int, # Number of noise values to generate
+        tolerance: float # Maximum absolute value of noise
+        ):
+    method = "uniform random"
+    match method:
+        case "uniform random":
+            from random import randrange
+            noise = [randrange(-tolerance, tolerance + 1, 1) for i in range(array_length)]
+    return noise
+
+# Apply a given array of noise to the coefficients
+def apply_noise(coeffs, noise_array):
+    if len(coeffs) == len(noise_array):
+        coeffs = coeffs * noise_array # Easy to modify to add/subtract if needed
+        return coeffs
+    else:
+        return "Length of noise array must match number of coefficients"
