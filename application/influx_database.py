@@ -179,7 +179,7 @@ def delete_building_data():
 # If this is run on its own, assume we're just importing data and act accordingly
 if __name__ == "__main__":
     # Remove old data
-    #delete_building_data()
+    delete_building_data()
     # Read data into database
     from dct_backend import list_files
     client = init_database()
