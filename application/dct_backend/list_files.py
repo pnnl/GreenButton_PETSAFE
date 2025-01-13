@@ -1,4 +1,4 @@
-from os import listdir
+import os
 
 # Lists all files in a directory
 # TODO: limit to data subdir! Stop path traversal attacks.
@@ -8,7 +8,7 @@ def list_files_in_dir(
         append_path: bool
         ) -> list:
     try:
-        files = listdir(dir_path)
+        files = os.listdir(dir_path)
         # Format files with directory in front
         if append_path == True:
             for file in files:
@@ -30,3 +30,16 @@ def list_files_in_dir(
             files.remove(item)
     """
     return files
+
+def iterate(cur_path,allFiles):
+    # Iterate directory and subdirectories
+    for item in os.listdir(cur_path):
+        fullPath=os.path.join(cur_path, item)
+        # check if current path is a file
+        if os.path.isfile(fullPath):
+            if os.path.basename(cur_path) == "power":
+                allFiles.append(fullPath) # This is a file in the right place. Keep it.
+        else:
+            # This is a directory, not a file. We may need the files inside it.
+            # Iterate through the subdirectory looking for power directories
+            iterate(fullPath,allFiles)

@@ -75,7 +75,7 @@ def export_simple_csv(building_data, export_path):
 
 # Export straight to JSON, no modification
 # Record orientation for human comprehension
-def export_simple_json(building_data, export_path, tag):
+def export_simple_json(building_data, meter_type, export_path, tag):
     # Tag the data
     building_data["privacy"] = tag
     # Export the building to CSV
@@ -85,7 +85,7 @@ def export_simple_json(building_data, export_path, tag):
         mode = "w"
     with open(export_path, mode) as outfile:
             building_data = building_data.reset_index()
-            building_data["meter_type"] = "aggregate"
+            building_data["meter_type"] = meter_type
             building_data.to_json(outfile, indent=4, orient='records')
     print("Done.")
 
@@ -142,7 +142,7 @@ def main():
         metadata, building_data = extract_metadata(building_data, start_date, end_date)
         export_json_metadata(metadata, export_dir + "data/", tag=privacy_tag)
         #export_simple_csv(building_data, export_path)
-        export_simple_json(building_data, export_path, tag=privacy_tag)
+        export_simple_json(building_data, "aggregate", export_path, tag=privacy_tag)
     
     # Zip up the results
     make_archive(export_dir + today + "-" + privacy_tag, 'zip', export_dir + "/data")

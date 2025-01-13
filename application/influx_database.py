@@ -167,6 +167,12 @@ def import_from_pickled_buildings(pickle_dir, client):
         with client.write_api(write_options=SYNCHRONOUS) as write_client:
             pass
 
+def write_from_pandas(client2, data):
+    write_client = client2.write_api(write_options=write_options)
+    write_client.write(bucket, org, record=data, data_frame_measurement_name='power', \
+                       data_frame_tag_columns=["building_id", "privacy"], timestamp_column="timestamp")
+    return "Success"
+
 def delete_building_data():
     client = init_database()
     delete_api = client.delete_api()
