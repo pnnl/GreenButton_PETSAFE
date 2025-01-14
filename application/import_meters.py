@@ -80,9 +80,11 @@ def prepare_data_from_sql():
     framed_data = pd.DataFrame.from_records(data=data, columns=columns)
     framed_data['timestamp'] = pd.to_datetime(framed_data['timestamp'],unit='s') # To datetime
     #framed_data["timestamp"] = framed_data["timestamp"].dt.strftime("%Y-%m-%dT%H:%M:%SZ") # Format as desired by influx
-    framed_data = framed_data.set_index("timestamp")
-    framed_data["privacy"] = "raw_meter" # Distingishes from aggregates and otherwise modified meter data
-    metadata = pd.DataFrame(framed_data, columns=["point_id, ee_site_id"])
+    framed_data = framed_data.set_index("timestamp") # Influx relies on this
+    framed_data["privacy"] = "raw" # Distingishes from modified data for privacy purposes
+    framed_data["meter_type"] = "raw" # Distingishes from aggregates
+    framed_data = framed_data.rename(columns={"point_id", "meter_id"}) # Uniformity with aggregate building meter_id
+    metadata = pd.DataFrame(framed_data, columns=["meter_id, ee_site_id"]) # In case we need it later
     framed_data = framed_data.drop(columns=["duration", "ee_site_id"]) # These belong in another table
     return framed_data, metadata
 
@@ -94,6 +96,7 @@ def write_data(data):
     conn = idb.init_client()
     # Write from pandas
     try: # Write
+        # TODO: SPECIFY TAGS
         idb.write_from_pandas(conn, data)
     except Exception as ex: # Writing fails; alert the user
         print(ex)

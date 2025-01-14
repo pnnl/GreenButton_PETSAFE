@@ -136,7 +136,7 @@ def import_from_json(filename):
         # Retrieve the file data
         # TODO error handling
         client.write_file(file=filename, measurement_name=measurement, write_precision="s", \
-                          tag_columns=["building_id", "privacy"], timestamp_column="timestamp")
+                          tag_columns=["meter_id", "privacy", "meter_type"], timestamp_column="timestamp")
         return "Success"
     else:
         return "File not found"
