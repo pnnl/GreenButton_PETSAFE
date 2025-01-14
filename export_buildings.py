@@ -87,6 +87,7 @@ def export_simple_json(building_data, meter_type, export_path, tag):
     with open(export_path, mode) as outfile:
             building_data = building_data.reset_index()
             building_data["meter_type"] = meter_type
+            building_data = building_data.rename(columns={"building_id": "meter_id"})
             building_data.to_json(outfile, indent=4, orient='records')
     print("Done.")
 

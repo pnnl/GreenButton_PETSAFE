@@ -1,6 +1,9 @@
 import influx_database as idb
 import pandas as pd
 from dct_backend.list_files import iterate
+from database_config import *
+from datetime import datetime as dt
+from time import mktime
 
 from multiprocessing import Pool
 
@@ -34,15 +37,23 @@ def prepare_data_from_csv():
 # IF data are already in a SQLlite database, use this
 # Faster, but still relatively slow; give it a few minutes to run
 def prepare_data_from_sql():
-    from processor import commonDB as db
+    from sql import commonDB as db
     database = "../data/records.db"
-    with db.create_connection(database) as conn:
+    with db.DBConn.create_connection(database) as conn:
         # Get list of MAINS meters
         query = "SELECT DISTINCT point_id FROM LABELS WHERE LABELS.circuit_label_type_id IN (15,16);"
         results = conn.execute(query)
-        ids = tuple(results.fetchall())
+        ids = results.fetchall()
+        ids = tuple([id for result in ids for id in result])
+        ids = (47612, 50838) # For testing purposes
         # Get power data for these meters
-        query = f"SELECT timestamp, point_id, P REAL, Q REAL, PF REAL FROM POWER WHERE point_id IN {ids};"
+        # Format datetimes for query
+        start = dt.strptime(data_startdate, "%Y-%m-%dT%H:%M:%SZ").date() # to dt
+        end = dt.strptime(data_enddate, "%Y-%m-%dT%H:%M:%SZ").date() # to dt
+        start = mktime(start.timetuple()) # to unix (stored format)
+        end = mktime(end.timetuple()) # to unix (stored format)
+        query = f"SELECT * FROM POWER WHERE point_id IN {ids} AND timestamp BETWEEN '{start}' AND '{end}';"
+        print(query)
         results = conn.execute(query)
         # Retrieve; there's too much data for fetchall to reliably handle, so break it up
         data = []
@@ -50,6 +61,7 @@ def prepare_data_from_sql():
         # Retrieve the rows queried. This is the relative slow step in querying; it runs quickly
         # for 2 units but slows down as more units are added to the building and more rows must be
         # retrieved.
+        print("Retrieving results (please wait, this will take a few minutes)")
         cursor_obj.arraysize = 10000 # May speed up retrieval; sets how many rows are fetched by fetchmany()
         while True:
             # Fetchmany allows both performance improvements over fetchall() and prevents MemoryError for invalid id values
@@ -58,17 +70,21 @@ def prepare_data_from_sql():
                 break
             else:
                 data = data + chunk # Append to list of records
-            # "it is recommended that applications run "PRAGMA optimize" (with no arguments) 
-            # just before closing each database connection." This should be very fast or a no-op.
-            # https://www.sqlite.org/pragma.html#pragma_optimize
-            print("Retrieved. Cleaning up (do not interrupt)...")
-            cursor_obj.execute("PRAGMA optimize;")
+        # "it is recommended that applications run "PRAGMA optimize" (with no arguments) 
+        # just before closing each database connection." This should be very fast or a no-op.
+        # https://www.sqlite.org/pragma.html#pragma_optimize
+        print("Retrieved. Cleaning up (do not interrupt)...")
+        cursor_obj.execute("PRAGMA optimize;")
     # Format data for writing
-    data["privacy"] = "raw_meter" # Distingishes from aggregates and otherwise modified meter data
-    # df = df.rename(columns={'oldName1': 'newName1', 'oldName2': 'newName2'})
-    data = data.rename(columns={"P REAL": "real_power", "Q REAL": "apparent_power"})
-    # TODO: adjust column names to match database
-    return data
+    columns = ['ee_site_id', 'point_id', 'timestamp', 'duration', 'real_power', 'apparent_power', 'pf'] # used for frame creation
+    framed_data = pd.DataFrame.from_records(data=data, columns=columns)
+    framed_data['timestamp'] = pd.to_datetime(framed_data['timestamp'],unit='s') # To datetime
+    #framed_data["timestamp"] = framed_data["timestamp"].dt.strftime("%Y-%m-%dT%H:%M:%SZ") # Format as desired by influx
+    framed_data = framed_data.set_index("timestamp")
+    framed_data["privacy"] = "raw_meter" # Distingishes from aggregates and otherwise modified meter data
+    metadata = pd.DataFrame(framed_data, columns=["point_id, ee_site_id"])
+    framed_data = framed_data.drop(columns=["duration", "ee_site_id"]) # These belong in another table
+    return framed_data, metadata
 
 # Write data to the database
 # Takes a pandas frame as input
@@ -88,7 +104,7 @@ def write_data(data):
     return "Success"
 
 def main():
-    data = prepare_data_from_sql()
+    data, metadata = prepare_data_from_sql()
     print(data)
     #status = write_data(data)
     #print(status)
