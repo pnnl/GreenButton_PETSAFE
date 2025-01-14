@@ -120,20 +120,13 @@ def read_points_in_range(
         results = query_api.query_data_frame(query=query)
         return results
 
-# Import data into database from a compatible file or raw JSON
-# Currently, only file imports are functional
-def import_from_json(
-        filename: Optional[str] = None,
-        json_data: Optional[str] = None):
+# Import data into database from a compatible file
+def import_from_json(filename):
     # Setup APIs
     client = init_v3_client()
     # Accepted filetypes: .feather, .parquet, .csv, .json, .orc
-    if filename and json_data:
-        # Should we process both? Risk of conflicts; TODO
-        print("Please read from file OR json string")
-        return "Cannot import: pass only one of filename or raw data"
     # Sanity check that file exists
-    elif filename and exists(filename):
+    if exists(filename):
         # Sanity check that file is right type
         name, file_extension = splitext(filename)
         if file_extension not in [".json", ".feather", ".parquet", ".csv", ".orc"]:
@@ -144,28 +137,9 @@ def import_from_json(
         # TODO error handling
         client.write_file(file=filename, measurement_name=measurement, write_precision="s", \
                           tag_columns=["building_id", "privacy"], timestamp_column="timestamp")
-        client.close()
         return "Success"
-    elif json_data:
-        # Write directly from json
-        pass
-
-# Read pickled buildings into database, keeping in mind that they may already exist
-# InfluxDB2 is equipped to handle duplicate values; see
-# https://docs.influxdata.com/influxdb/v2/write-data/best-practices/duplicate-points/
-# TODO: Not functional yet; for now, use export to JSON and import from that
-def import_from_pickled_buildings(pickle_dir, client):
-    # Retrieve buildings into a dataframe
-    from dct_backend.unpickle_buildings import unpickle_buildings
-    buildings = unpickle_buildings(pickle_dir)
-    # For each building, add to database
-    measurement = "real_power"
-    for id in buildings["building_id"].unique():
-        this_building = buildings[buildings["building_id"] == id]
-        tag_key = "building_id"
-        tag_value = id
-        with client.write_api(write_options=SYNCHRONOUS) as write_client:
-            pass
+    else:
+        return "File not found"
 
 def write_from_pandas(client2, data):
     write_client = client2.write_api(write_options=write_options)
@@ -177,7 +151,7 @@ def delete_building_data():
     client = init_database()
     delete_api = client.delete_api()
     start = "1970-01-01T00:00:00Z"
-    stop = "2025-02-01T00:00:00Z"
+    stop = datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
     delete_api.delete(start, stop, '_measurement="real_power"', bucket=bucket, org=org)
     print("Data successfully cleared.")
     close_client(client)
@@ -189,7 +163,7 @@ if __name__ == "__main__":
     # Read data into database
     from dct_backend import list_files
     client = init_database()
-    read_from_dir = "./import-to-database/"
+    read_from_dir = "./import-to-database/raw"
     for file in list_files.list_files_in_dir(read_from_dir, append_path=True):
         print("Reading", file)
         # TODO: incorporate metadata (in its own bucket?)
@@ -198,3 +172,17 @@ if __name__ == "__main__":
         else: # metadata file
             pass
     client.close()
+    print("Read. Formatting (please wait, this may take a few minutes)...")
+    # Annoyingly, we can't query with v3.0 on a 2.0 database, but we can write
+    client = init_database()
+    # Setup read api object
+    query_api = client.query_api()
+    # Drop duration column; it doesn't belong here
+    dropquery = f'from(bucket:"{bucket}") \
+        |> range(start: {data_startdate}, stop: {data_enddate}) \
+        |> filter(fn:(r) => r._measurement == "power") \
+        |> drop(columns: ["duration"])'
+    query_api.query(dropquery)
+    print("Done")
+    client.close()
+    print("Data read successfully")

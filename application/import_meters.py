@@ -65,6 +65,8 @@ def prepare_data_from_sql():
             cursor_obj.execute("PRAGMA optimize;")
     # Format data for writing
     data["privacy"] = "raw_meter" # Distingishes from aggregates and otherwise modified meter data
+    # df = df.rename(columns={'oldName1': 'newName1', 'oldName2': 'newName2'})
+    data = data.rename(columns={"P REAL": "real_power", "Q REAL": "apparent_power"})
     # TODO: adjust column names to match database
     return data
 

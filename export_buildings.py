@@ -78,6 +78,7 @@ def export_simple_csv(building_data, export_path):
 def export_simple_json(building_data, meter_type, export_path, tag):
     # Tag the data
     building_data["privacy"] = tag
+    building_data = building_data.drop(["duration"], axis=1)
     # Export the building to CSV
     if exists(export_path):
         mode = "w" #"a"
