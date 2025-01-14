@@ -152,7 +152,7 @@ def delete_building_data():
     delete_api = client.delete_api()
     start = "1970-01-01T00:00:00Z"
     stop = datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
-    delete_api.delete(start, stop, '_measurement="real_power"', bucket=bucket, org=org)
+    delete_api.delete(start, stop, '_measurement="power"', bucket=bucket, org=org)
     print("Data successfully cleared.")
     close_client(client)
 
@@ -171,18 +171,5 @@ if __name__ == "__main__":
             import_from_json(filename=file)
         else: # metadata file
             pass
-    client.close()
-    print("Read. Formatting (please wait, this may take a few minutes)...")
-    # Annoyingly, we can't query with v3.0 on a 2.0 database, but we can write
-    client = init_database()
-    # Setup read api object
-    query_api = client.query_api()
-    # Drop duration column; it doesn't belong here
-    dropquery = f'from(bucket:"{bucket}") \
-        |> range(start: {data_startdate}, stop: {data_enddate}) \
-        |> filter(fn:(r) => r._measurement == "power") \
-        |> drop(columns: ["duration"])'
-    query_api.query(dropquery)
-    print("Done")
     client.close()
     print("Data read successfully")
