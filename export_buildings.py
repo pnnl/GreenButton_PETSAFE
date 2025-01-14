@@ -143,7 +143,7 @@ def main():
         metadata, building_data = extract_metadata(building_data, start_date, end_date)
         export_json_metadata(metadata, export_dir + "data/", tag=privacy_tag)
         #export_simple_csv(building_data, export_path)
-        export_simple_json(building_data, "aggregate", export_path, tag=privacy_tag)
+        export_simple_json(building_data, "raw_aggregate", export_path, tag=privacy_tag)
     
     # Zip up the results
     make_archive(export_dir + today + "-" + privacy_tag, 'zip', export_dir + "/data")
