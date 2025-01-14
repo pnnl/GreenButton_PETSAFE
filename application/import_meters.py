@@ -4,13 +4,17 @@ from dct_backend.list_files import iterate
 
 from multiprocessing import Pool
 
+# Reads a CSV file into a pandas frame
+# Used by prepare_data_from_csv() to read from source files
 def data_worker_read(file):
     data = pd.read_csv(file)
     # Add column marking these readings as raw meter data (non-aggregated)
     data["privacy"] = "raw_meter"
     return data
 
-def prepare_data():
+# If no SQLlite database is available, use this
+# MUCH slower than using the database, however. Set aside a few hours to let it run
+def prepare_data_from_csv():
     print("Preparing data for import")
     # Get all electrical usage files from the data set
     data_root = "../data/2023-Full_v8.1/"
@@ -24,8 +28,48 @@ def prepare_data():
         partials = pool.map(data_worker_read, source_files)
     # Combine the partial sets
     data = pd.concat(partials, axis=0)
+    # TODO: limit to MAINS?
     return data
 
+# IF data are already in a SQLlite database, use this
+# Faster, but still relatively slow; give it a few minutes to run
+def prepare_data_from_sql():
+    from processor import commonDB as db
+    database = "../data/records.db"
+    with db.create_connection(database) as conn:
+        # Get list of MAINS meters
+        query = "SELECT DISTINCT point_id FROM LABELS WHERE LABELS.circuit_label_type_id IN (15,16);"
+        results = conn.execute(query)
+        ids = tuple(results.fetchall())
+        # Get power data for these meters
+        query = f"SELECT timestamp, point_id, P REAL, Q REAL, PF REAL FROM POWER WHERE point_id IN {ids};"
+        results = conn.execute(query)
+        # Retrieve; there's too much data for fetchall to reliably handle, so break it up
+        data = []
+        cursor_obj = conn.cursor()
+        # Retrieve the rows queried. This is the relative slow step in querying; it runs quickly
+        # for 2 units but slows down as more units are added to the building and more rows must be
+        # retrieved.
+        cursor_obj.arraysize = 10000 # May speed up retrieval; sets how many rows are fetched by fetchmany()
+        while True:
+            # Fetchmany allows both performance improvements over fetchall() and prevents MemoryError for invalid id values
+            chunk = results.fetchmany()
+            if chunk == []: # fetchmany returns empty list if there are no more results
+                break
+            else:
+                data = data + chunk # Append to list of records
+            # "it is recommended that applications run "PRAGMA optimize" (with no arguments) 
+            # just before closing each database connection." This should be very fast or a no-op.
+            # https://www.sqlite.org/pragma.html#pragma_optimize
+            print("Retrieved. Cleaning up (do not interrupt)...")
+            cursor_obj.execute("PRAGMA optimize;")
+    # Format data for writing
+    data["privacy"] = "raw_meter" # Distingishes from aggregates and otherwise modified meter data
+    # TODO: adjust column names to match database
+    return data
+
+# Write data to the database
+# Takes a pandas frame as input
 def write_data(data):
     print("Importing data")
     # Init database connection for writing
@@ -42,7 +86,7 @@ def write_data(data):
     return "Success"
 
 def main():
-    data = prepare_data()
+    data = prepare_data_from_sql()
     print(data)
     #status = write_data(data)
     #print(status)
