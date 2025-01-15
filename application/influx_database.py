@@ -144,7 +144,7 @@ def import_from_json(filename):
 def write_from_pandas(client2, data):
     with client2.write_api(write_options=write_options) as write_client:
         write_client.write(bucket, org, record=data, data_frame_measurement_name='power', \
-                       data_frame_tag_columns=["building_id", "privacy"], timestamp_column="timestamp")
+                       data_frame_tag_columns=["meter_id", "privacy", "meter_type"], timestamp_column="timestamp")
     print("Done processing")
     return "Success"
 
@@ -166,9 +166,9 @@ if __name__ == "__main__":
     client = init_client()
     read_from_dir = "./import-to-database/raw"
     for file in list_files.list_files_in_dir(read_from_dir, append_path=True):
-        print("Reading", file)
         # TODO: incorporate metadata (in its own bucket?)
         if "metadata" not in file:
+            print("Reading", file)
             import_from_json(filename=file)
         else: # metadata file
             pass
