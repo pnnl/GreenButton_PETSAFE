@@ -38,12 +38,12 @@ mysql --user=${user} --password=${pass} < cleandatabases_dc.sql
 mysql --user=${user} --password=${pass} < cleandatabases_tp.sql
 
 # create tables 
-mysql --user=${user} --password=${pass} < thirdpartymysql.sql
-mysql --user=${user} --password=${pass} < datacustodianmysql.sql
+mysql --user=${user} --password=${pass} < ./thirdparty.sql
+mysql --user=${user} --password=${pass} < ./datacustodian.sql
 #mysql --user=${user} --password=${pass} < tokenstore.sql
 
 # prepopulate tables
-#mysql --user=${user} --password=${pass} < prepopulatesql_users_dc.sql
-#mysql --user=${user} --password=${pass} < prepopulatesql_users_tp.sql
-#mysql --user=${user} --password=${pass} < prepopulatesql_dc.sql
-#mysql --user=${user} --password=${pass} < prepopulatesql_tp.sql
+mysql --user=${user} --password=${pass} < prepopulatesql_users_dc.sql
+mysql --user=${user} --password=${pass} < prepopulatesql_users_tp.sql
+mysql --user=${user} --password=${pass} < prepopulatesql_dc.sql
+mysql --user=${user} --password=${pass} < prepopulatesql_tp.sql

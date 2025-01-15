@@ -53,7 +53,7 @@ def prepare_data_from_sql():
         start = mktime(start.timetuple()) # to unix (stored format)
         end = mktime(end.timetuple()) # to unix (stored format)
         query = f"SELECT * FROM POWER WHERE point_id IN {ids} AND timestamp BETWEEN '{start}' AND '{end}';"
-        print(query)
+        print("Querying")
         results = conn.execute(query)
         # Retrieve; there's too much data for fetchall to reliably handle, so break it up
         data = []
@@ -112,8 +112,8 @@ def write_data(data):
 def main():
     data, metadata = prepare_data_from_sql()
     print(data)
-    #status = write_data(data)
-    #print(status)
+    status = write_data(data)
+    print(status)
 
 if __name__ == "__main__":
     main()
