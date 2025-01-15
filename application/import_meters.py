@@ -10,9 +10,14 @@ from multiprocessing import Pool
 # Reads a CSV file into a pandas frame
 # Used by prepare_data_from_csv() to read from source files
 def data_worker_read(file):
-    data = pd.read_csv(file)
-    # Add column marking these readings as raw meter data (non-aggregated)
-    data["privacy"] = "raw_meter"
+    try:
+        data = pd.read_csv(file)
+        # Add column marking these readings as raw meter data (non-aggregated)
+        data["privacy"] = "raw_meter"
+    except (KeyboardInterrupt, SystemExit):
+        raise SystemExit
+    except Exception as ex:
+        return ex
     return data
 
 # If no SQLlite database is available, use this
@@ -29,6 +34,7 @@ def prepare_data_from_csv():
     # File reading takes forever for even one year otherwise
     with Pool(processes=4) as pool:
         partials = pool.map(data_worker_read, source_files)
+        print("Reading done")
     # Combine the partial sets
     data = pd.concat(partials, axis=0)
     # TODO: limit to MAINS?
@@ -96,16 +102,16 @@ def prepare_data_from_sql():
 def write_data(data):
     print("Importing data")
     # Init database connection for writing
-    conn = idb.init_client()
-    # Write from pandas
-    try: # Write
-        # TODO: SPECIFY TAGS
-        idb.write_from_pandas(conn, data)
-    except Exception as ex: # Writing fails; alert the user
-        print(ex)
-        return ex
-    # We're done; close the connection
-    idb.close_client(conn)
+    with idb.init_client() as conn:
+        # Write from pandas
+        try: # Write
+            # TODO: SPECIFY TAGS
+            idb.write_from_pandas(conn, data)
+        except Exception as ex: # Writing fails; alert the user
+            print("Exception:", ex)
+            return ex
+        # We're done; close the connection
+        idb.close_client(conn)
     # Return okay
     return "Success"
 

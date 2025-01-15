@@ -142,9 +142,10 @@ def import_from_json(filename):
         return "File not found"
 
 def write_from_pandas(client2, data):
-    write_client = client2.write_api(write_options=write_options)
-    write_client.write(bucket, org, record=data, data_frame_measurement_name='power', \
+    with client2.write_api(write_options=write_options) as write_client:
+        write_client.write(bucket, org, record=data, data_frame_measurement_name='power', \
                        data_frame_tag_columns=["building_id", "privacy"], timestamp_column="timestamp")
+    print("Done processing")
     return "Success"
 
 def delete_building_data():
