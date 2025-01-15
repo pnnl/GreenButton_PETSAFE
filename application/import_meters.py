@@ -51,7 +51,6 @@ def prepare_data_from_sql():
         results = conn.execute(query)
         ids = results.fetchall()
         ids = tuple([id for result in ids for id in result])
-        ids = (47612, 50838) # For testing purposes
         # Get power data for these meters
         # Format datetimes for query
         start = dt.strptime(data_startdate, "%Y-%m-%dT%H:%M:%SZ").date() # to dt
