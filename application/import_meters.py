@@ -75,14 +75,17 @@ def prepare_data_from_sql():
         # https://www.sqlite.org/pragma.html#pragma_optimize
         print("Retrieved. Cleaning up (do not interrupt)...")
         cursor_obj.execute("PRAGMA optimize;")
-    # Format data for writing
+    # Format data for writing (write_from_pandas())
     columns = ['ee_site_id', 'point_id', 'timestamp', 'duration', 'real_power', 'apparent_power', 'pf'] # used for frame creation
     framed_data = pd.DataFrame.from_records(data=data, columns=columns)
+    # Set up index column
     framed_data['timestamp'] = pd.to_datetime(framed_data['timestamp'],unit='s') # To datetime
     #framed_data["timestamp"] = framed_data["timestamp"].dt.strftime("%Y-%m-%dT%H:%M:%SZ") # Format as desired by influx
     framed_data = framed_data.set_index("timestamp") # Influx relies on this
+    # Add tags
     framed_data["privacy"] = "raw" # Distingishes from modified data for privacy purposes
     framed_data["meter_type"] = "raw" # Distingishes from aggregates
+    # Ensure format conforms to existing database schema
     framed_data = framed_data.rename(columns={"point_id", "meter_id"}) # Uniformity with aggregate building meter_id
     metadata = pd.DataFrame(framed_data, columns=["meter_id, ee_site_id"]) # In case we need it later
     framed_data = framed_data.drop(columns=["duration", "ee_site_id"]) # These belong in another table
