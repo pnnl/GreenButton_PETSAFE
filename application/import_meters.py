@@ -117,9 +117,9 @@ def write_data(data):
 
 def main():
     data, metadata = prepare_data_from_sql()
-    print(data)
     status = write_data(data)
-    print(status)
+    if status != "Success":
+        print(status)
 
 if __name__ == "__main__":
     main()
