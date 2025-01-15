@@ -46,7 +46,7 @@ def validate_date_range(start_date, end_date):
 # Returns the client object
 # NOTE: reading requires initializing a query API object from the client object
 # NOTE: client object should be closed with close_client() when finished using it
-def init_database():
+def init_client():
     # Init the database
     try:
         client = influx.InfluxDBClient(url=host, org=org, token=token)
@@ -148,7 +148,7 @@ def write_from_pandas(client2, data):
     return "Success"
 
 def delete_building_data():
-    client = init_database()
+    client = init_client()
     delete_api = client.delete_api()
     start = "1970-01-01T00:00:00Z"
     stop = datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -162,7 +162,7 @@ if __name__ == "__main__":
     delete_building_data()
     # Read data into database
     from dct_backend import list_files
-    client = init_database()
+    client = init_client()
     read_from_dir = "./import-to-database/raw"
     for file in list_files.list_files_in_dir(read_from_dir, append_path=True):
         print("Reading", file)

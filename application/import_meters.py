@@ -86,7 +86,7 @@ def prepare_data_from_sql():
     framed_data["privacy"] = "raw" # Distingishes from modified data for privacy purposes
     framed_data["meter_type"] = "raw" # Distingishes from aggregates
     # Ensure format conforms to existing database schema
-    framed_data = framed_data.rename(columns={"point_id", "meter_id"}) # Uniformity with aggregate building meter_id
+    framed_data = framed_data.rename(columns={"point_id": "meter_id"}) # Uniformity with aggregate building meter_id
     metadata = pd.DataFrame(framed_data, columns=["meter_id, ee_site_id"]) # In case we need it later
     framed_data = framed_data.drop(columns=["duration", "ee_site_id"]) # These belong in another table
     return framed_data, metadata
