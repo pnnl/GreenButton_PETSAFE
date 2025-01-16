@@ -57,24 +57,31 @@ def prepare_data_from_sql():
         end = dt.strptime(data_enddate, "%Y-%m-%dT%H:%M:%SZ").date() # to dt
         start = mktime(start.timetuple()) # to unix (stored format)
         end = mktime(end.timetuple()) # to unix (stored format)
-        query = f"SELECT * FROM POWER WHERE point_id IN {ids} AND timestamp BETWEEN '{start}' AND '{end}';"
-        print("Querying")
-        results = conn.execute(query)
-        # Retrieve; there's too much data for fetchall to reliably handle, so break it up
-        data = []
-        cursor_obj = conn.cursor()
-        # Retrieve the rows queried. This is the relative slow step in querying; it runs quickly
-        # for 2 units but slows down as more units are added to the building and more rows must be
-        # retrieved.
-        print("Retrieving results (please wait, this will take a few minutes)")
-        cursor_obj.arraysize = 10000 # May speed up retrieval; sets how many rows are fetched by fetchmany()
-        while True:
-            # Fetchmany allows both performance improvements over fetchall() and prevents MemoryError for invalid id values
-            chunk = results.fetchmany()
-            if chunk == []: # fetchmany returns empty list if there are no more results
-                break
-            else:
-                data = data + chunk # Append to list of records
+        for meter_id in ids:
+            try:
+                query = f"SELECT * FROM POWER WHERE point_id = {meter_id} AND timestamp BETWEEN '{start}' AND '{end}';"
+                print("Querying", meter_id)
+                results = conn.execute(query)
+                # Retrieve; there's too much data for fetchall to reliably handle, so break it up
+                data = []
+                cursor_obj = conn.cursor()
+                # Retrieve the rows queried. This is the relative slow step in querying
+                print("Retrieving results (please wait, this will take a few minutes)")
+                cursor_obj.arraysize = 10000 # May speed up retrieval; sets how many rows are fetched by fetchmany()
+                while True:
+                    # Fetchmany allows both performance improvements over fetchall() and prevents MemoryError for invalid id values
+                    chunk = results.fetchmany()
+                    if chunk == []: # fetchmany returns empty list if there are no more results
+                        break
+                    else:
+                        data = data + chunk # Append to list of records
+            except (KeyboardInterrupt, SystemExit):
+                print("Exiting...")
+                cursor_obj.execute("PRAGMA optimize;")
+                conn.close()
+            except Exception as ex:
+                print("Could not retrieve meter", meter_id, ":", ex)
+                print("Continuing to next meter")
         # "it is recommended that applications run "PRAGMA optimize" (with no arguments) 
         # just before closing each database connection." This should be very fast or a no-op.
         # https://www.sqlite.org/pragma.html#pragma_optimize
