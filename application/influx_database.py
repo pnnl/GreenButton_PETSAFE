@@ -74,6 +74,17 @@ def close_client(client):
         return "Success"
     else:
         return "Database client does not exist"
+    
+def query(query):
+    import warnings
+    from influxdb_client.client.warnings import MissingPivotFunction
+    warnings.simplefilter("ignore", MissingPivotFunction)
+    
+    conn = init_client()
+    query_api = conn.query_api()
+    results = query_api.query_data_frame(query=query)
+    conn.close()
+    return results
 
 # Return real_power data for a given building between two dates, or all real_power data if dates not specified
 # TODO: return different data depending on privacy profile settings

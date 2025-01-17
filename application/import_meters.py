@@ -61,29 +61,41 @@ def prepare_data_from_sql():
         print("Retrieving results (please wait, this will take a few minutes)")
         for meter_id in ids:
             try:
-                query = f"SELECT * FROM POWER WHERE point_id = {meter_id} AND timestamp BETWEEN '{start}' AND '{end}';"
-                print("Querying", meter_id)
-                results = conn.execute(query)
-                # Retrieve; there's too much data for fetchall to reliably handle, so break it up
-                cursor_obj = conn.cursor()
-                # Retrieve the rows queried. This is the relative slow step in querying
-                cursor_obj.arraysize = 10000 # May speed up retrieval; sets how many rows are fetched by fetchmany()
-                while True:
-                    # Fetchmany allows both performance improvements over fetchall() and prevents MemoryError for invalid id values
-                    chunk = results.fetchmany()
-                    if chunk == []: # fetchmany returns empty list if there are no more results
-                        break
-                    else:
-                        data = data + chunk # Append to list of records
+                # Check if meter already exists in database; do not query if it does
+                # (Influx can handle it, but the query itself takes a lot of time; best not to repeat it)
+                query = f"""from(bucket: '{bucket}')
+                    |> range()
+                    |> filter(fn: (r) => r.meter_id == {meter_id})"""
+                tag_exists = idb.query(query)
+                if not tag_exists:
+                    # Query the meter
+                    query = f"SELECT * FROM POWER WHERE point_id = {meter_id} AND timestamp BETWEEN '{start}' AND '{end}';"
+                    print("Querying", meter_id)
+                    results = conn.execute(query)
+                    # Retrieve; there's too much data for fetchall to reliably handle, so break it up
+                    cursor_obj = conn.cursor()
+                    # Retrieve the rows queried. This is the relative slow step in querying
+                    cursor_obj.arraysize = 10000 # May speed up retrieval; sets how many rows are fetched by fetchmany()
+                    while True:
+                        # Fetchmany allows both performance improvements over fetchall() and prevents MemoryError for invalid id values
+                        chunk = results.fetchmany()
+                        if chunk == []: # fetchmany returns empty list if there are no more results
+                            break
+                        else:
+                            data = data + chunk # Append to list of records
+                else:
+                    print(meter_id, "in database, continuing to next meter")
             except (KeyboardInterrupt, SystemExit):
                 print("Exiting...")
                 # Clean up
                 cursor_obj.execute("PRAGMA optimize;")
-                conn.close()
-                raise SystemExit # Kill the whole thing
             except Exception as ex:
                 print("Could not retrieve meter", meter_id, ":", ex)
                 print("Continuing to next meter")
+            # Write the meter into the database
+            status = write_data(data)
+            if status != "Success":
+                print(status)
         # "it is recommended that applications run "PRAGMA optimize" (with no arguments) 
         # just before closing each database connection." This should be very fast or a no-op.
         # https://www.sqlite.org/pragma.html#pragma_optimize

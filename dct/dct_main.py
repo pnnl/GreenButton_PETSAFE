@@ -101,10 +101,18 @@ def main():
                 if one_building_only == True:
                     raise SystemExit
                 
-            else: # For now; a switch should be added for this
+            else:
                 frame = pd.DataFrame(this_building["real_power"])
                 frame["Recomposed"] = recomposed
-                graph_dct.graph_shifting_coefficients_down(frame, building_id)
+
+                if dctc.DROP_METHOD == "roll down":
+                    graph_dct.graph_shifting_coefficients_down(frame, building_id)
+                else:
+                    graph_dct.graph_direct_dct(frame, building_id)
+
+                if dctc.SHOW_DCT == True:
+                    print("Building", building_id)
+                    print(frame)
 
         # Calculate the RMSE average across buildings
         if dctc.DCT_ACTION == "mod average" and dctc.CALC_RMSE == True:

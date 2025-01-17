@@ -17,7 +17,7 @@ STORE_DCT = False
 # Sample week, no weekends: 2023-07-03 to 2023-07-08
 LIMIT_DATE = True
 START_DATE = "2023-07-03"
-END_DATE = "2023-07-08"
+END_DATE = "2023-07-03"
 
 # Normalize data to be between 0 and 1 before calculating DCT
 NORMALIZE = True
@@ -31,7 +31,7 @@ HIGH_ONLY = False
 # Cutoff point for considering something "high frequency"; e.g.
 # 0.25 treats the top 25% of coefficients as being "high frequency"
 # Must be between 0 and 1
-HIGH_THRESHOLD = 0.5
+HIGH_THRESHOLD = 0.75
 
 # Test different methods of reducing DCT coefficients
 DROP_COEFFICIENTS = True
@@ -40,13 +40,13 @@ DROP_COEFFICIENTS = True
 # "drop high": drop the upper X% of frequencies
 # "drop high keep max": drop the upper X% of frequencies, but keep the largest N
 # "roll down": move values of high frequency coefficients down by adding them to low frequency coefficients; then zero them
-DROP_METHOD = "roll down"
+DROP_METHOD = "drop high keep max"
 
 # If using drop high keep max: how many largest coefficients to keep
 NUMBER_OF_LARGEST = 5
 
 # If using threshold: at what value and below to drop coefficients to 0
-DROP_THRESHOLD = 10
+DROP_THRESHOLD = 0.02
 
 # If using roll down: what percentage of each coefficient to move down
 PERCENTAGE_KEPT = 1
@@ -73,7 +73,7 @@ PRINT_DEBUG = False
 # "mod average": "average", but test DCT drop methods on the created average; graph results
 # "signature": same as "average", but also perform (actual - average) to create a power signature
 # "mod average sig": same as "mod average", but also perform (actual - average) to create a power signature (TODO: fix for new variable test setup)
-DCT_ACTION = "mod average"
+DCT_ACTION = "actual"
 
 # Graph a curve created by averaging DCT coefficients
 # against actual demand curves to test visual similarity
@@ -94,7 +94,7 @@ CALC_RMSE = False
 # "d": once per day
 # "y": once per year
 # "a": on all available data for period
-DCT_TARGET = "d"
+DCT_TARGET = "a"
 
 # ----- GRAPHING ---------
 

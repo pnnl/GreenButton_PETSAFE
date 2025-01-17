@@ -34,7 +34,7 @@ def import_from_json(filepath):
     conn = connect_DB()
     cursor = conn.cursor()
     #data = json_normalize(json_obj)
-    print(data)
+    #print(data)
     #cursor.execute("INSERT INTO testp (person,	year,	company) VALUES (%s,	%s,	%s)", (person,	year,	company))
     # Commit changes
     # conn.commit()

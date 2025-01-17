@@ -180,3 +180,35 @@ def graph_shifting_coefficients_down(frame, building_id):
         fig.show()
     if one_building_only == True:
         raise SystemExit
+    
+# Graph the effects of shifting coefficients down
+def graph_direct_dct(frame, building_id):
+    one_building_only = False
+    save_images = True
+    # Build the graph
+    fig = px.line(frame, title=f"Building {building_id}")
+    save_dir = "data/graphs/building-" + str(building_id) + "/drop-from-actual/"
+    match dctc.DROP_METHOD:
+        case "threshold":
+            save_dir += "threshold/"
+            save_title = 'Building-' + str(building_id) + \
+                "-drop-coeffs-with-absolute-values-less-than-" + str(dctc.DROP_THRESHOLD) + \
+            "-from-" + dctc.START_DATE + " to " + dctc.END_DATE
+        case "drop high":
+            save_dir += "drop-high/"
+            save_title = 'Building-' + str(building_id) + \
+                "-drop-top-" + str(dctc.HIGH_THRESHOLD * 100) + "percent-of-coefficients" + \
+            "-from-" + dctc.START_DATE + " to " + dctc.END_DATE
+        case "drop high keep max":
+            save_dir += "drop-high-keep-largest/"
+            save_title = 'Building-' + str(building_id) + \
+                "-drop-top-" + str(dctc.HIGH_THRESHOLD * 100) + "percent-of-coefficients-keep-top-" + str(dctc.NUMBER_OF_LARGEST) + \
+            "-from-" + dctc.START_DATE + " to " + dctc.END_DATE
+    if save_images == True:
+        if not exists(save_dir):
+            makedirs(save_dir)
+        fig.write_html(save_dir + save_title + ".html")
+    else:
+        fig.show()
+    if one_building_only == True:
+        raise SystemExit
