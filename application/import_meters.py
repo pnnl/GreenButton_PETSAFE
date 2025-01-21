@@ -63,11 +63,11 @@ def prepare_data_from_sql():
             try:
                 # Check if meter already exists in database; do not query if it does
                 # (Influx can handle it, but the query itself takes a lot of time; best not to repeat it)
-                query = f"""from(bucket: '{bucket}')
-                    |> range()
-                    |> filter(fn: (r) => r.meter_id == {meter_id})"""
+                query = f'from(bucket:"{bucket}")\
+                    |> range(start: {data_startdate}, stop: {data_enddate})\
+                    |> filter(fn: (r) => r.meter_id == {meter_id})'
                 tag_exists = idb.query(query)
-                if not tag_exists:
+                if tag_exists.empty:
                     # Query the meter
                     query = f"SELECT * FROM POWER WHERE point_id = {meter_id} AND timestamp BETWEEN '{start}' AND '{end}';"
                     print("Querying", meter_id)
