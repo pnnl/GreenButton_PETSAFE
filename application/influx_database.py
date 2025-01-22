@@ -156,7 +156,7 @@ def write_from_pandas(client2, data):
     with client2.write_api(write_options=write_options) as write_client:
         write_client.write(bucket, org, record=data, data_frame_measurement_name='power', \
                        data_frame_tag_columns=["meter_id", "privacy", "meter_type"], timestamp_column="timestamp")
-    print("Done processing")
+    #print("Done processing")
     return "Success"
 
 def delete_building_data():

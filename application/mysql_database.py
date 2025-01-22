@@ -20,9 +20,24 @@ def connect_DB():
     )
     return conn
 
-def insert_MySQL(record):
-    pass
-    # conn.commit()
+def insert_MySQL(record, table):
+    # Check that record column count matches required table col count
+    # Escape query to protect against some injection attacks
+    record = pymysql.escape_string(record)
+    # Validate query
+    # Insert the query if all is well
+    with connect_DB() as conn:
+        cursor = conn.cursor(prepared=True)
+        try:
+            # Table name can't be parameterized normally, we have to do it manually
+            # That makes backticks a potential problem since escape_string doesn't handle them
+            # Escaping backticks = double backtick, not backslash as usual
+            escaped_table = pymysql.escape_string(table).strip('`').replace('`', '``')
+            query = f"INSERT INTO '{escaped_table}' VALUES (%s)"
+            cursor.execute(query, (record,))
+            conn.commit()
+        except Exception as ex:
+            print(ex)
 
 def import_from_json(filepath):
     # Read the JSON file
