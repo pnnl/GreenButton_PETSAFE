@@ -1,10 +1,13 @@
-from flask import Flask, jsonify, request, abort
+from flask import Flask, jsonify, request, abort, request
 from datetime import datetime
 
 from dct_backend.retrieve_coefficients import prepare_coefficients, average_coefficients
 from dct_backend.unpickle_buildings import unpickle_buildings
 from database_config import *
 import influx_database as idb
+import mysql_database as msq
+from time import now
+from uuid import uuid5
 
 # Checks for start and end date arguments in routing, then ensures
 # that the dates are valid, exist in the data, and that end > start.
@@ -111,6 +114,50 @@ def init_app():
             # Right now it's hard to understand and that will be a problem in the future. Make it easier to work with
             return power.to_json(orient="records")
         
+        @app.route("/speedes/1_0/timezones", methods=['GET', 'POST'])
+        # GET
+        # Retrieve list of time zones currently supported
+        # POST
+        # Add a new time zone
+        def all_timezones():
+            if request.method == 'POST':
+                # time_configurations (id, description, published, 
+                # self_link_href, self_link_rel, up_link_href, up_link_rel, 
+                # updated, uuid, dstEndRule, dstOffset, dstStartRule, tzOffset) 
+
+                # Get the details of the new zone
+                tz_id = request.values.get('id')
+                tz_desc = request.values.get('description')
+                published, updated = now()
+                up_link_href = "/speedes/1_0/timezones/"
+                up_link_rel = "up"
+                self_link_href = up_link_href + str(tz_id)
+                self_link_rel = "self"
+                uuid = uuid5(host, id)
+                dstEndRule = request.values.get('dstEndRule')
+                dstStartRule = request.values.get('dstStartRule')
+                dstOffset = request.values.get('dstOffset')
+                tzOffset = request.values.get('tzOffset')
+                # Format into a record
+                record = (tz_id, tz_desc, published, self_link_href, self_link_rel, \
+                          up_link_href, up_link_rel, updated, uuid, dstEndRule, dstOffset, \
+                            dstStartRule, tzOffset)
+                # Send it to be validated, escaped, and added
+                msq.insert_MySQL(record, "time_configurations")
+            else: # GET
+                # If we need it: yourarg = request.args.get('argname')
+                pass
+                # Query for time zones
+                # Format to JSON
+        
+        @app.route("/speedes/1_0/timezones/<int:tz_id>", methods=['GET', 'POST'])
+        # GET
+        # Retrieve the time for this time zone
+        # PUT (POST instead?)
+        # Update the time zone (e.g. DST status)
+        def update_timezone(tz_id):
+            pass
+
         # --------------- DCT DATA -------------------
         
         # TODO: should this be different for different views? Or can the same URL respond differently
