@@ -5,10 +5,17 @@ METER_DATABASE_PATH = "data/records.db"
 # (and lock down path traversal)
 BUILDING_DATABASE_PATH = "../data/buildings/"
 
-host = "http://127.0.0.1:8086"
-bucket = "Buildings"
-token = environ.get("INFLUXDB_TOKEN")
-org = "PNNL"
+# Influx information
+influx_host = "http://127.0.0.1:8086"
+influx_bucket = "Buildings"
+influx_token = environ.get("INFLUXDB_TOKEN")
+influx_org = "PNNL"
+
+# MySQL information
+mysql_host = "localhost"
+mysql_user = "dataowner"
+mysql_token = environ.get("SQL_PASS")
+mysql_db = 'datacustodian'
 
 data_startdate = "2023-01-01T00:00:00Z"
 data_enddate = "2024-01-01T00:00:00Z"

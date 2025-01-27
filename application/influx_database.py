@@ -49,7 +49,7 @@ def validate_date_range(start_date, end_date):
 def init_client():
     # Init the database
     try:
-        client = influx.InfluxDBClient(url=host, org=org, token=token)
+        client = influx.InfluxDBClient(url=influx_host, org=influx_org, token=influx_token)
         # TODO: write and read options, config; batch write may be of interest
         return client
     except Exception as ex:
@@ -59,7 +59,7 @@ def init_client():
 def init_v3_client():
     # Init the database
     try:
-        client = influx3.InfluxDBClient3(host=host, database=bucket, token=token, org=org)
+        client = influx3.InfluxDBClient3(host=influx_host, database=influx_bucket, token=influx_token, org=influx_org)
         # TODO: write and read options, config; batch write may be of interest
         return client
     except Exception as ex:
@@ -100,7 +100,7 @@ def read_points_in_range(
     if start_datetime == None and end_datetime == None: # Return all data
         # Roughly equivalent to
         # "SELECT time, building_id, real_power FROM POWER WHERE building_id == {building_id})
-        query = f'from(bucket:"{bucket}") \
+        query = f'from(bucket:"{influx_bucket}") \
 |> range(start: {data_startdate}, stop: {data_enddate}) \
 |> filter(fn:(r) => r._measurement == "power" and r._field == "real_power" and r.privacy == "{privacy_tag}'
         if building_id != None:
@@ -124,7 +124,7 @@ def read_points_in_range(
         # TODO: parameterized, not fstring
         # fstring is known injection vulnerability
         #query = f"SELECT * FROM POWER WHERE timestamp BETWEEN '{start_datetime}' AND '{end_datetime};"
-        query = f'from(bucket:"{bucket}")\
+        query = f'from(bucket:"{influx_bucket}")\
         |> range(start: {start_datetime}, stop: {end_datetime})\
         |> filter(fn:(r) => r._measurement == "power" and r._field == "real_power" and r.building_id == "{building_id}")\
         |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")'
@@ -154,7 +154,7 @@ def import_from_json(filename):
 
 def write_from_pandas(client2, data):
     with client2.write_api(write_options=write_options) as write_client:
-        write_client.write(bucket, org, record=data, data_frame_measurement_name='power', \
+        write_client.write(influx_bucket, influx_org, record=data, data_frame_measurement_name='power', \
                        data_frame_tag_columns=["meter_id", "privacy", "meter_type"], timestamp_column="timestamp")
     #print("Done processing")
     return "Success"
@@ -164,7 +164,7 @@ def delete_building_data():
     delete_api = client.delete_api()
     start = "1970-01-01T00:00:00Z"
     stop = datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
-    delete_api.delete(start, stop, '_measurement="power"', bucket=bucket, org=org)
+    delete_api.delete(start, stop, '_measurement="power"', bucket=influx_bucket, org=influx_org)
     print("Data successfully cleared.")
     close_client(client)
 

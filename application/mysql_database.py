@@ -1,46 +1,62 @@
 import pymysql
 import json
 import pandas as pd
-#from pandas.io.json import json_normalize
-from os import environ
+from database_config import *
 # TODO: document setup
-
-token = environ.get("SQL_PASS")
 
 # Open a connection to the database.
 def connect_DB():
     # TODO: Consider putting user info in environment variables too
     conn = pymysql.connect(
-        host='localhost',
-        user='dataowner',
-        password=token,
-        db='meters',
+        host=mysql_host,
+        user=mysql_user,
+        password=mysql_token,
+        db=mysql_db,
         charset='utf8mb4',
         cursorclass=pymysql.cursors.DictCursor # Returns queries as dict
     )
     return conn
 
+# Query the database
+# We're not allowing fully user-written queries, but it doesn't hurt
+# to check the application query for safety anyway; maybe someone
+# managed to find a way to add more inputs or otherwise cause
+# problems. Let's not make injection easy on them.
+def query(query):
+    conn = connect_DB()
+    with conn.cursor(prepared=True) as cursor:
+        # escape_string() doesn't handle backticks
+        # query = pymysql.escape_string(query).replace('`', '``')
+        results = cursor.execute(query)
+        fetched = results.fetchall()
+    close_conn()
+    return fetched
+
 def insert_MySQL(record, table):
+    # Note: For DST, supply rules in the form specified at https://www.greenbuttonalliance.org/daylight-savings-time
     # Verify record is in usable format
     if type(record) not in (list, tuple):
         return "Record must be a list or tuple"
-    # Verify record column count matches required table col count
-    # TODO: is this necessary, or does MySQL error handling take care of this concern?
-    colcount = len(record)
+    # Table name can't be parameterized normally; we have to do it manually
+    # escape_string() mostly handles this but ignores backticks
+    # That makes backticks a potential problem; we need to escape them to prevent problems
+    # Escaping backticks = double backtick, not backslash as usual
+    escaped_table = pymysql.escape_string(table).strip('`').replace('`', '``')
     # Escape query to protect against some injection attacks
+    # Parameterization also escapes it for pymysql, but doesn't hurt to be sure it happened
     record = pymysql.escape_string(record)
-    # Validate query
     # Insert the query if all is well
     conn = connect_DB()
     with conn.cursor(prepared=True) as cursor:
         try:
-            # Table name can't be parameterized normally, we have to do it manually
-            # That makes backticks a potential problem since escape_string doesn't handle them
-            # Escaping backticks = double backtick, not backslash as usual
-            escaped_table = pymysql.escape_string(table).strip('`').replace('`', '``')
+            # Time to try the actual insert query
             query = f"INSERT INTO '{escaped_table}' VALUES (%s)"
             cursor.execute(query, (record,))
-            conn.commit()
+            query = f"SELECT * FROM '{escaped_table}'"
+            results = cursor.execute(query)
+            print(results.fetchall())
+            #conn.commit()
+            conn.rollback() # For testing
             status = "Success"
         except Exception as ex:
             print(ex)

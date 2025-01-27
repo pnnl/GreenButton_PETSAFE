@@ -6,8 +6,9 @@ from dct_backend.unpickle_buildings import unpickle_buildings
 from database_config import *
 import influx_database as idb
 import mysql_database as msq
-from time import now
+from datetime import datetime as dt
 from uuid import uuid5
+from json import dumps
 
 # Checks for start and end date arguments in routing, then ensures
 # that the dates are valid, exist in the data, and that end > start.
@@ -128,7 +129,7 @@ def init_app():
                 # Get the details of the new zone
                 tz_id = request.values.get('id')
                 tz_desc = request.values.get('description')
-                published, updated = now()
+                published, updated = dt.now()
                 up_link_href = "/speedes/1_0/timezones/"
                 up_link_rel = "up"
                 self_link_href = up_link_href + str(tz_id)
@@ -145,10 +146,10 @@ def init_app():
                 # Send it to be validated, escaped, and added
                 msq.insert_MySQL(record, "time_configurations")
             else: # GET
-                # If we need it: yourarg = request.args.get('argname')
-                pass
                 # Query for time zones
+                results = msq.query("SELECT * FROM time_configurations;")
                 # Format to JSON
+                return dumps(results)
         
         @app.route("/speedes/1_0/timezones/<int:tz_id>", methods=['GET', 'POST'])
         # GET
