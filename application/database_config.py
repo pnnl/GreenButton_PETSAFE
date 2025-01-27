@@ -13,7 +13,7 @@ influx_org = "PNNL"
 
 # MySQL information
 mysql_host = "localhost"
-mysql_user = "dataowner"
+mysql_user = "root" #"dataowner"
 mysql_token = environ.get("SQL_PASS")
 mysql_db = 'datacustodian'
 

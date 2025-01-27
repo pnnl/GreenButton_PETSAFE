@@ -134,7 +134,7 @@ def init_app():
                 up_link_rel = "up"
                 self_link_href = up_link_href + str(tz_id)
                 self_link_rel = "self"
-                uuid = uuid5(host, id)
+                uuid = uuid5(mysql_host, id)
                 dstEndRule = request.values.get('dstEndRule')
                 dstStartRule = request.values.get('dstStartRule')
                 dstOffset = request.values.get('dstOffset')
@@ -149,7 +149,8 @@ def init_app():
                 # Query for time zones
                 results = msq.query("SELECT * FROM time_configurations;")
                 # Format to JSON
-                return dumps(results)
+                #return dumps(results)
+                return results.to_json(orient="records")
         
         @app.route("/speedes/1_0/timezones/<int:tz_id>", methods=['GET', 'POST'])
         # GET

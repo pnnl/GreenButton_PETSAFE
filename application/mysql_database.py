@@ -24,13 +24,14 @@ def connect_DB():
 # problems. Let's not make injection easy on them.
 def query(query):
     conn = connect_DB()
-    with conn.cursor(prepared=True) as cursor:
+    results = pd.read_sql(query, conn)
+    #with conn.cursor() as cursor:
         # escape_string() doesn't handle backticks
         # query = pymysql.escape_string(query).replace('`', '``')
-        results = cursor.execute(query)
-        fetched = results.fetchall()
-    close_conn()
-    return fetched
+    #    results = cursor.execute(query)
+        #fetched = results.fetchall()
+    close_conn(conn)
+    return results
 
 def insert_MySQL(record, table):
     # Note: For DST, supply rules in the form specified at https://www.greenbuttonalliance.org/daylight-savings-time
@@ -110,7 +111,6 @@ def close_conn(conn):
 def main():
     # Read metadata for individual meters
     import_meter_metadata()
-    raise SystemExit
     # Read metadata for composite building meters
     from dct_backend import list_files
     read_from_dir = "./import-to-database/raw/"
