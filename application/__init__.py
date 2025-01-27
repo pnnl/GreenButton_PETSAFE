@@ -72,10 +72,10 @@ def init_app():
 
         # By default, a route only answers to GET requests.
 
-        @app.route('/')
+        @app.route('/speedes/1_0')
         def get_index():
             # Placeholder
-            return jsonify({'message': 'Authentication needed'})
+            return jsonify({'message': '/speedes/1_0/buildings'})
         
         # --------------- RAW DATA -------------------
         
@@ -83,7 +83,7 @@ def init_app():
         # non-owners should only hae DP access
         # Return the actual power data for a given site
         # TODO Would it be useful (and safe) to also return links to what buildings the site is in?
-        @app.route("/sites/<int:point_id>")
+        @app.route("/speedes/1_0/sites/<int:point_id>")
         def get_point_data(point_id):
             # TODO: Sanity check point_id exists (relies on querying non-Influx database)
             # Determine if we have any date filtering
@@ -94,14 +94,14 @@ def init_app():
         # Returns what sites a given building contains
         # Relies on non-Influx metadata database
         # TODO: also return links to view those sites' power IF user is authorized to see that
-        @app.route("/buildings/<int:id>/sites")
+        @app.route("/speedes/1_0/buildings/<int:id>/sites")
         def get_sites_in_building(id):
             sanity_check_building_id(id) # Make sure building exists!
             sites = retrieve_site_data.list_component_sites(id)
             return sites.to_json(orient="columns") # TODO Check that orient makes sense
         
         # Display real power readings for a given building
-        @app.route("/buildings/<int:id>/realpower")
+        @app.route("/speedes/1_0/buildings/<int:id>/realpower")
         def get_building_real_power(id):
             sanity_check_building_id(id) # Make sure building exists!
             # Prep client
@@ -168,7 +168,7 @@ def init_app():
         # Calculates DCT coefficients for each DAY in the sample period
         # Returns JSON in format:
         # TODO document here
-        @app.route("/buildings/<int:id>/coefficients")
+        @app.route("/speedes/1_0/buildings/<int:id>/coefficients")
         def get_coefficients_for_each_day(id):
             sanity_check_building_id(id) # Make sure building exists!
             # TODO: change return privacy depending on querying party?
@@ -181,7 +181,7 @@ def init_app():
         # Would this be better as /buildings/id/coefficients?avg=true ?
         # Returns JSON in format:
         # Coefficient: Value
-        @app.route("/buildings/<int:id>/coefficients/average")
+        @app.route("/speedes/1_0/buildings/<int:id>/coefficients/average")
         def get_average_coefficients(id):
             sanity_check_building_id(id) # Make sure building exists!
             # TODO: change return privacy depending on querying party
@@ -199,7 +199,7 @@ def init_app():
         # start=2023-07-03 (YYYY-mm-dd) (TODO: optional?)
         # end=2023-07-08 (YYYY-mm-dd) (must come after start; TODO optional?)
         # Returns JSON in format:
-        @app.route("/buildings/<int:id>/signature/lowpass")
+        @app.route("/speedes/1_0/buildings/<int:id>/signature/lowpass")
         def lowpass_filter_actual_minus_average(id):
             sanity_check_building_id(id) # Make sure building exists!
             # Get and sanity check arguments
