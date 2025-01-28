@@ -149,7 +149,6 @@ def init_app():
                 # Query for time zones
                 results = msq.query("SELECT * FROM time_configurations;")
                 # Format to JSON
-                #return dumps(results)
                 return results.to_json(orient="records")
         
         @app.route("/speedes/1_0/timezones/<int:tz_id>", methods=['GET', 'POST'])

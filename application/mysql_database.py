@@ -24,14 +24,42 @@ def connect_DB():
 # problems. Let's not make injection easy on them.
 def query(query):
     conn = connect_DB()
-    results = pd.read_sql(query, conn)
-    #with conn.cursor() as cursor:
+    #results = pd.read_sql(query, conn)
+    with conn.cursor() as cursor:
         # escape_string() doesn't handle backticks
-        # query = pymysql.escape_string(query).replace('`', '``')
-    #    results = cursor.execute(query)
+        query = conn.escape_string(query).replace('`', '``')
+        result_rows = cursor.execute(query)
+        results = cursor.fetchall()
         #fetched = results.fetchall()
     close_conn(conn)
+    results = pd.DataFrame.from_records(results)
     return results
+
+def update_record(record_id, column, new_value, table):
+    if type(record_id) is not int: # Try to limit attempts to modify the whole table
+        return "Record id must be a single integer."
+    # Table name can't be parameterized normally; we have to do it manually
+    # escape_string() mostly handles this but ignores backticks
+    # That makes backticks a potential problem; we need to escape them to prevent problems
+    # Escaping backticks = double backtick, not backslash as usual
+    escaped_table = pymysql.escape_string(table).strip('`').replace('`', '``')
+    # Also escape the record_id, column, etc. and get it into a good format for use
+    record_id = pymysql.escape_string(str(record_id))
+    column = pymysql.escape_string(column)
+    new_value = pymysql.escape_string(str(new_value))
+    conn = connect_DB()
+    try:
+        with conn.cursor(prepared=True) as cursor:
+            # Get ID column name for table
+            id_col = None # Placeholder
+            query = f"""UPDATE {table}
+                    SET %s = %s WHERE {id_col} = %s"""
+            cursor.execute(query, (column, new_value, record_id))
+            status = "Success"
+    except Exception as status:
+        print(status)
+    close_conn(conn)
+    return status
 
 def insert_MySQL(record, table):
     # Note: For DST, supply rules in the form specified at https://www.greenbuttonalliance.org/daylight-savings-time
@@ -43,7 +71,7 @@ def insert_MySQL(record, table):
     # That makes backticks a potential problem; we need to escape them to prevent problems
     # Escaping backticks = double backtick, not backslash as usual
     escaped_table = pymysql.escape_string(table).strip('`').replace('`', '``')
-    # Escape query to protect against some injection attacks
+    # Escape new record contents to protect against some injection attacks
     # Parameterization also escapes it for pymysql, but doesn't hurt to be sure it happened
     record = pymysql.escape_string(record)
     # Insert the query if all is well
