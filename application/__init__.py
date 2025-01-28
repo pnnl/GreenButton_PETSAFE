@@ -7,7 +7,7 @@ from database_config import *
 import influx_database as idb
 import mysql_database as msq
 from datetime import datetime as dt
-from uuid import uuid5
+from uuid import uuid5, uuid4
 from json import dumps
 
 # Checks for start and end date arguments in routing, then ensures
@@ -129,12 +129,14 @@ def init_app():
                 # Get the details of the new zone
                 tz_id = request.values.get('id')
                 tz_desc = request.values.get('description')
-                published, updated = dt.now()
+                now = dt.now().strftime("%Y-%m-%d %H:%M:%S")
+                published = now
+                updated = now
                 up_link_href = "/speedes/1_0/timezones/"
                 up_link_rel = "up"
                 self_link_href = up_link_href + str(tz_id)
                 self_link_rel = "self"
-                uuid = uuid5(mysql_host, id)
+                uuid = uuid4() #uuid5(mysql_host, id)
                 dstEndRule = request.values.get('dstEndRule')
                 dstStartRule = request.values.get('dstStartRule')
                 dstOffset = request.values.get('dstOffset')
@@ -147,7 +149,7 @@ def init_app():
                 status = msq.insert_MySQL(record, "time_configurations")
                 # Format status and return
                 # TODO: Does GBA have known status formats for results?
-                return jsonify({'status': status})
+                return jsonify({'status': str(status)})
             # Query for list of existing time zones
             elif request.method == 'GET':
                 results = msq.query("SELECT * FROM time_configurations;")

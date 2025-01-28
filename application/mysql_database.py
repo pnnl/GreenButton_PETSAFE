@@ -45,18 +45,18 @@ def query(
 def update_record(record_id, column, new_value, table):
     if type(record_id) is not int: # Try to limit attempts to modify the whole table
         return "Record id must be a single integer."
+    conn = connect_DB()
     # Table name can't be parameterized normally; we have to do it manually
     # escape_string() mostly handles this but ignores backticks
     # That makes backticks a potential problem; we need to escape them to prevent problems
     # Escaping backticks = double backtick, not backslash as usual
-    escaped_table = pymysql.escape_string(table).strip('`').replace('`', '``')
+    escaped_table = conn.escape_string(table).strip('`').replace('`', '``')
     # Also escape the record_id, column, etc. and get it into a good format for use
-    record_id = pymysql.escape_string(str(record_id))
-    column = pymysql.escape_string(column)
-    new_value = pymysql.escape_string(str(new_value))
-    conn = connect_DB()
+    record_id = conn.escape_string(str(record_id))
+    column = conn.escape_string(column)
+    new_value = conn.escape_string(str(new_value))
     try:
-        with conn.cursor(prepared=True) as cursor:
+        with conn.cursor() as cursor:
             # Get ID column name for table
             id_col = None # Placeholder
             query = f"""UPDATE {table}
@@ -73,26 +73,22 @@ def insert_MySQL(record, table):
     # Verify record is in usable format
     if type(record) not in (list, tuple):
         return "Record must be a list or tuple"
+    conn = connect_DB()
     # Table name can't be parameterized normally; we have to do it manually
     # escape_string() mostly handles this but ignores backticks
     # That makes backticks a potential problem; we need to escape them to prevent problems
     # Escaping backticks = double backtick, not backslash as usual
-    escaped_table = pymysql.escape_string(table).strip('`').replace('`', '``')
-    # Escape new record contents to protect against some injection attacks
-    # Parameterization also escapes it for pymysql, but doesn't hurt to be sure it happened
-    record = pymysql.escape_string(record)
+    escaped_table = conn.escape_string(table).strip('`').replace('`', '``')
     # Insert the query if all is well
-    conn = connect_DB()
-    with conn.cursor(prepared=True) as cursor:
+    with conn.cursor() as cursor:
         try:
             # Time to try the actual insert query
-            query = f"INSERT INTO '{escaped_table}' VALUES (%s)"
+            query = f"INSERT INTO {escaped_table} VALUES %s"
             cursor.execute(query, (record,))
-            query = f"SELECT * FROM '{escaped_table}'"
+            query = f"SELECT * FROM {escaped_table}"
             results = cursor.execute(query)
-            print(results.fetchall())
-            #conn.commit()
-            conn.rollback() # For testing
+            print(cursor.fetchall())
+            conn.commit()
             status = "Success"
         except Exception as ex:
             print(ex)
