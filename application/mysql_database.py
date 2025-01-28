@@ -2,6 +2,7 @@ import pymysql
 import json
 import pandas as pd
 from database_config import *
+from typing import Optional
 # TODO: document setup
 
 # Open a connection to the database.
@@ -22,13 +23,19 @@ def connect_DB():
 # to check the application query for safety anyway; maybe someone
 # managed to find a way to add more inputs or otherwise cause
 # problems. Let's not make injection easy on them.
-def query(query):
+def query(
+        query: str,
+        params: Optional[tuple] = None
+        ):
     conn = connect_DB()
     #results = pd.read_sql(query, conn)
     with conn.cursor() as cursor:
         # escape_string() doesn't handle backticks
         query = conn.escape_string(query).replace('`', '``')
-        result_rows = cursor.execute(query)
+        if params == None:
+            result_rows = cursor.execute(query)
+        else:
+            result_rows = cursor.execute(query, params)
         results = cursor.fetchall()
         #fetched = results.fetchall()
     close_conn(conn)

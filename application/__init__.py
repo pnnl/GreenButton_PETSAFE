@@ -43,7 +43,7 @@ def sanity_check_building_id(id):
         query_api = client.query_api()
         # TODO: parameterize, not fstring
         #query = f"SELECT 1 FROM POWER WHERE building_id = {id} LIMIT 1;"
-        query = f'from(bucket:"{bucket}")\
+        query = f'from(bucket:"{influx_bucket}")\
         |> range(start: {data_startdate}, stop: {data_enddate})\
         |> filter(fn:(r) => r._measurement == "power" and r._field == "real_power" and r.building_id == "{id}")\
         |> limit(n: 1)'
@@ -144,9 +144,12 @@ def init_app():
                           up_link_href, up_link_rel, updated, uuid, dstEndRule, dstOffset, \
                             dstStartRule, tzOffset)
                 # Send it to be validated, escaped, and added
-                msq.insert_MySQL(record, "time_configurations")
-            else: # GET
-                # Query for time zones
+                status = msq.insert_MySQL(record, "time_configurations")
+                # Format status and return
+                # TODO: Does GBA have known status formats for results?
+                return jsonify({'status': status})
+            # Query for list of existing time zones
+            elif request.method == 'GET':
                 results = msq.query("SELECT * FROM time_configurations;")
                 # Format to JSON
                 return results.to_json(orient="records")
@@ -156,8 +159,13 @@ def init_app():
         # Retrieve the time for this time zone
         # PUT (POST instead?)
         # Update the time zone (e.g. DST status)
-        def update_timezone(tz_id):
-            pass
+        def specific_timezone(tz_id):
+            if request.method == 'GET':
+                results = msq.query("SELECT * FROM time_configurations WHERE id = %s;", (tz_id,))
+                # Format to JSON
+                if results == []:
+                    abort(404) # Resource not found, does not exist
+                return results.to_json(orient="records")
 
         # --------------- DCT DATA -------------------
         
