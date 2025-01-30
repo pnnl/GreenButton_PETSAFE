@@ -176,24 +176,11 @@ def init_app():
             if request.method == 'POST':
                 # Get the details of the new zone
                 # TODO: add feedback if values are missing so the user can correctly supply them
-                tz_id = request.values.get('id')
-                tz_desc = request.values.get('description')
-                now = dt.now().strftime("%Y-%m-%d %H:%M:%S")
-                published = now
-                updated = now
-                up_link_href = "/speedes/1_0/timezones/"
-                up_link_rel = "up"
-                self_link_href = up_link_href + str(tz_id)
-                self_link_rel = "self"
-                uuid = uuid4() #uuid5(mysql_host, id)
-                dstEndRule = request.values.get('dstEndRule')
-                dstStartRule = request.values.get('dstStartRule')
-                dstOffset = request.values.get('dstOffset')
-                tzOffset = request.values.get('tzOffset')
-                # Format into a record
-                record = (tz_id, tz_desc, published, self_link_href, self_link_rel, \
-                          up_link_href, up_link_rel, updated, uuid, dstEndRule, dstOffset, \
-                            dstStartRule, tzOffset)
+                record = build_record(
+                    ["id", "description", "published", "updated", "up_link_href", "up_link_rel", \
+                     "self_link_href", "self_link_rel", "uuid", "dstEndRule", "dstOffset", "dstStartRule",\
+                    "tzOffset"], "id", "timezones/", request
+                    )
                 # Send it to be validated, escaped, and added
                 status = msq.insert_MySQL(record, "time_configurations")
                 # Format status and return
@@ -219,24 +206,18 @@ def init_app():
                 return results.to_json(orient="records")
             # Update timezone information, such as toggling DST status
             elif request.method == "POST":
-                tz_id = request.values.get('id')
-                tz_desc = request.values.get('description')
-                now = dt.now().strftime("%Y-%m-%d %H:%M:%S")
-                # Published: do not change
-                updated = now
-                up_link_href = "/speedes/1_0/timezones/"
-                up_link_rel = "up"
-                #self_link_href = up_link_href + str(tz_id)
-                #self_link_rel = "self"
-                # UUID probably should not change
-                dstEndRule = request.values.get('dstEndRule')
-                dstStartRule = request.values.get('dstStartRule')
-                dstOffset = request.values.get('dstOffset')
-                tzOffset = request.values.get('tzOffset')
+                record = build_record(
+                    ["id", "description", "published", "updated", "up_link_href", "up_link_rel", \
+                     "self_link_href", "self_link_rel", "uuid", "dstEndRule", "dstOffset", "dstStartRule",\
+                    "tzOffset"], "id", "timezones/", request
+                    )
+                # When updating, we need to change published so it stays the same;
+                # handle this in the update code once update method is clarified (TODO)
                 # Push the update TODO
-                column = None
-                value = None
-                status = msq.update_record(tz_id, column, value)
+                #column = None
+                #value = None
+                #status = msq.update_record(tz_id, column, value)
+                status = "Update Not Yet Implemented"
                 return jsonify({'status': str(status)})
             elif request.method == "DELETE":
                 tz_id = request.values.get('id')
