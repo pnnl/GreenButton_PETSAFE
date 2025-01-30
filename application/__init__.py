@@ -93,17 +93,17 @@ def build_record(
             except:
                 print(col, "must be convertable to a Boolean value")
         # Uplinks and self links
-        elif col == "up_link_href":
+        elif col == "up_link_href" and uplink != None:
             row[col] = "/speedes/1_0/" + uplink
-        elif col == "up_link_rel":
+        elif col == "up_link_rel" and uplink != None:
             row[col] = "up"
-        elif col == "self_link_href":
+        elif col == "self_link_href" and uplink != None:
             try:
                 row[col] = "/speedes/1_0/" + uplink + str(record_id)
             except:
                 # For now, this works, but there's a better way somewhere
                 return "Columns out of order" # TODO: is this always the case?
-        elif col == "self_link_rel":
+        elif col == "self_link_rel" and uplink != None:
             row[col] = "self"
         # Date columns that need to be generated
         elif col == "published" or col == "updated":
@@ -242,9 +242,9 @@ def init_app():
 
         @app.route("/speedes/1_0/customers", methods=['GET', 'POST'])
         # GET
-        # Retrieve list of time zones currently supported
+        # Retrieve list of customers
         # POST
-        # Add a new time zone
+        # Add a new customer
         def all_customers():
             if request.method == 'POST':
                 record = build_record(
@@ -252,17 +252,25 @@ def init_app():
                     "updated", "uuid", "enabled", "first_name", "last_name", \
                     "password", "role", "username"], "id", "customers/", request
                     )
-                print(record)
                 status = msq.insert_MySQL(record, "retail_customers")
                 # Format status and return
                 # TODO: Does GBA have known status formats for results?
                 return jsonify({'status': str(status)})
+            elif request.method == "GET":
+                # Do not return password or full name due to sensitivity
+                results = msq.query("SELECT id, description, published, self_link_href, self_link_rel, \
+                                    up_link_href, up_link_rel, updated, uuid, enabled, role, username FROM retail_customers;")
+                # Format to JSON
+                if results == []:
+                    abort(404) # Resource not found, does not exist
+                return results.to_json(orient="records")
+
             
-        @app.route("/speedes/1_0/timezones/<int:tz_id>", methods=['GET', 'POST', 'DELETE'])
+        @app.route("/speedes/1_0/customers/<int:tz_id>", methods=['GET', 'POST', 'DELETE'])
         # GET
-        # Retrieve the time for this time zone
+        # Retrieve the customer info
         # PUT (POST instead?)
-        # Update the time zone (e.g. DST status)
+        # Update the customer
         def specific_customers(cust_id):
             if request.method == 'GET':
                 # TODO: some of this information is sensitive; it should be handled differently
@@ -290,6 +298,56 @@ def init_app():
             elif request.method == "DELETE":
                 cust_id = request.values.get('id')
                 status = msq.delete_record(cust_id, "retail_customers")
+                return jsonify({'status': str(status)})
+            
+        # --------------- SERVICE DELIVERY -------------------
+
+        @app.route("/speedes/1_0/serviceDeliveryPoints", methods=['GET', 'POST'])
+        # GET
+        # Retrieve list of all points
+        # POST
+        # Add a new point
+        def all_sdpoints():
+            if request.method == 'POST':
+                record = build_record(
+                    ["id", "customerAgreement", "name", "tariffProfile"], "id", None, request
+                    )
+                print(record)
+                status = msq.insert_MySQL(record, "service_delivery_points")
+                # Format status and return
+                # TODO: Does GBA have known status formats for results?
+                return jsonify({'status': str(status)})
+            
+        @app.route("/speedes/1_0/serviceDeliveryPoints/<int:tz_id>", methods=['GET', 'POST', 'DELETE'])
+        # GET
+        # Retrieve the time for this time zone
+        # PUT (POST instead?)
+        # Update the time zone (e.g. DST status)
+        def specific_sdpoints(cust_id):
+            if request.method == 'GET':
+                # TODO: some of this information is sensitive; it should be handled differently
+                # E.G. password, full name
+                results = msq.query("SELECT * FROM service_delivery_points WHERE id = %s;", (cust_id,))
+                # Format to JSON
+                if results == []:
+                    abort(404) # Resource not found, does not exist
+                return results.to_json(orient="records")
+            # Update customer info
+            elif request.method == "POST":
+                record = build_record(
+                    ["id", "customerAgreement", "name", "tariffProfile"], "id", None, request
+                    )
+                # When updating, we need to change published so it stays the same;
+                # handle this in the update code once update method is clarified (TODO)
+                # Push the update TODO
+                #column = None
+                #value = None
+                #status = msq.update_record(tz_id, column, value)
+                status = "Update Not Yet Implemented"
+                return jsonify({'status': str(status)})
+            elif request.method == "DELETE":
+                cust_id = request.values.get('id')
+                status = msq.delete_record(cust_id, "service_delivery_points")
                 return jsonify({'status': str(status)})
 
         # --------------- DCT DATA -------------------

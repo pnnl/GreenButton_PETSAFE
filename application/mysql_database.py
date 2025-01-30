@@ -85,9 +85,9 @@ def insert_MySQL(record, table):
             # Time to try the actual insert query
             query = f"INSERT INTO {escaped_table} VALUES %s"
             cursor.execute(query, (record,))
-            query = f"SELECT * FROM {escaped_table}"
-            results = cursor.execute(query)
-            print(cursor.fetchall())
+            #query = f"SELECT * FROM {escaped_table}"
+            #results = cursor.execute(query)
+            #print(cursor.fetchall())
             conn.commit()
             status = "Success"
         except Exception as ex:
