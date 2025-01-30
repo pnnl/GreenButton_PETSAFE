@@ -122,11 +122,8 @@ def init_app():
         # Add a new time zone
         def all_timezones():
             if request.method == 'POST':
-                # time_configurations (id, description, published, 
-                # self_link_href, self_link_rel, up_link_href, up_link_rel, 
-                # updated, uuid, dstEndRule, dstOffset, dstStartRule, tzOffset) 
-
                 # Get the details of the new zone
+                # TODO: add feedback if values are missing so the user can correctly supply them
                 tz_id = request.values.get('id')
                 tz_desc = request.values.get('description')
                 now = dt.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -156,7 +153,7 @@ def init_app():
                 # Format to JSON
                 return results.to_json(orient="records")
         
-        @app.route("/speedes/1_0/timezones/<int:tz_id>", methods=['GET', 'POST'])
+        @app.route("/speedes/1_0/timezones/<int:tz_id>", methods=['GET', 'POST', 'DELETE'])
         # GET
         # Retrieve the time for this time zone
         # PUT (POST instead?)
@@ -168,6 +165,31 @@ def init_app():
                 if results == []:
                     abort(404) # Resource not found, does not exist
                 return results.to_json(orient="records")
+            # Update timezone information, such as toggling DST status
+            elif request.method == "POST":
+                tz_id = request.values.get('id')
+                tz_desc = request.values.get('description')
+                now = dt.now().strftime("%Y-%m-%d %H:%M:%S")
+                # Published: do not change
+                updated = now
+                up_link_href = "/speedes/1_0/timezones/"
+                up_link_rel = "up"
+                #self_link_href = up_link_href + str(tz_id)
+                #self_link_rel = "self"
+                # UUID probably should not change
+                dstEndRule = request.values.get('dstEndRule')
+                dstStartRule = request.values.get('dstStartRule')
+                dstOffset = request.values.get('dstOffset')
+                tzOffset = request.values.get('tzOffset')
+                # Push the update TODO
+                column = None
+                value = None
+                status = msq.update_record(tz_id, column, value)
+                return jsonify({'status': str(status)})
+            elif request.method == "DELETE":
+                tz_id = request.values.get('id')
+                status = msq.delete_record(tz_id, "time_configurations")
+                return jsonify({'status': str(status)})
 
         # --------------- DCT DATA -------------------
         

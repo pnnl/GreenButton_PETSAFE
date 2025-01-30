@@ -96,6 +96,27 @@ def insert_MySQL(record, table):
     close_conn(conn)
     return status
 
+def delete_record(id, table):
+    conn = connect_DB()
+    # Table name can't be parameterized normally; we have to do it manually
+    # escape_string() mostly handles this but ignores backticks
+    # That makes backticks a potential problem; we need to escape them to prevent problems
+    # Escaping backticks = double backtick, not backslash as usual
+    escaped_table = conn.escape_string(table).strip('`').replace('`', '``')
+    with conn.cursor() as cursor:
+        try:
+            # TODO: get id row name for id selection
+            query = f"DELETE FROM {table} WHERE id = %s"
+            cursor.execute(query, (id,))
+            conn.commit()
+            status = "Success"
+        except Exception as ex:
+            print(ex)
+            status = ex
+    close_conn(conn)
+    return status
+
+
 def import_from_json(filepath):
     # Read the JSON file
     json_data=open(filepath).read()
