@@ -2,17 +2,17 @@ from flask import Flask, jsonify, request, abort, request
 from datetime import datetime
 
 from dct_backend.retrieve_coefficients import prepare_coefficients, average_coefficients
-from dct_backend.unpickle_buildings import unpickle_buildings
 from database_config import *
 import influx_database as idb
 import mysql_database as msq
 from datetime import datetime as dt
-from uuid import uuid5, uuid4
-from json import dumps
+from uuid import uuid4
+#from json import dumps
 
 # Checks for start and end date arguments in routing, then ensures
 # that the dates are valid, exist in the data, and that end > start.
 # Returns the dates if these checks pass.
+# request: the HTTP request
 def check_for_date_limiter_arguments(request):
     # Fallbacks
     # TODO: fall back to whole data span? Or is None sensible? Think about it
@@ -36,6 +36,7 @@ def check_for_date_limiter_arguments(request):
 # Check that the requested ID actually exists
 # If it does, returns the id
 # Otherwise, aborts request (404: building does not exist, not found error)
+# id: the id to check
 def sanity_check_building_id(id):
     try:
         client = idb.init_database()
@@ -60,6 +61,14 @@ def sanity_check_building_id(id):
         abort(404) # Building does not exist; bad request
 
 # Get variable number of arguments and format into a record
+# Some fields need to be auto-generated; others will need to be
+# provided by the user. This function handles both and returns
+# a record composed of the specified columns.
+# column_names: the names of the columns in the table
+# id_col_name: the primary key column name for the table (TODO: what if multi-level key?)
+# uplink: the unique part of the uplink. Excludes naming/versioning.
+# e.g. "customers/" is correct; "/speedes/1.0/customers/" is not.
+# request: the HTTP request. Needed to get values for user-supplied params.
 def build_record(
         column_names: list, # Ensure these are in order!
         id_col_name: str,
@@ -67,13 +76,16 @@ def build_record(
         request # The HTTP request; needed to get params
 ):
     row = {}
+    # Build record from supplied column names, getting from request as needed
     for col in column_names:
-        # Date columns that need to be generated
+        # The primary key column
         if col == id_col_name:
             record_id = request.values.get(col) # Used to build self link
             row[col] = record_id
+        # Date columns that need to be generated
         elif col == "published" or "updated":
             row[col] = dt.now().strftime("%Y-%m-%d %H:%M:%S")
+        # UUID column
         elif col == "uuid":
             row[col] = uuid4() #uuid5(mysql_host, id)
         # Uplinks and self links
@@ -82,7 +94,11 @@ def build_record(
         elif col == "up_link_rel":
             row[col] = "up"
         elif col == "self_link_href":
-            self_link_href = "/speedes/1_0/" + uplink + str(record_id)
+            try:
+                row[col] = "/speedes/1_0/" + uplink + str(record_id)
+            except:
+                # For now, this works, but there's a better way somewhere
+                return "Columns out of order" # TODO: is this always the case?
         elif col == "self_link_rel":
             row[col] = "self"
         # Other columns that need to be requested from http
