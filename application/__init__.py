@@ -82,14 +82,11 @@ def build_record(
         if col == id_col_name:
             record_id = request.values.get(col) # Used to build self link
             row[col] = record_id
-        # Date columns that need to be generated
-        elif col == "published" or "updated":
-            row[col] = dt.now().strftime("%Y-%m-%d %H:%M:%S")
         # UUID column
         elif col == "uuid":
             row[col] = uuid4() #uuid5(mysql_host, id)
         # Uplinks and self links
-        elif col == "up_link":
+        elif col == "up_link_href":
             row[col] = "/speedes/1_0/" + uplink
         elif col == "up_link_rel":
             row[col] = "up"
@@ -101,12 +98,15 @@ def build_record(
                 return "Columns out of order" # TODO: is this always the case?
         elif col == "self_link_rel":
             row[col] = "self"
+        # Date columns that need to be generated
+        elif col == "published" or col == "updated":
+            row[col] = dt.now().strftime("%Y-%m-%d %H:%M:%S")
         # Other columns that need to be requested from http
         else:
             row[col] = request.values.get(col)
     # Flatten the dictionary into just the values and return for use
     # as a new record
-    record = row.values
+    record = tuple(row.values())
     return record
 
 # Run the app and define its routing
@@ -257,27 +257,6 @@ def init_app():
                      "self_link_href", "self_link_rel", "uuid", "enabled", "first_name", "last_name", \
                     "password", "role", "username"], "id", "customers/", request
                     )
-                #cust_id = request.values.get('id')
-                #cust_desc = request.values.get('description')
-                #now = dt.now().strftime("%Y-%m-%d %H:%M:%S")
-                #published = now
-                #updated = now
-                #up_link_href = "/speedes/1_0/customers/"
-                #up_link_rel = "up"
-                #self_link_href = up_link_href + str(cust_id)
-                #self_link_rel = "self"
-                #uuid = uuid4() #uuid5(mysql_host, id)
-                #enabled = request.values.get('enabled')
-                #firstname = request.values.get('firstname')
-                #lastname = request.values.get('lasname')
-                #password = request.values.get('password')
-                #role = request.values.get('role')
-                #username = request.values.get('username')
-                # Format into a record
-                #record = (cust_id, cust_desc, published, self_link_href, self_link_rel, \
-                #          up_link_href, up_link_rel, updated, uuid, enabled, firstname, lastname, \
-                #            password, role, username)
-                # Send it to be validated, escaped, and added
                 status = msq.insert_MySQL(record, "retail_customers")
                 # Format status and return
                 # TODO: Does GBA have known status formats for results?
