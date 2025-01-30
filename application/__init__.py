@@ -288,8 +288,8 @@ def init_app():
                 status = "Update Not Yet Implemented"
                 return jsonify({'status': str(status)})
             elif request.method == "DELETE":
-                tz_id = request.values.get('id')
-                status = msq.delete_record(tz_id, "time_configurations")
+                cust_id = request.values.get('id')
+                status = msq.delete_record(cust_id, "retail_customers")
                 return jsonify({'status': str(status)})
 
         # --------------- DCT DATA -------------------
