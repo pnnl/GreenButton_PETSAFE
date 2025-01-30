@@ -59,6 +59,40 @@ def sanity_check_building_id(id):
     else:
         abort(404) # Building does not exist; bad request
 
+# Get variable number of arguments and format into a record
+def build_record(
+        column_names: list, # Ensure these are in order!
+        id_col_name: str,
+        uplink: str,
+        request # The HTTP request; needed to get params
+):
+    row = {}
+    for col in column_names:
+        # Date columns that need to be generated
+        if col == id_col_name:
+            record_id = request.values.get(col) # Used to build self link
+            row[col] = record_id
+        elif col == "published" or "updated":
+            row[col] = dt.now().strftime("%Y-%m-%d %H:%M:%S")
+        elif col == "uuid":
+            row[col] = uuid4() #uuid5(mysql_host, id)
+        # Uplinks and self links
+        elif col == "up_link":
+            row[col] = "/speedes/1_0/" + uplink
+        elif col == "up_link_rel":
+            row[col] = "up"
+        elif col == "self_link_href":
+            self_link_href = "/speedes/1_0/" + uplink + str(record_id)
+        elif col == "self_link_rel":
+            row[col] = "self"
+        # Other columns that need to be requested from http
+        else:
+            row[col] = request.values.get(col)
+    # Flatten the dictionary into just the values and return for use
+    # as a new record
+    record = row.values
+    return record
+
 # Run the app and define its routing
 def init_app():
     app = Flask(__name__) # instance_relative_config=False
@@ -114,6 +148,8 @@ def init_app():
             # TODO: make datetimes obviously datetimes (currently UNIX stamps, which may be confusing to humans)
             # Right now it's hard to understand and that will be a problem in the future. Make it easier to work with
             return power.to_json(orient="records")
+        
+        # --------- TIME ZONE DATA -----------
         
         @app.route("/speedes/1_0/timezones", methods=['GET', 'POST'])
         # GET
@@ -189,6 +225,46 @@ def init_app():
             elif request.method == "DELETE":
                 tz_id = request.values.get('id')
                 status = msq.delete_record(tz_id, "time_configurations")
+                return jsonify({'status': str(status)})
+            
+        # --------------- RETAIL CUSTOMERS --------------------
+
+        @app.route("/speedes/1_0/customers", methods=['GET', 'POST'])
+        # GET
+        # Retrieve list of time zones currently supported
+        # POST
+        # Add a new time zone
+        def customers():
+            if request.method == 'POST':
+                record = build_record(
+                    ["id", "description", "published", "updated", "up_link_href", "up_link_rel", \
+                     "self_link_href", "self_link_rel", "uuid", "enabled", "first_name", "last_name", \
+                    "password", "role", "username"], "id", "customers/", request
+                    )
+                #cust_id = request.values.get('id')
+                #cust_desc = request.values.get('description')
+                #now = dt.now().strftime("%Y-%m-%d %H:%M:%S")
+                #published = now
+                #updated = now
+                #up_link_href = "/speedes/1_0/customers/"
+                #up_link_rel = "up"
+                #self_link_href = up_link_href + str(cust_id)
+                #self_link_rel = "self"
+                #uuid = uuid4() #uuid5(mysql_host, id)
+                #enabled = request.values.get('enabled')
+                #firstname = request.values.get('firstname')
+                #lastname = request.values.get('lasname')
+                #password = request.values.get('password')
+                #role = request.values.get('role')
+                #username = request.values.get('username')
+                # Format into a record
+                #record = (cust_id, cust_desc, published, self_link_href, self_link_rel, \
+                #          up_link_href, up_link_rel, updated, uuid, enabled, firstname, lastname, \
+                #            password, role, username)
+                # Send it to be validated, escaped, and added
+                status = msq.insert_MySQL(record, "retail_customers")
+                # Format status and return
+                # TODO: Does GBA have known status formats for results?
                 return jsonify({'status': str(status)})
 
         # --------------- DCT DATA -------------------
