@@ -7,6 +7,7 @@ import influx_database as idb
 import mysql_database as msq
 from datetime import datetime as dt
 from uuid import uuid4
+from pbkdf2 import crypt
 #from json import dumps
 
 # Checks for start and end date arguments in routing, then ensures
@@ -85,6 +86,12 @@ def build_record(
         # UUID column
         elif col == "uuid":
             row[col] = uuid4() #uuid5(mysql_host, id)
+        # bool columns
+        elif col in ["enabled"]:
+            try:
+                row[col] = bool(request.values.get(col))
+            except:
+                print(col, "must be convertable to a Boolean value")
         # Uplinks and self links
         elif col == "up_link_href":
             row[col] = "/speedes/1_0/" + uplink
@@ -101,6 +108,13 @@ def build_record(
         # Date columns that need to be generated
         elif col == "published" or col == "updated":
             row[col] = dt.now().strftime("%Y-%m-%d %H:%M:%S")
+        elif "password" in col:
+            # Store as a hash, not the raw password!
+            raw_pass = request.values.get(col)
+            # https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#pbkdf2
+            hashed_pass = crypt(raw_pass, iterations=600000)
+            row[col] = hashed_pass
+            del raw_pass
         # Other columns that need to be requested from http
         else:
             row[col] = request.values.get(col)
@@ -204,7 +218,7 @@ def init_app():
                 if results == []:
                     abort(404) # Resource not found, does not exist
                 return results.to_json(orient="records")
-            # Update timezone information, such as toggling DST status
+            # Update timezone information
             elif request.method == "POST":
                 record = build_record(
                     ["id", "description", "published", "updated", "up_link_href", "up_link_rel", \
@@ -231,16 +245,51 @@ def init_app():
         # Retrieve list of time zones currently supported
         # POST
         # Add a new time zone
-        def customers():
+        def all_customers():
             if request.method == 'POST':
                 record = build_record(
-                    ["id", "description", "published", "updated", "up_link_href", "up_link_rel", \
-                     "self_link_href", "self_link_rel", "uuid", "enabled", "first_name", "last_name", \
+                    ["id", "description", "published", "self_link_href", "self_link_rel", "up_link_href", "up_link_rel", \
+                    "updated", "uuid", "enabled", "first_name", "last_name", \
                     "password", "role", "username"], "id", "customers/", request
                     )
+                print(record)
                 status = msq.insert_MySQL(record, "retail_customers")
                 # Format status and return
                 # TODO: Does GBA have known status formats for results?
+                return jsonify({'status': str(status)})
+            
+        @app.route("/speedes/1_0/timezones/<int:tz_id>", methods=['GET', 'POST', 'DELETE'])
+        # GET
+        # Retrieve the time for this time zone
+        # PUT (POST instead?)
+        # Update the time zone (e.g. DST status)
+        def specific_customers(cust_id):
+            if request.method == 'GET':
+                # TODO: some of this information is sensitive; it should be handled differently
+                # E.G. password, full name
+                results = msq.query("SELECT * FROM retail_customers WHERE id = %s;", (cust_id,))
+                # Format to JSON
+                if results == []:
+                    abort(404) # Resource not found, does not exist
+                return results.to_json(orient="records")
+            # Update customer info
+            elif request.method == "POST":
+                record = build_record(
+                    ["id", "description", "published", "updated", "up_link_href", "up_link_rel", \
+                     "self_link_href", "self_link_rel", "uuid", "dstEndRule", "dstOffset", "dstStartRule",\
+                    "tzOffset"], "id", "timezones/", request
+                    )
+                # When updating, we need to change published so it stays the same;
+                # handle this in the update code once update method is clarified (TODO)
+                # Push the update TODO
+                #column = None
+                #value = None
+                #status = msq.update_record(tz_id, column, value)
+                status = "Update Not Yet Implemented"
+                return jsonify({'status': str(status)})
+            elif request.method == "DELETE":
+                tz_id = request.values.get('id')
+                status = msq.delete_record(tz_id, "time_configurations")
                 return jsonify({'status': str(status)})
 
         # --------------- DCT DATA -------------------
