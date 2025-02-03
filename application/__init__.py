@@ -8,6 +8,7 @@ import mysql_database as msq
 from datetime import datetime as dt
 from uuid import uuid4
 from pbkdf2 import crypt
+from typing import Optional
 #from json import dumps
 
 # Verify that a list of keys corresponds with columns in a table
@@ -15,23 +16,34 @@ from pbkdf2 import crypt
 # table: the name of the table to test on
 def check_against_columns(
         key_dict: dict, 
-        table: str
+        table: str,
+        return_invalid_keys: Optional[bool] = False
         ):
     # TODO: Also check types of data for validity?
+    # Get the list of valid columns for the table
     keys = key_dict.keys()
     query = f'SELECT column_name FROM INFORMATION_SCHEMA.COLUMNS WHERE table_name = %s;'
     cols_in_table = [v for vals in (msq.query(query, (table,)).values) for v in vals] # Flatten list
-    print(cols_in_table)
+    # Detect invalid columns
     invalid_keys = []
     for key in keys:
         if key not in cols_in_table:
             invalid_keys.append(key)
-    # Remove invalid column keys from the dict
+    # Remove invalid column keys from the dict and give feedback
+    # TODO: API feedback on what got dropped
     for badkey in invalid_keys:
         print(f"{badkey} is not in {table}; dropping and continuing")
         del key_dict[badkey]
+    # Check for missing columns, fill with None for later imputation
+    for col in cols_in_table:
+        if col not in key_dict.keys():
+            key_dict[col] = None
     # TODO: what if needed rows are missing? e.g. ID row
-    return key_dict # TODO: feedback on what got dropped
+    # Return the legitimate keys; optionally, also return the invalid keys
+    if return_invalid_keys == True:
+        return key_dict, invalid_keys
+    else:
+        return key_dict
 
 # Checks for start and end date arguments in routing, then ensures
 # that the dates are valid, exist in the data, and that end > start.
@@ -84,6 +96,11 @@ def sanity_check_building_id(id):
     else:
         abort(404) # Building does not exist; bad request
 
+def hash_value(value):
+    # https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#pbkdf2
+    value = crypt(value, iterations=600000) # NIST FIPS-140; pbkdf2 is used here
+    return value
+
 # Get variable number of arguments and format into a record
 # Some fields need to be auto-generated; others will need to be
 # provided by the user. This function handles both and returns
@@ -133,11 +150,7 @@ def build_record(
             row[col] = dt.now().strftime("%Y-%m-%d %H:%M:%S")
         elif "password" in col:
             # Store as a hash, not the raw password!
-            raw_pass = request.values.get(col)
-            # https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#pbkdf2
-            hashed_pass = crypt(raw_pass, iterations=600000) # NIST FIPS-140; pbkdf2 is used here
-            row[col] = hashed_pass
-            del raw_pass
+            row[col] = hash_value(request.values.get(col))
         # Other columns that need to be requested from http
         else:
             row[col] = request.values.get(col)
@@ -145,6 +158,29 @@ def build_record(
     # as a new record
     record = tuple(row.values())
     return record
+
+def update_row(
+        table: str, 
+        new_data: dict # Must include the ID column of the row to change
+        ):
+    # Validate that the columns we're asking to change actually exist
+    new_data = check_against_columns(new_data, table)
+    # For columns with a value of None, grab the old value from the table
+    none_cols = [col for col in new_data.keys() if new_data[col] == None]
+    #none_cols = ", ".join(none_cols) # Format for query
+    # TODO: some tables have different id column names. Account for that.
+    row_id = new_data["id"]
+    query = f"SELECT * FROM {table} WHERE id = %s;"
+    values = msq.query(query, (row_id,))
+    # Overwrite the columns listed in new_data with the new data
+    for col in new_data:
+        if col not in none_cols:
+            if "password" in col: # Hash the password column values!
+                new_data[col] = hash_value(new_data[col])
+            values[col] = new_data[col]
+    print(values)
+    # Hash any passwords
+    return "Not yet implemented"
 
 # Run the app and define its routing
 def init_app():
@@ -312,14 +348,14 @@ def init_app():
             elif request.method == "POST":
                 # TODO: what if request is missing columns? Keep the original record columns for them.
                 request_contents = dict(request.args)
-                request_contents = check_against_columns(request_contents, "retail_customers")
+                request_contents = update_row("retail_customers", request_contents)
                 # If not empty, then fill in missing columns and write
                 print(request_contents)
-                record = build_record(
-                    ["id", "description", "published", "updated", "up_link_href", "up_link_rel", \
-                     "self_link_href", "self_link_rel", "uuid", "dstEndRule", "dstOffset", "dstStartRule",\
-                    "tzOffset"], "id", "timezones/", request
-                    )
+                #record = build_record(
+                #    ["id", "description", "published", "updated", "up_link_href", "up_link_rel", \
+                #     "self_link_href", "self_link_rel", "uuid", "dstEndRule", "dstOffset", "dstStartRule",\
+                #    "tzOffset"], "id", "timezones/", request
+                #    )
                 # When updating, we need to change published so it stays the same;
                 # handle this in the update code once update method is clarified (TODO)
                 # Push the update TODO
