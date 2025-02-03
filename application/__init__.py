@@ -179,7 +179,15 @@ def update_row(
                 new_data[col] = hash_value(new_data[col])
             values[col] = new_data[col]
     print(values)
-    # Hash any passwords
+    # Place the values into the table, overwriting the existing row
+    query = f"UPDATE {table} SET "
+    parameters = []
+    for col in new_data:
+        query += f"{col} = %s, "
+        parameters.append(new_data[col])
+    query += f"WHERE id = {row_id};"
+    print(query)
+    #status = msq.query(query, parameters)
     return "Not yet implemented"
 
 # Run the app and define its routing
