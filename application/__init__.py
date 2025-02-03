@@ -10,6 +10,29 @@ from uuid import uuid4
 from pbkdf2 import crypt
 #from json import dumps
 
+# Verify that a list of keys corresponds with columns in a table
+# keys: the list of column names to test
+# table: the name of the table to test on
+def check_against_columns(
+        key_dict: dict, 
+        table: str
+        ):
+    # TODO: Also check types of data for validity?
+    keys = key_dict.keys()
+    query = f'SELECT column_name FROM INFORMATION_SCHEMA.COLUMNS WHERE table_name = %s;'
+    cols_in_table = [v for vals in (msq.query(query, (table,)).values) for v in vals] # Flatten list
+    print(cols_in_table)
+    invalid_keys = []
+    for key in keys:
+        if key not in cols_in_table:
+            invalid_keys.append(key)
+    # Remove invalid column keys from the dict
+    for badkey in invalid_keys:
+        print(f"{badkey} is not in {table}; dropping and continuing")
+        del key_dict[badkey]
+    # TODO: what if needed rows are missing? e.g. ID row
+    return key_dict # TODO: feedback on what got dropped
+
 # Checks for start and end date arguments in routing, then ensures
 # that the dates are valid, exist in the data, and that end > start.
 # Returns the dates if these checks pass.
@@ -112,7 +135,7 @@ def build_record(
             # Store as a hash, not the raw password!
             raw_pass = request.values.get(col)
             # https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#pbkdf2
-            hashed_pass = crypt(raw_pass, iterations=600000)
+            hashed_pass = crypt(raw_pass, iterations=600000) # NIST FIPS-140; pbkdf2 is used here
             row[col] = hashed_pass
             del raw_pass
         # Other columns that need to be requested from http
@@ -180,6 +203,7 @@ def init_app():
             return power.to_json(orient="records")
         
         # --------- TIME ZONE DATA -----------
+        # TODO: combine with Usage Points; the two are never seen separately
         
         @app.route("/speedes/1_0/timezones", methods=['GET', 'POST'])
         # GET
@@ -258,30 +282,39 @@ def init_app():
                 return jsonify({'status': str(status)})
             elif request.method == "GET":
                 # Do not return password or full name due to sensitivity
-                results = msq.query("SELECT id, description, published, self_link_href, self_link_rel, \
-                                    up_link_href, up_link_rel, updated, uuid, enabled, role, username FROM retail_customers;")
+                # Is the publish date sensitive (could be used to determine how long they've spent w/utility company)?
+                results = msq.query("SELECT id, username, description, role, enabled, published, self_link_href, self_link_rel, \
+                                    up_link_href, up_link_rel, updated, uuid FROM retail_customers;")
                 # Format to JSON
                 if results == []:
                     abort(404) # Resource not found, does not exist
                 return results.to_json(orient="records")
 
             
-        @app.route("/speedes/1_0/customers/<int:tz_id>", methods=['GET', 'POST', 'DELETE'])
+        @app.route("/speedes/1_0/customers/<int:cust_id>", methods=['GET', 'POST', 'DELETE'])
         # GET
         # Retrieve the customer info
         # PUT (POST instead?)
         # Update the customer
         def specific_customers(cust_id):
             if request.method == 'GET':
-                # TODO: some of this information is sensitive; it should be handled differently
+                # Some of this information is sensitive; it should be handled differently
                 # E.G. password, full name
-                results = msq.query("SELECT * FROM retail_customers WHERE id = %s;", (cust_id,))
+                # Temporarily not returning but should probably ask what's expected
+                results = msq.query("SELECT id, first_name, last_name, username, description, role, enabled, published, \
+                                    self_link_href, self_link_rel, up_link_href, up_link_rel, \
+                                    updated, uuid FROM retail_customers WHERE id = %s;", (cust_id,))
                 # Format to JSON
                 if results == []:
                     abort(404) # Resource not found, does not exist
                 return results.to_json(orient="records")
             # Update customer info
             elif request.method == "POST":
+                # TODO: what if request is missing columns? Keep the original record columns for them.
+                request_contents = dict(request.args)
+                request_contents = check_against_columns(request_contents, "retail_customers")
+                # If not empty, then fill in missing columns and write
+                print(request_contents)
                 record = build_record(
                     ["id", "description", "published", "updated", "up_link_href", "up_link_rel", \
                      "self_link_href", "self_link_rel", "uuid", "dstEndRule", "dstOffset", "dstStartRule",\
@@ -302,6 +335,7 @@ def init_app():
             
         # --------------- SERVICE DELIVERY -------------------
 
+        # TODO: combine with Usage Points; the two are never seen separately
         @app.route("/speedes/1_0/serviceDeliveryPoints", methods=['GET', 'POST'])
         # GET
         # Retrieve list of all points
@@ -317,6 +351,12 @@ def init_app():
                 # Format status and return
                 # TODO: Does GBA have known status formats for results?
                 return jsonify({'status': str(status)})
+            elif request.method == "GET":
+                results = msq.query("SELECT * FROM service_delivery_points;")
+                # Format to JSON
+                if results == []:
+                    abort(404) # Resource not found, does not exist
+                return results.to_json(orient="records")
             
         @app.route("/speedes/1_0/serviceDeliveryPoints/<int:tz_id>", methods=['GET', 'POST', 'DELETE'])
         # GET
@@ -325,8 +365,6 @@ def init_app():
         # Update the time zone (e.g. DST status)
         def specific_sdpoints(cust_id):
             if request.method == 'GET':
-                # TODO: some of this information is sensitive; it should be handled differently
-                # E.G. password, full name
                 results = msq.query("SELECT * FROM service_delivery_points WHERE id = %s;", (cust_id,))
                 # Format to JSON
                 if results == []:
