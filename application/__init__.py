@@ -273,6 +273,8 @@ def init_app():
             elif request.method == 'GET':
                 results = msq.query("SELECT * FROM time_configurations;")
                 # Format to JSON
+                if results.empty:
+                    abort(404)
                 return results.to_json(orient="records")
         
         @app.route("/speedes/1_0/timezones/<int:tz_id>", methods=['GET', 'POST', 'DELETE'])
@@ -284,7 +286,7 @@ def init_app():
             if request.method == 'GET':
                 results = msq.query("SELECT * FROM time_configurations WHERE id = %s;", (tz_id,))
                 # Format to JSON
-                if results == []:
+                if results.empty:
                     abort(404) # Resource not found, does not exist
                 return results.to_json(orient="records")
             # Update timezone information
@@ -330,8 +332,9 @@ def init_app():
                 # Is the publish date sensitive (could be used to determine how long they've spent w/utility company)?
                 results = msq.query("SELECT id, username, description, role, enabled, published, self_link_href, self_link_rel, \
                                     up_link_href, up_link_rel, updated, uuid FROM retail_customers;")
+                print(results)
                 # Format to JSON
-                if results == []:
+                if results.empty:
                     abort(404) # Resource not found, does not exist
                 return results.to_json(orient="records")
 
@@ -350,7 +353,7 @@ def init_app():
                                     self_link_href, self_link_rel, up_link_href, up_link_rel, \
                                     updated, uuid FROM retail_customers WHERE id = %s;", (cust_id,))
                 # Format to JSON
-                if results == []:
+                if results.empty:
                     abort(404) # Resource not found, does not exist
                 return results.to_json(orient="records")
             # Update customer info

@@ -39,7 +39,11 @@ def query(
         results = cursor.fetchall()
         #fetched = results.fetchall()
     close_conn(conn)
-    results = pd.DataFrame.from_records(results)
+    try:
+        results = pd.DataFrame.from_records(results)
+    except Exception as ex:
+        print(ex)
+        print(results)
     return results
 
 def update_record(record_id, column, new_value, table):
