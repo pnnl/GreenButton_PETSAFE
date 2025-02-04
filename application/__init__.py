@@ -360,21 +360,7 @@ def init_app():
             elif request.method == "POST":
                 # TODO: what if request is missing columns? Keep the original record columns for them.
                 request_contents = dict(request.args)
-                request_contents = update_row("retail_customers", request_contents)
-                # If not empty, then fill in missing columns and write
-                print(request_contents)
-                #record = build_record(
-                #    ["id", "description", "published", "updated", "up_link_href", "up_link_rel", \
-                #     "self_link_href", "self_link_rel", "uuid", "dstEndRule", "dstOffset", "dstStartRule",\
-                #    "tzOffset"], "id", "timezones/", request
-                #    )
-                # When updating, we need to change published so it stays the same;
-                # handle this in the update code once update method is clarified (TODO)
-                # Push the update TODO
-                #column = None
-                #value = None
-                #status = msq.update_record(tz_id, column, value)
-                status = "Update Not Yet Implemented"
+                status = update_row("retail_customers", request_contents)
                 return jsonify({'status': str(status)})
             elif request.method == "DELETE":
                 cust_id = request.values.get('id')
