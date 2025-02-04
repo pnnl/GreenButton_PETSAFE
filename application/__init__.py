@@ -98,7 +98,7 @@ def sanity_check_building_id(id):
 
 def hash_value(value):
     # https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#pbkdf2
-    value = crypt(value, iterations=600000) # NIST FIPS-140; pbkdf2 is used here
+    value = crypt(value, iterations=60000) # NIST FIPS-140; pbkdf2 is used here; check iteration count for final
     return value
 
 # Get variable number of arguments and format into a record
@@ -174,19 +174,19 @@ def update_row(
     values = msq.query(query, (row_id,))
     # Overwrite the columns listed in new_data with the new data
     for col in new_data:
-        if col not in none_cols:
+        if col not in none_cols: # If this column has been supplied with new values to update to
             if "password" in col: # Hash the password column values!
                 new_data[col] = hash_value(new_data[col])
             values[col] = new_data[col]
-    print(values)
     # Place the values into the table, overwriting the existing row
     query = f"UPDATE {table} SET "
     parameters = []
     for col in new_data:
         query += f"{col} = %s, "
-        parameters.append(new_data[col])
+        parameters.append(values[col].iloc[0])
     query += f"WHERE id = {row_id};"
     print(query)
+    print(parameters)
     #status = msq.query(query, parameters)
     return "Not yet implemented"
 
