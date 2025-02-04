@@ -291,18 +291,8 @@ def init_app():
                 return results.to_json(orient="records")
             # Update timezone information
             elif request.method == "POST":
-                record = build_record(
-                    ["id", "description", "published", "updated", "up_link_href", "up_link_rel", \
-                     "self_link_href", "self_link_rel", "uuid", "dstEndRule", "dstOffset", "dstStartRule",\
-                    "tzOffset"], "id", "timezones/", request
-                    )
-                # When updating, we need to change published so it stays the same;
-                # handle this in the update code once update method is clarified (TODO)
-                # Push the update TODO
-                #column = None
-                #value = None
-                #status = msq.update_record(tz_id, column, value)
-                status = "Update Not Yet Implemented"
+                request_contents = dict(request.args) # Get arguments to pass along changes
+                status = update_row("time_configurations", request_contents)
                 return jsonify({'status': str(status)})
             elif request.method == "DELETE":
                 tz_id = request.values.get('id')
@@ -358,8 +348,7 @@ def init_app():
                 return results.to_json(orient="records")
             # Update customer info
             elif request.method == "POST":
-                # TODO: what if request is missing columns? Keep the original record columns for them.
-                request_contents = dict(request.args)
+                request_contents = dict(request.args) # Get arguments to pass along changes
                 status = update_row("retail_customers", request_contents)
                 return jsonify({'status': str(status)})
             elif request.method == "DELETE":
