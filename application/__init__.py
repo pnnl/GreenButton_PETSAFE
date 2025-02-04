@@ -184,11 +184,12 @@ def update_row(
     for col in new_data:
         query += f"{col} = %s, "
         parameters.append(values[col].iloc[0])
+    query = query[:-2] + " " # Remove final comma
     query += f"WHERE id = {row_id};"
     print(query)
     print(parameters)
-    #status = msq.query(query, parameters)
-    return "Not yet implemented"
+    status = msq.query(query, parameters)
+    return status
 
 # Run the app and define its routing
 def init_app():
