@@ -120,6 +120,17 @@ def delete_record(id, table):
     close_conn(conn)
     return status
 
+# Takes a MySQL column datatype and outputs the corresponding
+# Python type, using the built-in pymysql mapping
+# (see here: https://github.com/PyMySQL/PyMySQL/blob/main/pymysql/converters.py )
+def convert_to_python_type(msq_datatype: str):
+    type_mapping = pymysql.converters.decoders
+    try:
+        python_type = type_mapping[msq_datatype]
+        return python_type
+    except Exception as ex:
+        print("Cannot convert type:", ex)
+        return None
 
 def import_from_json(filepath):
     # Read the JSON file

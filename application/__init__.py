@@ -22,7 +22,7 @@ def check_against_columns(
     # TODO: Also check types of data for validity?
     # Get the list of valid columns for the table
     keys = key_dict.keys()
-    query = f'SELECT column_name FROM INFORMATION_SCHEMA.COLUMNS WHERE table_name = %s;'
+    query = 'SELECT column_name FROM INFORMATION_SCHEMA.COLUMNS WHERE table_name = %s;'
     cols_in_table = [v for vals in (msq.query(query, (table,)).values) for v in vals] # Flatten list
     # Detect invalid columns
     invalid_keys = []
@@ -100,6 +100,28 @@ def hash_value(value):
     # https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#pbkdf2
     value = crypt(value, iterations=60000) # NIST FIPS-140; pbkdf2 is used here; check iteration count for final
     return value
+
+# Determine if the types
+def check_types(record, table):
+    # Assumption: all columns are filled in the record prior to reaching this function
+    # Retrieve the types of the table's columns and validate
+    # the supplied record fields as being the right type.
+    query = "SELECT DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE table_name = %s;"
+    types = msq.query(query, (table,))
+    match = []
+    for i in len(types): # For every entry in the record
+        item_type = type(record[i]) # Get the type of that part of the record
+        # Get the corresponding column's type and convert to the Python 
+        # equivalent for comparison
+        col_type = msq.convert_to_python_type(types[i])
+        if item_type != col_type:
+            # TODO: SHOULD we coerce the type into the correct one if possible? 
+            # (eg int -> float can be done; forcing float only is overly restrictive)
+            match.append(False)
+            print(f"Type of column {i}: {record[i]} ({item_type}) does not match database; must be {col_type}.)")
+        else:
+            match.append(True) # Types match, good to go
+    return match
 
 # Get variable number of arguments and format into a record
 # Some fields need to be auto-generated; others will need to be
@@ -356,9 +378,41 @@ def init_app():
                 status = msq.delete_record(cust_id, "retail_customers")
                 return jsonify({'status': str(status)})
             
-        # --------------- SERVICE DELIVERY -------------------
+        # --------------- SERVICE DELIVERY AND USAGE POINTS -------------------
+        # TODO Rename to meters?
+        # "Logical point on a network at which consumption or production is either 
+        # physically measured (e.g., metered) or estimated (e.g., unmetered street lights)."
+        @app.route("/speedes/1_0/usagePoints", methods=['GET', 'POST'])
+        def usage_points():
+            if request.method == 'GET':
+                # Should we also include serviceDeliveryPoints here, or only for specific meters?
+                # Makes most sense as specific meters but wait to see use case to confirm
+                results = msq.query("SELECT * FROM usage_points;")
+                # Format to JSON
+                if results == []:
+                    abort(404) # Resource not found, does not exist
+                return results.to_json(orient="records")
+            elif request.method == "POST":
+                # Add a new point
+                # First things first: we need a serviceDeliveryPoint entry for the usagePoint
+                # The same SDP can be used by many usagePoints, so check if it exists first
+                sdp_id = request.values.get("id")
+                sdp_results = msq.query("SELECT COUNT(id) FROM service_delivery_points WHERE id = %s", sdp_id)
+                if sdp_results.empty: # The ID doesn't exist yet
+                    try:
+                        sdp_name = str(request.values.get("sdp_name"))
+                        sdp_tariffProfile = str(request.values.get("sdp_tariffProfile"))
+                        sdp_customerAgreement = str(request.values.get("sdp_customerAgreement"))
+                        # Add to database
+                        record = (sdp_id, sdp_customerAgreement, sdp_name, sdp_tariffProfile)
+                    except:
+                        # Is this a risk to be concerned about? A user of the API could potentially try to
+                        # add usage points to see if SDPs exist yet by checking the responses.
+                        print("This usagePoint needs sdp_name, sdp_tariffProfile, and sdp_customerAgreement fields supplied.")
+
 
         # TODO: combine with Usage Points; the two are never seen separately
+        # and SDP is just the revenue part of a UsagePoint
         @app.route("/speedes/1_0/serviceDeliveryPoints", methods=['GET', 'POST'])
         # GET
         # Retrieve list of all points
