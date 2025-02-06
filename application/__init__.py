@@ -81,10 +81,11 @@ def init_app():
                     "tzOffset"], "id", "timezones/", request
                     )
                 # Send it to be validated, escaped, and added
-                status = msq.insert_MySQL(record, "time_configurations")
+                status, values = msq.insert_MySQL(record, "time_configurations")
                 # Format status and return
                 # TODO: Does GBA have known status formats for results?
-                return jsonify({'status': str(status)})
+                return values.to_json(orient="records"), status, {'Content-Type': 'application/json'}
+            
             # Query for list of existing time zones
             elif request.method == 'GET':
                 results = msq.query("SELECT * FROM time_configurations;")
@@ -105,15 +106,18 @@ def init_app():
                 if results.empty:
                     abort(404) # Resource not found, does not exist
                 return results.to_json(orient="records")
+            
             # Update timezone information
             elif request.method == "POST":
                 request_contents = dict(request.args) # Get arguments to pass along changes
-                status = update_row("time_configurations", request_contents)
-                return jsonify({'status': str(status)})
+                values, status = update_row("time_configurations", request_contents)
+                return values.to_json(orient="records"), status, {'Content-Type': 'application/json'}
+            
             elif request.method == "DELETE":
                 tz_id = request.values.get('id')
                 status = msq.delete_record(tz_id, "time_configurations")
-                return jsonify({'status': str(status)})
+                # TODO: check if delete_record aborts on fail. If not, adjust to return relevant http code
+                return {'operation':'deletion'}, 201, {'Content-Type': 'application/json'}
             
         # --------------- RETAIL CUSTOMERS --------------------
 
@@ -124,15 +128,18 @@ def init_app():
         # Add a new customer
         def all_customers():
             if request.method == 'POST':
-                record = build_record(
-                    ["id", "description", "published", "self_link_href", "self_link_rel", "up_link_href", "up_link_rel", \
-                    "updated", "uuid", "enabled", "first_name", "last_name", \
-                    "password", "role", "username"], "id", "customers/", request
-                    )
-                status = msq.insert_MySQL(record, "retail_customers")
+                table = "retail_customers"
+                cols = get_cols_in_table(table)
+                record = build_record(cols, "id", "customers/", request)
+                # Validate that data's types are all valid to insert
+                if False not in check_types(record, table):
+                    result, code = msq.insert_MySQL(record, table)
+                else:
+                    status = "Cannot insert: invalid data type"
+                    return {'status':status}, 400, {'Content-Type': 'application/json'}
                 # Format status and return
-                # TODO: Does GBA have known status formats for results?
-                return jsonify({'status': str(status)})
+                return result.to_json(orient="records"), code, {'Content-Type': 'application/json'}
+            
             elif request.method == "GET":
                 # Do not return password or full name due to sensitivity
                 # Is the publish date sensitive (could be used to determine how long they've spent w/utility company)?
@@ -162,15 +169,17 @@ def init_app():
                 if results.empty:
                     abort(404) # Resource not found, does not exist
                 return results.to_json(orient="records")
+            
             # Update customer info
             elif request.method == "POST":
                 request_contents = dict(request.args) # Get arguments to pass along changes
-                status = update_row("retail_customers", request_contents)
-                return jsonify({'status': str(status)})
+                result, code = update_row("retail_customers", request_contents)
+                return result.to_json(orient="records"), code, {'Content-Type': 'application/json'}
+            
             elif request.method == "DELETE":
                 cust_id = request.values.get('id')
                 status = msq.delete_record(cust_id, "retail_customers")
-                return jsonify({'status': str(status)})
+                return {'operation':"deletion"}, status, {'Content-Type': 'application/json'}
             
         # --------------- SERVICE DELIVERY AND USAGE POINTS -------------------
         # TODO Rename to meters?
@@ -186,7 +195,10 @@ def init_app():
                 if results == []:
                     abort(404) # Resource not found, does not exist
                 return results.to_json(orient="records")
+            
             elif request.method == "POST":
+                table = "service_delivery_points"
+                #cols = get_cols_in_table(table)
                 # Add a new point
                 # First things first: we need a serviceDeliveryPoint entry for the usagePoint
                 # The same SDP can be used by many usagePoints, so check if it exists first
@@ -199,10 +211,35 @@ def init_app():
                         sdp_customerAgreement = str(request.values.get("sdp_customerAgreement"))
                         # Add to database
                         record = (sdp_id, sdp_customerAgreement, sdp_name, sdp_tariffProfile)
+                        status = msq.insert_MySQL(record, table)
                     except:
                         # Is this a risk to be concerned about? A user of the API could potentially try to
                         # add usage points to see if SDPs exist yet by checking the responses.
                         print("This usagePoint needs sdp_name, sdp_tariffProfile, and sdp_customerAgreement fields supplied.")
+                    if status != "Success": # We failed to add the usagePoint's SDP
+                        print(status)
+                        abort(500) # For now. I think there's a better error code for this though
+                    else:
+                        pass # All is well, SDP exists. Explicit continue.
+                # SDP exists for this usagePoint. 
+                # This table ALSO needs a localTimeParameters_id, sourced from time_configurations
+                # AND a retail_customers_id from retail_customers.
+                # (and a subscription_id, but that's temporarily dropped as a constraint)
+                # For now, we're assuming these already exist, but TODO:
+                # find out whether that assumption is reasonable or not.
+                # Add the usagePoint to the database.
+                table = "usage_points"
+                cols = get_cols_in_table(table)
+                record = build_record(cols, "id", "usagePoints/", request)
+                if False not in check_types(record, table):
+                    status = msq.insert_MySQL(record, table)
+                else:
+                    status = "Cannot insert: invalid data type"
+                    return {'status':status}, 400, {'Content-Type': 'application/json'}
+                # Format status and return
+                # TODO: Does GBA have known status formats for results?
+                # TODO: check if update_row aborts on fail. If not, adjust to return relevant http code
+                return {'status':status}, 201, {'Content-Type': 'application/json'}
 
 
         # TODO: combine with Usage Points; the two are never seen separately
@@ -220,8 +257,9 @@ def init_app():
                 print(record)
                 status = msq.insert_MySQL(record, "service_delivery_points")
                 # Format status and return
-                # TODO: Does GBA have known status formats for results?
-                return jsonify({'status': str(status)})
+                # TODO: Return other http codes if it failed
+                return {'status':status}, 201, {'Content-Type': 'application/json'}
+            
             elif request.method == "GET":
                 results = msq.query("SELECT * FROM service_delivery_points;")
                 # Format to JSON
@@ -253,11 +291,12 @@ def init_app():
                 #value = None
                 #status = msq.update_record(tz_id, column, value)
                 status = "Update Not Yet Implemented"
-                return jsonify({'status': str(status)})
+                return {'status':status}, 501, {'Content-Type': 'application/json'}
             elif request.method == "DELETE":
                 cust_id = request.values.get('id')
                 status = msq.delete_record(cust_id, "service_delivery_points")
-                return jsonify({'status': str(status)})
+                # Check if it handles failure or not
+                return {'status':status}, 201, {'Content-Type': 'application/json'}
 
         # --------------- DCT DATA -------------------
         

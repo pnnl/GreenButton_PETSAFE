@@ -37,10 +37,11 @@ def query(
         else:
             result_rows = cursor.execute(query, params)
         results = cursor.fetchall()
-        #fetched = results.fetchall()
     close_conn(conn)
     try:
         results = pd.DataFrame.from_records(results)
+        if results.empty:
+            return 404
     except Exception as ex:
         print(ex)
         print(results)
@@ -66,9 +67,10 @@ def update_record(record_id, column, new_value, table):
             query = f"""UPDATE {table}
                     SET %s = %s WHERE {id_col} = %s"""
             cursor.execute(query, (column, new_value, record_id))
-            status = "Success"
+            status = 200
     except Exception as status:
         print(status)
+        status = 500
     close_conn(conn)
     return status
 
@@ -93,12 +95,15 @@ def insert_MySQL(record, table):
             #results = cursor.execute(query)
             #print(cursor.fetchall())
             conn.commit()
-            status = "Success"
+            status = 201
+            query = f"SELECT * FROM {table} WHERE id = %s;"
+            values = pd.DataFrame.from_records(record)
         except Exception as ex:
             print(ex)
-            status = ex
+            status = 500
+            return status, None
     close_conn(conn)
-    return status
+    return status, values
 
 def delete_record(id, table):
     conn = connect_DB()
@@ -113,10 +118,10 @@ def delete_record(id, table):
             query = f"DELETE FROM {table} WHERE id = %s"
             cursor.execute(query, (id,))
             conn.commit()
-            status = "Success"
+            status = 200
         except Exception as ex:
             print(ex)
-            status = ex
+            status = 500
     close_conn(conn)
     return status
 

@@ -9,6 +9,12 @@ from pbkdf2 import crypt
 from typing import Optional
 #from json import dumps
 
+def get_cols_in_table(table):
+    query = 'SELECT column_name FROM INFORMATION_SCHEMA.COLUMNS WHERE table_name = %s;'
+    cols_in_table = [v for vals in (msq.query(query, (table,)).values) for v in vals] # Flatten list
+    return cols_in_table
+
+
 # Verify that a list of keys corresponds with columns in a table
 # keys: the list of column names to test
 # table: the name of the table to test on
@@ -20,8 +26,7 @@ def check_against_columns(
     # TODO: Also check types of data for validity?
     # Get the list of valid columns for the table
     keys = key_dict.keys()
-    query = 'SELECT column_name FROM INFORMATION_SCHEMA.COLUMNS WHERE table_name = %s;'
-    cols_in_table = [v for vals in (msq.query(query, (table,)).values) for v in vals] # Flatten list
+    cols_in_table = get_cols_in_table(table)
     # Detect invalid columns
     invalid_keys = []
     for key in keys:
@@ -210,5 +215,10 @@ def update_row(
     query += f"WHERE id = {row_id};"
     print(query)
     print(parameters)
-    status = msq.query(query, parameters)
-    return status
+    try:
+        status = msq.query(query, parameters)
+        query = f"SELECT * FROM {table} WHERE id = %s;"
+        values = msq.query(query, (row_id,))
+        return values, 200
+    except Exception as ex:
+        print("Query failed:", ex)
