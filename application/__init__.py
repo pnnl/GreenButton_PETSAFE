@@ -101,7 +101,7 @@ def hash_value(value):
     value = crypt(value, iterations=60000) # NIST FIPS-140; pbkdf2 is used here; check iteration count for final
     return value
 
-# Determine if the types
+# Determine if the types of the record match the types of the database
 def check_types(record, table):
     # Assumption: all columns are filled in the record prior to reaching this function
     # Retrieve the types of the table's columns and validate
