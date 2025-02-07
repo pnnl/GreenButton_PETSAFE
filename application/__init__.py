@@ -7,6 +7,9 @@ import influx_database as idb
 import mysql_database as msq
 from validity_tests import *
 
+# Define column names to hide when retrieving data
+sensitive_columns = ["first_name", "last_name", "password"]
+
 # Run the app and define its routing
 def init_app():
     app = Flask(__name__) # instance_relative_config=False
@@ -74,12 +77,9 @@ def init_app():
         def all_timezones():
             if request.method == 'POST':
                 # Get the details of the new zone
-                # TODO: add feedback if values are missing so the user can correctly supply them
-                record = build_record(
-                    ["id", "description", "published", "updated", "up_link_href", "up_link_rel", \
-                     "self_link_href", "self_link_rel", "uuid", "dstEndRule", "dstOffset", "dstStartRule",\
-                    "tzOffset"], "id", "timezones/", request
-                    )
+                table = "time_configurations"
+                cols = get_cols_in_table(table)
+                record = build_record(cols, "id", "timezones/", request)
                 # Send it to be validated, escaped, and added
                 status, values = msq.insert_MySQL(record, "time_configurations")
                 # Format status and return
@@ -114,7 +114,6 @@ def init_app():
                 return values.to_json(orient="records"), status, {'Content-Type': 'application/json'}
             
             elif request.method == "DELETE":
-                tz_id = request.values.get('id')
                 status = msq.delete_record(tz_id, "time_configurations")
                 # TODO: check if delete_record aborts on fail. If not, adjust to return relevant http code
                 return {'operation':'deletion'}, 201, {'Content-Type': 'application/json'}
@@ -143,8 +142,12 @@ def init_app():
             elif request.method == "GET":
                 # Do not return password or full name due to sensitivity
                 # Is the publish date sensitive (could be used to determine how long they've spent w/utility company)?
-                results = msq.query("SELECT id, username, description, role, enabled, published, self_link_href, self_link_rel, \
-                                    up_link_href, up_link_rel, updated, uuid FROM retail_customers;")
+                table = "retail_customers"
+                cols = get_cols_in_table(table)
+                cols[:] = [x for x in cols if x not in sensitive_columns] # Remove sensitive columns from output
+                cols = ', '.join(cols) # Convert to string for query
+                cols = cols[:-2] + " " # Remove final comma
+                results = msq.query(f"SELECT {cols} FROM {table};") # TODO: can this be parameterized? if not, escape?
                 print(results)
                 # Format to JSON
                 if results.empty:
@@ -162,9 +165,12 @@ def init_app():
                 # Some of this information is sensitive; it should be handled differently
                 # E.G. password, full name
                 # Temporarily not returning but should probably ask what's expected
-                results = msq.query("SELECT id, first_name, last_name, username, description, role, enabled, published, \
-                                    self_link_href, self_link_rel, up_link_href, up_link_rel, \
-                                    updated, uuid FROM retail_customers WHERE id = %s;", (cust_id,))
+                table = "retail_customers"
+                cols = get_cols_in_table(table)
+                cols[:] = [x for x in cols if x not in sensitive_columns] # Remove sensitive columns from output
+                cols = ', '.join(cols) # Convert to string for query
+                cols = cols[:-2] + " " # Remove final comma
+                results = msq.query(f"SELECT {cols} FROM {table} WHERE id = %s;", (cust_id,))
                 # Format to JSON
                 if results.empty:
                     abort(404) # Resource not found, does not exist
@@ -177,7 +183,6 @@ def init_app():
                 return result.to_json(orient="records"), code, {'Content-Type': 'application/json'}
             
             elif request.method == "DELETE":
-                cust_id = request.values.get('id')
                 status = msq.delete_record(cust_id, "retail_customers")
                 return {'operation':"deletion"}, status, {'Content-Type': 'application/json'}
             
@@ -237,9 +242,29 @@ def init_app():
                     status = "Cannot insert: invalid data type"
                     return {'status':status}, 400, {'Content-Type': 'application/json'}
                 # Format status and return
-                # TODO: Does GBA have known status formats for results?
-                # TODO: check if update_row aborts on fail. If not, adjust to return relevant http code
                 return {'status':status}, 201, {'Content-Type': 'application/json'}
+            
+            
+        @app.route("/speedes/1_0/usagePoints/<usp_id>", methods=['GET', 'POST', 'DELETE'])
+        def specific_usage_point(usp_id):
+            if request.method == 'GET':
+                # Should we also include the related serviceDeliveryPoints data here?
+                results = msq.query("SELECT * FROM usage_points WHERE id = %s;", (usp_id,))
+                # Format to JSON
+                if results == []:
+                    abort(404) # Resource not found, does not exist
+                return results.to_json(orient="records")
+            
+            # Update the record
+            elif request.method == "POST":
+                request_contents = dict(request.args) # Get arguments to pass along changes
+                result, code = update_row("usage_points", request_contents)
+                return result.to_json(orient="records"), code, {'Content-Type': 'application/json'}
+
+            elif request.method == "DELETE":
+                status = msq.delete_record(usp_id, "usage_points")
+                return {'operation':"deletion"}, status, {'Content-Type': 'application/json'}
+        
 
 
         # TODO: combine with Usage Points; the two are never seen separately
