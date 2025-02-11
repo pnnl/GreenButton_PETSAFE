@@ -16,16 +16,17 @@ class sqlTableWorker:
             ):
         # Get basic table information set up
         self.table = table
-        self.__table_cols = self.get_columns()
+        self.__table_cols = self.__get_columns()
         # List of column names to exclude in cases without sufficient trust
         # TODO: make sure similar protections exist on the database side; views!
         self.__sensitive_columns = ["first_name", "last_name", "password"]
         # Figure out what we're doing here
         self.__request = http_request
+        #if request.method == 'GET':
 
     # Return a list of valid columns in the table, or None if query fails
     # Used to validate records
-    def get_columns(self):
+    def __get_columns(self):
         try:
             query = 'SELECT column_name FROM INFORMATION_SCHEMA.COLUMNS WHERE table_name = %s;'
             cols_in_table = [v for vals in (msq.query(query, (self.table,)).values) for v in vals] # Flatten list
@@ -37,7 +38,7 @@ class sqlTableWorker:
     # Validate that the columns specified by a new record actually exist
     # Return the record with any invalid columns dropped (TODO: this may be
     # an information leak vector; adjust to True/False?)
-    def check_against_columns(self, record: dict):
+    def __check_against_columns(self, record: dict):
         # Get the list of valid columns for the table
         keys = record.keys()
         # Detect invalid columns
@@ -61,12 +62,13 @@ class sqlTableWorker:
     # Determine if the types of the record match the types of the database
     # Return a dictionary describing which types match and which don't
     # TODO: attempt to coerce types, yes or no?
-    def check_types(self, record):
+    def __check_types(self, record):
     # Assumption: all columns are filled in the record prior to reaching this function
     # Retrieve the types of the table's columns and validate
     # the supplied record fields as being the right type.
         query = "SELECT DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE table_name = %s;"
         types = msq.query(query, (self.table,))
+        #type = types.columns.values.tolist() # Format so we can use it
         match = {}
         for i in len(types): # For every entry in the record
             item_type = type(record[i]) # Get the type of that part of the record
@@ -93,7 +95,7 @@ class sqlTableWorker:
     
     # Prepare a record to be inserted into a table
     # TODO: there has to be a more compact way to handle special cases, right?
-    def build_record(
+    def __build_record(
         self,
         id_col_name: str, # The name of the ID column for this table; used to build self links
         resource_name: str, # The corresponding resource name for this table; used to build uplinks
@@ -140,15 +142,39 @@ class sqlTableWorker:
             # Other columns that need to be requested from http
             else:
                 row[col] = self.__request.values.get(col)
-        # Flatten the dictionary into just the values and return for use
-        # as a new record
+        # Check the validity of the new record
+        # Do the columns actually exist in the table?
+        record = self.__check_against_columns(record)
+        # Flatten the dictionary into just the values for checks on the actual record to insert
         record = tuple(row.values())
-        return record
+        # Are the items of the right types?
+        type_validity = self.__check_types(record)
+        if False not in type_validity:
+            return record
+        else:
+            # TODO: can this be handled more gracefully than just saying "nope"?
+            for column in type_validity:
+                if type_validity[column] == False:
+                    print(f"Type of {column} invalid; cannot insert")
+            return None
 
     # Add a new record to the table
     # Also calls checks to validate said record
     def add_record(self, record: dict):
         pass
 
+    # Update an existing record in the table
     def update_record(self, record_id: int, new_data: dict):
+        pass
+
+    # Delete a record from the table
+    def delete_record(self, record_id: int):
+        pass
+
+    # View a single record of the table
+    def view_record(self, record_id):
+        pass
+
+    # View the entire table
+    def view_table(self):
         pass
