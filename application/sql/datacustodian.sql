@@ -758,6 +758,34 @@ CREATE TABLE `resources` (
   KEY `FK_37f4ae42a5f94b85ac063017869` (`id`),
   CONSTRAINT `FK_37f4ae42a5f94b85ac063017869` FOREIGN KEY (`id`) REFERENCES `BatchList` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+--
+-- Table structure for table `interval_blocks`
+--
+
+DROP TABLE IF EXISTS `meter_addresses`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `meter_addresses` (
+  `meter_id` bigint(20) NOT NULL,
+  `description` varchar(255) DEFAULT NULL,
+  `published` datetime DEFAULT NULL,
+  `self_link_href` varchar(255) DEFAULT NULL,
+  `self_link_rel` varchar(255) DEFAULT NULL,
+  `up_link_href` varchar(255) DEFAULT NULL,
+  `up_link_rel` varchar(255) DEFAULT NULL,
+  `updated` datetime DEFAULT NULL,
+  `uuid` varchar(255) NOT NULL,
+  `street` varchar(255) DEFAULT NULL,
+  `city` varchar(255) DEFAULT NULL,
+  `state` varchar(2) DEFAULT NULL,
+  `zipcode` int(10) DEFAULT NULL,
+  PRIMARY KEY (`meter_id`),
+  UNIQUE KEY `UK_69b56a22ac704cc796e72e99e6a` (`uuid`),
+  CONSTRAINT `FK_meter_id` FOREIGN KEY (`meter_id`) REFERENCES `usage_points` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
@@ -768,5 +796,3 @@ CREATE TABLE `resources` (
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
-
--- Dump completed on 2014-02-25  7:42:51
