@@ -1,22 +1,23 @@
-from flask import Flask, jsonify, request, abort
 from typing import Optional
-#from json import dumps
+from uuid import uuid4
+from pbkdf2 import crypt
+from datetime import datetime as dt
 
-from dct_backend.retrieve_coefficients import prepare_coefficients, average_coefficients
 from database_config import *
-import influx_database as idb
 import mysql_database as msq
-from validity_tests import *
+#from validity_tests import *
 
 class sqlTableWorker:
     def __init__(
             self, 
-            table, # The table to operate on
+            table: str, # The table to operate on
+            id_column_name: str, # The name of the ID column used to identify the resource
             http_request: Optional[object] = None # Flask HTTP request; used to modify rows
             ):
         # Get basic table information set up
         self.table = table
         self.__table_cols = self.__get_columns()
+        self.id_col = id_column_name
         # List of column names to exclude in cases without sufficient trust
         # TODO: make sure similar protections exist on the database side; views!
         self.__sensitive_columns = ["first_name", "last_name", "password"]
@@ -29,7 +30,7 @@ class sqlTableWorker:
     def __get_columns(self):
         try:
             query = 'SELECT column_name FROM INFORMATION_SCHEMA.COLUMNS WHERE table_name = %s;'
-            cols_in_table = [v for vals in (msq.query(query, (self.table,)).values) for v in vals] # Flatten list
+            cols_in_table = tuple([v for vals in (msq.query(query, (self.table,)).values) for v in vals]) # Flatten list
             return cols_in_table
         except Exception as ex:
             print(self.table, "could not be retrieved:", ex)
@@ -138,7 +139,7 @@ class sqlTableWorker:
                 row[col] = dt.now().strftime("%Y-%m-%d %H:%M:%S")
             elif "password" in col:
                 # Store as a hash, not the raw password!
-                row[col] = hash_value(self.__request.values.get(col))
+                row[col] = self.hash_value(self.__request.values.get(col))
             # Other columns that need to be requested from http
             else:
                 row[col] = self.__request.values.get(col)
@@ -161,20 +162,73 @@ class sqlTableWorker:
     # Add a new record to the table
     # Also calls checks to validate said record
     def add_record(self, record: dict):
-        pass
+        record = self.__build_record(record) # Format and validate
+        if record is not None: # Validation passed
+            status, values = msq.insert_MySQL(self.__table_cols, record, self.table)
+        return values, status, {'Content-Type': 'application/json'}
 
     # Update an existing record in the table
     def update_record(self, record_id: int, new_data: dict):
-        pass
+        # Validate that the columns we're asking to change actually exist
+        new_data = self.__check_against_columns(new_data, self.table)
+        # For columns with a value of None, grab the old value from the table
+        none_cols = [col for col in new_data.keys() if new_data[col] == None]
+        row_id = record_id
+        query = f"SELECT * FROM {self.table} WHERE {self.id_col} = %s;"
+        values = msq.query(query, (row_id,))
+        # Overwrite the columns listed in new_data with the new data
+        for col in new_data:
+            if col not in none_cols: # If this column has been supplied with new values to update to
+                if "password" in col: # Hash the password column values!
+                    new_data[col] = self.hash_value(new_data[col])
+                values[col] = new_data[col]
+        # Place the values into the table, overwriting the existing row
+        query = f"UPDATE {self.table} SET "
+        parameters = []
+        for col in new_data:
+            query += f"{col} = %s, "
+            parameters.append(values[col].iloc[0])
+        query = query[:-2] + " " # Remove final comma
+        query += f"WHERE id = {row_id};"
+        print(query)
+        print(parameters)
+        try:
+            status = msq.query(query, parameters)
+            query = f"SELECT * FROM {self.table} WHERE id = %s;"
+            values = msq.query(query, (row_id,))
+            return 200, values # All is well; return new row to conform to API expectations
+        except Exception as ex:
+            print("Query failed:", ex)
+            return 500, None
 
     # Delete a record from the table
     def delete_record(self, record_id: int):
-        pass
+        try:
+            status = msq.delete_record(record_id, self.table)
+            return status, {'Content-Type': 'application/json'}
+        except:
+            return 500
 
     # View a single record of the table
     def view_record(self, record_id):
-        pass
+        try:
+            results = msq.query("SELECT * FROM service_delivery_points WHERE id = %s;", (cust_id,))
+            # Format to JSON
+            if results == []:
+                return 404 # Resource not found, does not exist
+            return results.to_json(orient="records")
+        except Exception as ex:
+            print(ex)
+            return 500
 
     # View the entire table
     def view_table(self):
-        pass
+        try:
+            results = msq.query("SELECT * FROM service_delivery_points;")
+            # Format to JSON
+            if results == []:
+                return 404 # Resource not found, does not exist
+            return results.to_json(orient="records")
+        except Exception as ex:
+            print(ex)
+            return 500

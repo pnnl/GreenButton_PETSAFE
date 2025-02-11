@@ -74,7 +74,7 @@ def update_record(record_id, column, new_value, table):
     close_conn(conn)
     return status
 
-def insert_MySQL(record, table):
+def insert_MySQL(columns: tuple, record: tuple, table: str):
     # Note: For DST, supply rules in the form specified at https://www.greenbuttonalliance.org/daylight-savings-time
     # Verify record is in usable format
     if type(record) not in (list, tuple):
@@ -89,11 +89,8 @@ def insert_MySQL(record, table):
     with conn.cursor() as cursor:
         try:
             # Time to try the actual insert query
-            query = f"INSERT INTO {escaped_table} VALUES %s"
-            cursor.execute(query, (record,))
-            #query = f"SELECT * FROM {escaped_table}"
-            #results = cursor.execute(query)
-            #print(cursor.fetchall())
+            query = f"INSERT INTO {escaped_table} %s VALUES %s"
+            cursor.execute(query, (columns, record))
             conn.commit()
             status = 201
             query = f"SELECT * FROM {table} WHERE id = %s;"
