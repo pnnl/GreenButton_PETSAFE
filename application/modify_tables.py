@@ -12,7 +12,8 @@ class sqlTableWorker:
             self, 
             table: str, # The table to operate on
             id_column_name: str, # The name of the ID column used to identify the resource
-            http_request: Optional[object] = None # Flask HTTP request; used to modify rows
+            http_request: object, # Flask HTTP request; used to modify rows
+            resource_id: Optional[int] = None # The ID of a resource to modify or view
             ):
         # Get basic table information set up
         self.table = table
@@ -23,7 +24,27 @@ class sqlTableWorker:
         self.__sensitive_columns = ["first_name", "last_name", "password"]
         # Figure out what we're doing here
         self.__request = http_request
-        #if request.method == 'GET':
+        self.__resource_id = resource_id
+        
+    def perform_request_operation(self):
+        # View the whole table
+        if self.__request.method == 'GET' and self.__resource_id is None:
+            return self.view_table()
+        # View a specific item of the table
+        elif self.__request.method == 'GET' and self.__resource_id is not None:
+            return self.view_record(self.__resource_id)
+        # Update a specific item of the table
+        elif self.__request.method == 'POST' and self.__resource_id is not None:
+            request_contents = dict(self.__request.args)
+            return self.update_record(self.__resource_id, request_contents)
+        # Delete a specific record of the table
+        elif self.__request.method == 'DELETE' and self.__resource_id is not None:
+            return self.delete_record(self.__resource_id)
+        # Catch other cases
+        else:
+            print("Cannot perform operation; are you missing an argument?")
+            return 400
+        
 
     # Return a list of valid columns in the table, or None if query fails
     # Used to validate records
@@ -212,7 +233,11 @@ class sqlTableWorker:
     # View a single record of the table
     def view_record(self, record_id):
         try:
-            results = msq.query("SELECT * FROM service_delivery_points WHERE id = %s;", (cust_id,))
+            # TODO: don't ask for sensitive columns in the first place
+            results = msq.query("SELECT * FROM service_delivery_points WHERE id = %s;", (record_id,))
+            # Remove sensitive columns from results
+            sensitiveFilter = results.filter(self.__sensitive_columns)
+            results.drop(sensitiveFilter, inplace=True, axis=1)
             # Format to JSON
             if results == []:
                 return 404 # Resource not found, does not exist
@@ -232,3 +257,12 @@ class sqlTableWorker:
         except Exception as ex:
             print(ex)
             return 500
+        
+    def check_foreign_key_exists(self, fk_id_value, fk_id_col, fk_table):
+        fk_results = msq.query(f"SELECT COUNT({fk_id_col}) FROM {fk_table} WHERE {fk_id_col} = %s;", (fk_id_value,))
+        if fk_results.empty: # The ID doesn't exist yet
+            print(f"400: Foreign key {fk_id_value} in {fk_table} does not exist.")
+            return False
+        else:
+            return True
+        
