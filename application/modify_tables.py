@@ -16,15 +16,28 @@ class sqlTableWorker:
             resource_id: Optional[int] = None # The ID of a resource to modify or view
             ):
         # Get basic table information set up
-        self.table = table
-        self.__table_cols = self.__get_columns()
-        self.id_col = id_column_name
-        # List of column names to exclude in cases without sufficient trust
-        # TODO: make sure similar protections exist on the database side; views!
-        self.__sensitive_columns = ["first_name", "last_name", "password"]
-        # Figure out what we're doing here
-        self.__request = http_request
-        self.__resource_id = resource_id
+        self.table = self.escape_string(table)
+        if self.table is not None:
+            self.__table_cols = self.__get_columns()
+            self.id_col = id_column_name
+            # List of column names to exclude in cases without sufficient trust
+            # TODO: make sure similar protections exist on the database side; views!
+            self.__sensitive_columns = ["first_name", "last_name", "password"]
+            # Figure out what we're doing here
+            self.__request = http_request
+            self.__resource_id = resource_id
+        else:
+            print("Cannot initialize tableWorker; table name must be a string of a valid table name.")
+
+    def escape_string(self, string):
+        if isinstance(string, str):
+            conn = msq.connect_DB()
+            # Backticks are not covered by escape_string
+            escaped_str = conn.escape_string(string).strip('`').replace('`', '``')
+            return escaped_str
+        else:
+            print("Table name must be a string.")
+            return None
         
     def perform_request_operation(self):
         # View the whole table
@@ -249,10 +262,10 @@ class sqlTableWorker:
     # View the entire table
     def view_table(self):
         try:
-            results = msq.query("SELECT * FROM service_delivery_points;")
+            results = msq.query(f"SELECT * FROM {self.table};")
             # Format to JSON
             if results == []:
-                return 404 # Resource not found, does not exist
+                return 404 # Resources not found, do not exist
             return results.to_json(orient="records")
         except Exception as ex:
             print(ex)

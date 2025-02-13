@@ -1,0 +1,317 @@
+Project speedes {
+database_type: 'MySQL'
+Note: 'Application, authorization, and subscription tables not listed here.'
+}
+
+// Describes usage patterns for non-electric power sources
+Table datacustodian.usage_summaries {
+id bigint [primary key, not null, increment]
+description varchar [default: null]
+published datetime [default: null]
+self_link_href varchar [default: null]
+self_link_rel varchar [default: null]
+up_link_href varchar [default: null]
+up_link_rel varchar [default: null]
+updated datetime [default: null]
+uuid varchar [unique]
+billLastPeriod bigint [default: null]
+billToDate bigint [default: null]
+billingPeriod_duration bigint [default: null]
+billingPeriod_start bigint [default: null]
+currency varchar [default: null]
+currentBillingPeriodOverAllConsumption_powerOfTenMultiplier varchar [default: null]
+currentBillingPeriodOverAllConsumption_timeStamp bigint [default: null]
+currentBillingPeriodOverAllConsumption_uom varchar [default: null]
+currentBillingPeriodOverAllConsumption_value bigint [default: null]
+currentDayLastYearNetConsumption_powerOfTenMultiplier varchar [default: null]
+currentDayLastYearNetConsumption_timeStamp bigint [default: null]
+currentDayLastYearNetConsumption_uom varchar [default: null]
+currentDayLastYearNetConsumption_value bigint [default: null]
+currentDayNetConsumption_powerOfTenMultiplier varchar [default: null]
+currentDayNetConsumption_timeStamp bigint [default: null]
+currentDayNetConsumption_uom varchar [default: null]
+currentDayNetConsumption_value bigint [default: null]
+currentDayOverallConsumption_powerOfTenMultiplier varchar [default: null]
+currentDayOverallConsumption_timeStamp bigint [default: null]
+currentDayOverallConsumption_uom varchar [default: null]
+currentDayOverallConsumption_value bigint [default: null]
+overallConsumptionLastPeriod_powerOfTenMultiplier varchar [default: null]
+overallConsumptionLastPeriod_timeStamp bigint [default: null]
+overallConsumptionLastPeriod_uom varchar [default: null]
+overallConsumptionLastPeriod_value bigint [default: null]
+peakDemand_powerOfTenMultiplier varchar [default: null]
+peakDemand_timeStamp bigint [default: null]
+peakDemand_uom varchar [default: null]
+peakDemand_value bigint [default: null]
+previousDayLastYearNetConsumption_powerOfTenMultiplier varchar [default: null]
+previousDayLastYearNetConsumption_timeStamp bigint [default: null]
+previousDayLastYearNetConsumption_uom varchar [default: null]
+previousDayLastYearNetConsumption_value bigint [default: null]
+previousDayNetConsumption_powerOfTenMultiplier varchar [default: null]
+previousDayNetConsumption_timeStamp bigint [default: null]
+previousDayNetConsumption_uom varchar [default: null]
+previousDayNetConsumption_value bigint [default: null]
+previousDayOverallConsumption_powerOfTenMultiplier varchar [default: null]
+previousDayOverallConsumption_timeStamp bigint [default: null]
+previousDayOverallConsumption_uom varchar [default: null]
+previousDayOverallConsumption_value bigint [default: null]
+qualityOfReading varchar [default: null]
+ratchetDemand_powerOfTenMultiplier varchar [default: null]
+ratchetDemand_timeStamp bigint [default: null]
+ratchetDemand_uom varchar [default: null]
+ratchetDemand_value bigint [default: null]
+statusTimeStamp bigint [not null]
+usage_point_id bigint [ref: > datacustodian.usage_points.id, default: null]
+}
+
+// Describes power usage patterns for electric power sources
+Table datacustodian.electric_power_usage_summaries {
+id bigint [primary key, not null, increment]
+description varchar [default: null]
+published datetime [default: null]
+self_link_href varchar [default: null]
+self_link_rel varchar [default: null]
+up_link_href varchar [default: null]
+up_link_rel varchar [default: null]
+updated datetime [default: null]
+uuid varchar [unique]
+billLastPeriod bigint [default: null]
+billToDate bigint [default: null]
+billingPeriod_duration bigint [default: null]
+billingPeriod_start bigint [default: null]
+currency varchar [default: null]
+currentBillingPeriodOverAllConsumption_powerOfTenMultiplier varchar [default: null]
+currentBillingPeriodOverAllConsumption_timeStamp bigint [default: null]
+currentBillingPeriodOverAllConsumption_uom varchar [default: null]
+currentBillingPeriodOverAllConsumption_value bigint [default: null]
+currentDayLastYearNetConsumption_powerOfTenMultiplier varchar [default: null]
+currentDayLastYearNetConsumption_timeStamp bigint [default: null]
+currentDayLastYearNetConsumption_uom varchar [default: null]
+currentDayLastYearNetConsumption_value bigint [default: null]
+currentDayNetConsumption_powerOfTenMultiplier varchar [default: null]
+currentDayNetConsumption_timeStamp bigint [default: null]
+currentDayNetConsumption_uom varchar [default: null]
+currentDayNetConsumption_value bigint [default: null]
+currentDayOverallConsumption_powerOfTenMultiplier varchar [default: null]
+currentDayOverallConsumption_timeStamp bigint [default: null]
+currentDayOverallConsumption_uom varchar [default: null]
+currentDayOverallConsumption_value bigint [default: null]
+overallConsumptionLastPeriod_powerOfTenMultiplier varchar [default: null]
+overallConsumptionLastPeriod_timeStamp bigint [default: null]
+overallConsumptionLastPeriod_uom varchar [default: null]
+overallConsumptionLastPeriod_value bigint [default: null]
+peakDemand_powerOfTenMultiplier varchar [default: null]
+peakDemand_timeStamp bigint [default: null]
+peakDemand_uom varchar [default: null]
+peakDemand_value bigint [default: null]
+previousDayLastYearNetConsumption_powerOfTenMultiplier varchar [default: null]
+previousDayLastYearNetConsumption_timeStamp bigint [default: null]
+previousDayLastYearNetConsumption_uom varchar [default: null]
+previousDayLastYearNetConsumption_value bigint [default: null]
+previousDayNetConsumption_powerOfTenMultiplier varchar [default: null]
+previousDayNetConsumption_timeStamp bigint [default: null]
+previousDayNetConsumption_uom varchar [default: null]
+previousDayNetConsumption_value bigint [default: null]
+previousDayOverallConsumption_powerOfTenMultiplier varchar [default: null]
+previousDayOverallConsumption_timeStamp bigint [default: null]
+previousDayOverallConsumption_uom varchar [default: null]
+previousDayOverallConsumption_value bigint [default: null]
+qualityOfReading varchar [default: null]
+ratchetDemand_powerOfTenMultiplier varchar [default: null]
+ratchetDemand_timeStamp bigint [default: null]
+ratchetDemand_uom varchar [default: null]
+ratchetDemand_value bigint [default: null]
+statusTimeStamp bigint [not null]
+usage_point_id bigint [ref: > datacustodian.usage_points.id, default: null]
+}
+
+// Describes the amount of currency owed for a given period of power usage
+Table datacustodian.line_item {
+id bigint [primary key, increment, not null]
+amount bigint [not null]
+dateTime bigint [not null]
+note varchar [default: null]
+rounding bigint [default: null]
+electric_power_usage_summary_id bigint [default: null, ref: > datacustodian.electric_power_usage_summaries.id]
+usage_summary_id bigint [default: null, ref: > datacustodian.usage_summaries.id]
+}
+
+// Describes the time interval for a set of readings of the same type
+Table datacustodian.interval_blocks {
+id bigint [not null, increment, primary key]
+description varchar [default: null]
+published datetime [default: null]
+self_link_href varchar [default: null]
+self_link_rel varchar [default: null]
+up_link_href varchar [default: null]
+up_link_rel varchar [default: null]
+updated datetime [default: null]
+uuid varchar [not null, unique]
+duration bigint [default: null]
+start bigint [default: null]
+meter_reading_id bigint [default: null, ref: > datacustodian.meter_readings.id]
+}
+
+// The financial-related information for a given interval block
+// Used to charge customers
+Table datacustodian.interval_readings {
+id bigint [not null, increment, primary key]
+cost bigint [default: null]
+duration bigint [default: null]
+start bigint [default: null]
+value bigint [default: null] // value in units speified by reading type
+interval_block_id bigint [default: null, ref: > datacustodian.interval_blocks.id]
+consumptionTier bigint [default: null]
+tou bigint [default: null]
+cpp bigint [default: null]
+}
+
+// The meters themselves; logical point where power is measured or estimated
+Table datacustodian.usage_points {
+id bigint [not null, increment, primary key]
+description varchar [default: null]
+published datetime [default: null]
+self_link_href varchar [default: null]
+self_link_rel varchar [default: null]
+up_link_href varchar [default: null]
+up_link_rel varchar [default: null]
+updated datetime [default: null]
+uuid varchar [not null, unique]
+roleFlags tinyblob
+status smallint [default: null]
+uri varchat [default: null]
+localTimeParameters_id bigint [default: null, ref: > datacustodian.time_configurations.id]
+retail_customer_id bigint [default: null, ref: > datacustodian.retail_customers.id]
+serviceCategory_kind bigint [not null]
+serviceDeliveryPoint_id bigint [default: null, ref: > datacustodian.service_delivery_points.id]
+subscription_id bigint [default: null]
+}
+
+Table datacustodian.usage_point_related_links {
+usage_point_id bigint [not null, ref: > datacustodian.usage_points.id]
+href varchar [default: null]
+rel varchar [default: null]
+}
+
+// Values obtained from meters
+Table datacustodian.meter_readings {
+id bigint [not null, increment, primary key]
+description varchar [default: null]
+published datetime [default: null]
+self_link_href varchar [default: null]
+self_link_rel varchar [default: null]
+up_link_href varchar [default: null]
+up_link_rel varchar [default: null]
+updated datetime [default: null]
+uuid varchar [not null, unique]
+reading_type_id bigint [default: null, ref: > datacustodian.reading_types.id]
+usage_point_id bigint [default: null, ref: > datacustodian.usage_points.id]
+}
+
+Table datacustodian.meter_reading_related_links {
+meter_reading_id bigint [not null, ref: > datacustodian.meter_readings.id]
+href varchar [default: null]
+rel varchar [default: null]
+}
+
+// Types of readings metering points can take;
+// characteristics associated with all readings in a meterReading
+Table datacustodian.reading_types {
+id bigint [not null, increment, primary key]
+description varchar [default: null]
+published datetime [default: null]
+self_link_href varchar [default: null]
+self_link_rel varchar [default: null]
+up_link_href varchar [default: null]
+up_link_rel varchar [default: null]
+updated datetime [default: null]
+uuid varchar [not null, unique]
+accumulationBehavior varchar [default: null]
+rational_denominator decimal [default: null]
+rational_numerator decimal [default: null]
+commodity varchar [default: null]
+consumptionTier varchar [default: null]
+cpp varchar [default: null]
+dataQualifier varchar [default: null]
+defaultQuality varchar [default: null]
+flowDirection varchar [default: null]
+interharmonic_denominator decimal [default: null]
+interharmonic_numerator decimal [default: null]
+intervalLength bigint [default: null]
+kind varchar [default: null]
+measuringPeriod varchar [default: null]
+phase varchar [default: null]
+powerOfTenMultiplier varchar [default: null]
+timeAttribute varchar [default: null]
+tou varchar [default: null]
+uom varchar [default: null]
+}
+
+Table datacustodian.reading_types_meter_readings {
+reading_types_id bigint [not null, ref: > datacustodian.reading_types.id]
+meterReadings_id bigint [not null, ref: > datacustodian.meter_readings.id]
+}
+
+// Time zone information
+// for encoding, see:
+// https://www.greenbuttonalliance.org/daylight-savings-time
+Table datacustodian.time_configurations {
+id bigint [not null, primary key]
+description varchar [default: null]
+published datetime [default: null]
+self_link_href varchar [default: null]
+self_link_rel varchar [default: null]
+up_link_href varchar [default: null]
+up_link_rel varchar [default: null]
+updated datetime [default: null]
+uuid varchar [not null, unique]
+dstEndRule tinyblob
+dstOffset bigint [not null]
+dstStartRule tinyblib
+tzOffset bigint [not null]
+}
+
+// Quality of readings for a given interval
+Table datacustodian.reading_qualities {
+id bigint [not null, increment, primary key]
+quality varchar [default: null]
+interval_reading_id bigint [default: null, ref: > datacustodian.interval_readings.id]
+}
+
+// Customer information, including logins
+Table datacustodian.retail_customers {
+id bigint [not null, primary key, increment]
+description varchar [default: null]
+published datetime [default: null]
+self_link_href varchar [default: null]
+self_link_rel varchar [default: null]
+up_link_href varchar [default: null]
+up_link_rel varchar [default: null]
+updated datetime [default: null]
+uuid varchar [not null, unique]
+enabled bit [not null]
+first_name varchar [not null]
+last_name varchar [not null]
+password varchar [default: null] // Stored as hash of string
+role varchar [not null]
+username varchar [default: null]
+}
+
+// Service delivery information for a given usagePoint
+Table datacustodian.service_delivery_points {
+id bigint [not null, increment, primary key]
+customerAgreement varchar [default: null]
+name varchar [default: null]
+tariffProfile varchar [default: null]
+}
+
+// Maps meters/usagePoints to physical addresses
+// not part of original GBA schema; added for application
+Table datacustodian.meter_addresses {
+meter_id bigint [not null, ref: - datacustodian.usage_points.id]
+street varchar [default: null]
+number varchar [default: null]
+city varchar [default: null]
+state varchar [default: null]
+zipcode smallint [default: null]
+}
