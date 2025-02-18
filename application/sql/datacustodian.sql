@@ -152,6 +152,7 @@ CREATE TABLE `usage_points` (
   `uri` varchar(255) DEFAULT NULL,
   `localTimeParameters_id` bigint(20) DEFAULT NULL,
   `retail_customer_id` bigint(20) DEFAULT NULL,
+  'address_id' bigint(20) DEFAULT NULL,
   `serviceCategory_kind` bigint(20) NOT NULL,
   `serviceDeliveryPoint_id` bigint(20) DEFAULT NULL,
   `subscription_id` bigint(20) DEFAULT NULL,
@@ -161,6 +162,7 @@ CREATE TABLE `usage_points` (
   KEY `FK_41107ba4248e4bf79b62c405385` (`retail_customer_id`),
   KEY `FK_c3909436c6934c8bb14da2bb93b` (`serviceDeliveryPoint_id`),
   KEY `FK_53bcef9479ff4522b63a46e018c` (`subscription_id`),
+  CONSTRAINT `FK_address_id` FOREIGN KEY (`address_id`) REFERENCES `addresses` (`id`),
   CONSTRAINT `FK_53bcef9479ff4522b63a46e018c` FOREIGN KEY (`subscription_id`) REFERENCES `subscriptions` (`id`),
   CONSTRAINT `FK_41107ba4248e4bf79b62c405385` FOREIGN KEY (`retail_customer_id`) REFERENCES `retail_customers` (`id`),
   CONSTRAINT `FK_9fa5cbe1eaeb4dbfb7209cb0213` FOREIGN KEY (`localTimeParameters_id`) REFERENCES `time_configurations` (`id`),
@@ -659,10 +661,28 @@ CREATE TABLE `retail_customers` (
   `enabled` bit(1) NOT NULL,
   `first_name` varchar(30) NOT NULL,
   `last_name` varchar(30) NOT NULL,
-  `password` varchar(100) DEFAULT NULL,
   `role` varchar(255) NOT NULL,
-  `username` varchar(30) DEFAULT NULL,
   PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=0 DEFAULT CHARSET=utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+DROP TABLE IF EXISTS `logins`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `logins` (
+  `customer_id` bigint(20) NOT NULL AUTO_INCREMENT,
+  `description` varchar(255) DEFAULT NULL,
+  `published` datetime DEFAULT NULL,
+  `self_link_href` varchar(255) DEFAULT NULL,
+  `self_link_rel` varchar(255) DEFAULT NULL,
+  `up_link_href` varchar(255) DEFAULT NULL,
+  `up_link_rel` varchar(255) DEFAULT NULL,
+  `updated` datetime DEFAULT NULL,
+  `uuid` varchar(255) NOT NULL,
+  `password` varchar(100) DEFAULT NULL, /* Store as salted hash! */
+  `username` varchar(30) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  CONSTRAINT 'user_id' FOREIGN KEY ('customer_id') REFERENCES 'retail_customers' ('id'),
 ) ENGINE=InnoDB AUTO_INCREMENT=0 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -764,10 +784,11 @@ CREATE TABLE `resources` (
 --
 
 DROP TABLE IF EXISTS `meter_addresses`;
+DROP TABLE IF EXISTS `addresses`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `meter_addresses` (
-  `meter_id` bigint(20) NOT NULL,
+CREATE TABLE `addresses` (
+  `id` bigint(20) NOT NULL,
   `description` varchar(255) DEFAULT NULL,
   `published` datetime DEFAULT NULL,
   `self_link_href` varchar(255) DEFAULT NULL,
@@ -776,13 +797,42 @@ CREATE TABLE `meter_addresses` (
   `up_link_rel` varchar(255) DEFAULT NULL,
   `updated` datetime DEFAULT NULL,
   `uuid` varchar(255) NOT NULL,
-  `street` varchar(255) DEFAULT NULL,
+  'houseFractionNumber' varchar(255) DEFAULT NULL,
+  `unit` varchar(255) DEFAULT NULL, /* eg. Apt. 4 */
+  `building` varchar(255) DEFAULT NULL,
+  `streetName` varchar(255) DEFAULT NULL,
+  'streetNumber' varchar(255) DEFAULT NULL,
+  'streetPrefix' varchar(255) DEFAULT NULL, /* eg. North */
+  'streetSuffix' varchar(255) DEFAULT NULL,
+  'streetType' varchar(255) DEFAULT NULL,
   `city` varchar(255) DEFAULT NULL,
-  `state` varchar(2) DEFAULT NULL,
-  `zipcode` int(10) DEFAULT NULL,
+  `county` varchar(255) DEFAULT NULL,
+  `state` varchar(2) DEFAULT NULL, /* 2 letter state abbreviation */
+  `zipcode` int(5) DEFAULT NULL, /* 5 digit zip code */
+  'zipFour' int(4) DEFAULT NULL, /* 4 digit extension to zip code */
+  `fullAddress` varchar(255) DEFAULT NULL, /* Full address, if provided as such */
   PRIMARY KEY (`meter_id`),
   UNIQUE KEY `UK_69b56a22ac704cc796e72e99e6a` (`uuid`),
-  CONSTRAINT `FK_meter_id` FOREIGN KEY (`meter_id`) REFERENCES `usage_points` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+DROP TABLE IF EXISTS `premises`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `premises` (
+  `id` bigint(20) NOT NULL,
+  `description` varchar(255) DEFAULT NULL,
+  `published` datetime DEFAULT NULL,
+  `self_link_href` varchar(255) DEFAULT NULL,
+  `self_link_rel` varchar(255) DEFAULT NULL,
+  `up_link_href` varchar(255) DEFAULT NULL,
+  `up_link_rel` varchar(255) DEFAULT NULL,
+  `updated` datetime DEFAULT NULL,
+  `uuid` varchar(255) NOT NULL,
+  `address_id` bigint(20) DEFAULT NULL,
+  PRIMARY KEY (`premise_id`),
+  UNIQUE KEY `UK_69b56a22ac704cc796e72e99e6a` (`uuid`),
+  CONSTRAINT `FK_addr_id` FOREIGN KEY (`address_id`) REFERENCES `addresses` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 

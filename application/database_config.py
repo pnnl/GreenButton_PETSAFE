@@ -17,5 +17,9 @@ mysql_user = "root" #"dataowner"
 mysql_token = environ.get("SQL_PASS")
 mysql_db = 'datacustodian'
 
+# UUID info
+domain = "speedes.pnnl.gov"
+url = "https://" + domain
+
 data_startdate = "2023-01-01T00:00:00Z"
 data_enddate = "2024-01-01T00:00:00Z"

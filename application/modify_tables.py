@@ -1,5 +1,5 @@
 from typing import Optional
-from uuid import uuid4
+from uuid import uuid4, uuid5, NAMESPACE_URL
 from pbkdf2 import crypt
 from datetime import datetime as dt
 
@@ -40,6 +40,7 @@ class sqlTableWorker:
             return None
         
     def perform_request_operation(self):
+        # TODO: does the user have permission to view this?
         # View the whole table
         if self.__request.method == 'GET' and self.__resource_id is None:
             return self.view_table()
@@ -91,6 +92,7 @@ class sqlTableWorker:
             if col not in record.keys():
                 record[col] = None
         # TODO: what if needed rows are missing? e.g. ID row
+        # Check that id/primary key column is included
         # Return the legitimate record
         return record
     
@@ -124,7 +126,7 @@ class sqlTableWorker:
     # Used to protect data before it's stored in the database (passwords)
     def hash_value(self, value):
         # https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#pbkdf2
-        # NIST FIPS-140; pbkdf2 is used here; check iteration count for final. Temp value for testing is small.
+        # NIST FIPS-140; pbkdf2 is used here; TODO check iteration count for final. Temp value for testing is small.
         value = crypt(value, iterations=6000)
         return value
     
@@ -137,15 +139,22 @@ class sqlTableWorker:
         request # The HTTP request; needed to get params
     ):
         row = {}
+        # Used to build URI and make UUID5
+        upname = "/speedes/1_0/" + resource_name
+        if upname[-1] != "/": # Uniform formatting, please
+            upname += "/"
+        # Get the id for use in other functions
+        record_id = self.__request.values.get(id_col_name)
         # Build record from supplied column names, getting from request as needed
         for col in self.__table_cols:
             # The primary key column
             if col == id_col_name:
-                record_id = self.__request.values.get(col) # Used to build self link
                 row[col] = record_id
             # UUID column
             elif col == "uuid":
-                row[col] = uuid4() #uuid5(mysql_host, id)
+                #row[col] = uuid4()
+                this_url = url + upname + str(record_id)
+                row[col] = uuid5(NAMESPACE_URL, this_url)
             # bool columns
             elif col in ["enabled"]:
                 try:
@@ -162,9 +171,9 @@ class sqlTableWorker:
                 row[col] = "up"
             elif col == "self_link_href" and resource_name != None:
                 try:
-                    row[col] = "/speedes/1_0/" + resource_name + str(record_id)
+                    row[col] = upname + str(record_id)
                 except:
-                    # For now, this works, but there's a better way somewhere
+                    # For now, this works, but there's a better way that's less delicate
                     return "Columns out of order" # TODO: is this always the case?
             elif col == "self_link_rel" and resource_name != None:
                 row[col] = "self"
@@ -227,9 +236,10 @@ class sqlTableWorker:
         print(query)
         print(parameters)
         try:
-            status = msq.query(query, parameters)
-            query = f"SELECT * FROM {self.table} WHERE id = %s;"
-            values = msq.query(query, (row_id,))
+            #status = msq.query(query, parameters)
+            # Get the updated record to return as per RESTful expectation
+            #query = f"SELECT * FROM {self.table} WHERE id = %s;"
+            #values = msq.query(query, (row_id,))
             return 200, values # All is well; return new row to conform to API expectations
         except Exception as ex:
             print("Query failed:", ex)
