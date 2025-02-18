@@ -102,8 +102,8 @@ CREATE TABLE `interval_readings` (
   `value` bigint(20) DEFAULT NULL,
   `interval_block_id` bigint(20) DEFAULT NULL,
   `consumptionTier` bigint(20) DEFAULT NULL,
-  `tou` bigint(20) DEFAULT NULL,
-  `cpp` bigint(20) DEFAULT NULL,
+  `tou` bigint(20) DEFAULT NULL, /* Time Of Use */
+  `cpp` bigint(20) DEFAULT NULL, /* Critical Peak Period */
   
   PRIMARY KEY (`id`),
   KEY `FK_982b1bcd359b47fcb5823a43d21` (`interval_block_id`),
@@ -217,7 +217,7 @@ CREATE TABLE `reading_types` (
   `rational_numerator` decimal(19,2) DEFAULT NULL,
   `commodity` varchar(255) DEFAULT NULL,
   `consumptionTier` varchar(255) DEFAULT NULL,
-  `cpp` varchar(255) DEFAULT NULL,
+  `cpp` varchar(255) DEFAULT NULL, /* Critical Peak Period */
   `currency` varchar(255) DEFAULT NULL,
   `dataQualifier` varchar(255) DEFAULT NULL,
   `defaultQuality` varchar(255) DEFAULT NULL,
@@ -230,8 +230,8 @@ CREATE TABLE `reading_types` (
   `phase` varchar(255) DEFAULT NULL,
   `powerOfTenMultiplier` varchar(255) DEFAULT NULL,
   `timeAttribute` varchar(255) DEFAULT NULL,
-  `tou` varchar(255) DEFAULT NULL,
-  `uom` varchar(255) DEFAULT NULL,
+  `tou` varchar(255) DEFAULT NULL, /* Time Of Use */
+  `uom` varchar(255) DEFAULT NULL, /* Unit Of Measurement */
   PRIMARY KEY (`id`),
   UNIQUE KEY `UK_0246e3bcf2a34f8f9a8c992140f` (`uuid`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
@@ -294,8 +294,8 @@ CREATE TABLE `electric_power_quality_summaries` (
   `up_link_rel` varchar(255) DEFAULT NULL,
   `updated` datetime DEFAULT NULL,
   `uuid` varchar(255) NOT NULL,
-  `flickerPlt` bigint(20) DEFAULT NULL,
-  `flickerPst` bigint(20) DEFAULT NULL,
+  `flickerPlt` bigint(20) DEFAULT NULL, /* Long Term Perceptibility */
+  `flickerPst` bigint(20) DEFAULT NULL, /* Short Term Perceptibility */
   `harmonicVoltage` bigint(20) DEFAULT NULL,
   `longInterruptions` bigint(20) DEFAULT NULL,
   `mainsVoltage` bigint(20) DEFAULT NULL,
@@ -480,6 +480,8 @@ DROP TABLE IF EXISTS `electric_power_usage_summaries`;
 -- Table structure for table `usage_summaries`
 --
 
+/* Either use a trigger or make these calculated fields- TODO
+How to do that across databases? This info is in Influx, not here */
 DROP TABLE IF EXISTS `usage_summaries`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
@@ -501,44 +503,44 @@ CREATE TABLE `usage_summaries` (
   `currency` varchar(255) DEFAULT NULL,
   `currentBillingPeriodOverAllConsumption_powerOfTenMultiplier` varchar(255) DEFAULT NULL,
   `currentBillingPeriodOverAllConsumption_timeStamp` bigint(20) DEFAULT NULL,
-  `currentBillingPeriodOverAllConsumption_uom` varchar(255) DEFAULT NULL,
+  `currentBillingPeriodOverAllConsumption_uom` varchar(255) DEFAULT NULL, /* Unit Of Measure */
   `currentBillingPeriodOverAllConsumption_value` bigint(20) DEFAULT NULL,
   `currentDayLastYearNetConsumption_powerOfTenMultiplier` varchar(255) DEFAULT NULL,
   `currentDayLastYearNetConsumption_timeStamp` bigint(20) DEFAULT NULL,
-  `currentDayLastYearNetConsumption_uom` varchar(255) DEFAULT NULL,
+  `currentDayLastYearNetConsumption_uom` varchar(255) DEFAULT NULL, /* Unit Of Measure */
   `currentDayLastYearNetConsumption_value` bigint(20) DEFAULT NULL,
   `currentDayNetConsumption_powerOfTenMultiplier` varchar(255) DEFAULT NULL,
   `currentDayNetConsumption_timeStamp` bigint(20) DEFAULT NULL,
-  `currentDayNetConsumption_uom` varchar(255) DEFAULT NULL,
+  `currentDayNetConsumption_uom` varchar(255) DEFAULT NULL, /* Unit Of Measure */
   `currentDayNetConsumption_value` bigint(20) DEFAULT NULL,
   `currentDayOverallConsumption_powerOfTenMultiplier` varchar(255) DEFAULT NULL,
   `currentDayOverallConsumption_timeStamp` bigint(20) DEFAULT NULL,
-  `currentDayOverallConsumption_uom` varchar(255) DEFAULT NULL,
+  `currentDayOverallConsumption_uom` varchar(255) DEFAULT NULL, /* Unit Of Measure */
   `currentDayOverallConsumption_value` bigint(20) DEFAULT NULL,
   `overallConsumptionLastPeriod_powerOfTenMultiplier` varchar(255) DEFAULT NULL,
   `overallConsumptionLastPeriod_timeStamp` bigint(20) DEFAULT NULL,
-  `overallConsumptionLastPeriod_uom` varchar(255) DEFAULT NULL,
+  `overallConsumptionLastPeriod_uom` varchar(255) DEFAULT NULL, /* Unit Of Measure */
   `overallConsumptionLastPeriod_value` bigint(20) DEFAULT NULL,
   `peakDemand_powerOfTenMultiplier` varchar(255) DEFAULT NULL,
   `peakDemand_timeStamp` bigint(20) DEFAULT NULL,
-  `peakDemand_uom` varchar(255) DEFAULT NULL,
+  `peakDemand_uom` varchar(255) DEFAULT NULL, /* Unit Of Measure */
   `peakDemand_value` bigint(20) DEFAULT NULL,
   `previousDayLastYearOverallConsumption_powerOfTenMultiplier` varchar(255) DEFAULT NULL,
   `previousDayLastYearOverallConsumption_timeStamp` bigint(20) DEFAULT NULL,
-  `previousDayLastYearOverallConsumption_uom` varchar(255) DEFAULT NULL,
+  `previousDayLastYearOverallConsumption_uom` varchar(255) DEFAULT NULL, /* Unit Of Measure */
   `previousDayLastYearOverallConsumption_value` bigint(20) DEFAULT NULL,
   `previousDayNetConsumption_powerOfTenMultiplier` varchar(255) DEFAULT NULL,
   `previousDayNetConsumption_timeStamp` bigint(20) DEFAULT NULL,
-  `previousDayNetConsumption_uom` varchar(255) DEFAULT NULL,
+  `previousDayNetConsumption_uom` varchar(255) DEFAULT NULL, /* Unit Of Measure */
   `previousDayNetConsumption_value` bigint(20) DEFAULT NULL,
   `previousDayOverallConsumption_powerOfTenMultiplier` varchar(255) DEFAULT NULL,
   `previousDayOverallConsumption_timeStamp` bigint(20) DEFAULT NULL,
-  `previousDayOverallConsumption_uom` varchar(255) DEFAULT NULL,
+  `previousDayOverallConsumption_uom` varchar(255) DEFAULT NULL, /* Unit Of Measure */
   `previousDayOverallConsumption_value` bigint(20) DEFAULT NULL,
   `qualityOfReading` varchar(255) DEFAULT NULL,
   `ratchetDemand_powerOfTenMultiplier` varchar(255) DEFAULT NULL,
   `ratchetDemand_timeStamp` bigint(20) DEFAULT NULL,
-  `ratchetDemand_uom` varchar(255) DEFAULT NULL,
+  `ratchetDemand_uom` varchar(255) DEFAULT NULL, /* Unit Of Measure */
   `ratchetDemand_value` bigint(20) DEFAULT NULL,
   `ratchetDemandPeriod_duration` bigint(20) DEFAULT NULL,
   `ratchetDemandPeriod_start` bigint(20) DEFAULT NULL,
