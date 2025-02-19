@@ -46,7 +46,7 @@ DROP TABLE IF EXISTS `line_item`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `line_item` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT,
-  `amount` bigint(20) NOT NULL,
+  `amount` bigint(20) NOT NULL, /* Cost of the line item */
   `dateTime` bigint(20) NOT NULL,
   `note` varchar(255) DEFAULT NULL,
   `rounding` bigint(20) DEFAULT NULL,
@@ -90,20 +90,20 @@ CREATE TABLE `application_information_grant_types` (
 --
 -- Table structure for table `interval_readings`
 --
-
+--- How do we tie this table to the Influx DB?
 DROP TABLE IF EXISTS `interval_readings`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `interval_readings` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT,
-  `cost` bigint(20) DEFAULT NULL,
+  `cost` bigint(20) DEFAULT NULL, /* Costs associated with this reading */
   `duration` bigint(20) DEFAULT NULL,
   `start` bigint(20) DEFAULT NULL,
-  `value` bigint(20) DEFAULT NULL,
+  `value` bigint(20) DEFAULT NULL, /* The actual energy usage value; the readings */
   `interval_block_id` bigint(20) DEFAULT NULL,
   `consumptionTier` bigint(20) DEFAULT NULL,
-  `tou` bigint(20) DEFAULT NULL, /* Time Of Use */
-  `cpp` bigint(20) DEFAULT NULL, /* Critical Peak Period */
+  `tou` bigint(20) DEFAULT NULL, /* Numeric code for the Time Of Use type of reading */
+  `cpp` bigint(20) DEFAULT NULL, /* Critical Peak Period bucket that reading is attributed to */
   
   PRIMARY KEY (`id`),
   KEY `FK_982b1bcd359b47fcb5823a43d21` (`interval_block_id`),
@@ -591,6 +591,8 @@ CREATE TABLE `retail_customers` (
   `enabled` bit(1) NOT NULL,
   `first_name` varchar(30) NOT NULL,
   `last_name` varchar(30) NOT NULL,
+  'phone_number' varchar(20) DEFAULT NULL,
+  'email' varchar(25) DEFAULT NULL,
   `role` varchar(255) NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=0 DEFAULT CHARSET=utf8;
