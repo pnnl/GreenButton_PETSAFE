@@ -1,18 +1,18 @@
 from typing import Optional
-from uuid import uuid4, uuid5, NAMESPACE_URL
+from uuid import uuid5, NAMESPACE_URL
 from pbkdf2 import crypt
 from datetime import datetime as dt
 
 from database_config import *
 import mysql_database as msq
-#from validity_tests import *
 
+# Perform operations on a MySQL table's data; read, write, delete, etc.
 class sqlTableWorker:
     def __init__(
             self, 
             table: str, # The table to operate on
             id_column_name: str, # The name of the ID column used to identify the resource
-            http_request: object, # Flask HTTP request; used to modify rows
+            http_request: Optional[object] = None, # Flask HTTP request; used to modify rows
             resource_id: Optional[int] = None # The ID of a resource to modify or view
             ):
         # Get basic table information set up
@@ -21,7 +21,7 @@ class sqlTableWorker:
             self.__table_cols = self.__get_columns()
             self.id_col = id_column_name
             # List of column names to exclude in cases without sufficient trust
-            # TODO: make sure similar protections exist on the database side; views!
+            # TODO: make sure similar protections exist on the database side if possible
             self.__sensitive_columns = ["first_name", "last_name", "password"]
             # Figure out what we're doing here
             self.__request = http_request
@@ -29,18 +29,39 @@ class sqlTableWorker:
         else:
             print("Cannot initialize tableWorker; table name must be a string of a valid table name.")
 
+    # Escape a string for insertion into the table
+    # Requires opening a connection to use escape_string()
+    # <- string: the string to escape
+    # -> escaped_str or None: the string, post-escaping
     def escape_string(self, string):
         if isinstance(string, str):
             conn = msq.connect_DB()
             # Backticks are not covered by escape_string
             escaped_str = conn.escape_string(string).strip('`').replace('`', '``')
+            msq.close_conn(conn)
             return escaped_str
         else:
             print("Table name must be a string.")
             return None
         
-    def perform_request_operation(self):
-        # TODO: does the user have permission to view this?
+    # Take an HTTP request and perform the relevant operation
+    # <- nothing required
+    # OPTIONAL <- : an HTTP request from Flask to act on
+    # It is preferred that you provide this when opening the Worker, but
+    # it is allowed to do so here
+    # -> JSON data corresponding to the operation;
+    # e.g. a GET request would return JSON data of the table's contents,
+    # a POST request would return the updated or added record,
+    # a DELETE request would return with whether deletion succeeded
+    def perform_request_operation(self, request: Optional[object] = None):
+        # Test whether we HAVE a request
+        if request is None and self.__request is None:
+            return "No request"
+        # If we're adding a request now, handle that
+        elif self.__request is None:
+            self.__request = request
+        # We have a request; perform the corresponding operation
+        # TODO: does the user have permission to do this?
         # View the whole table
         if self.__request.method == 'GET' and self.__resource_id is None:
             return self.view_table()
@@ -62,6 +83,8 @@ class sqlTableWorker:
 
     # Return a list of valid columns in the table, or None if query fails
     # Used to validate records
+    # <- nothing
+    # -> the table's columns as a tuple, or None if columns could not be queried for
     def __get_columns(self):
         try:
             query = 'SELECT column_name FROM INFORMATION_SCHEMA.COLUMNS WHERE table_name = %s;'
@@ -72,8 +95,11 @@ class sqlTableWorker:
             return None
         
     # Validate that the columns specified by a new record actually exist
-    # Return the record with any invalid columns dropped (TODO: this may be
-    # an information leak vector; adjust to True/False?)
+    # Return the record with any invalid columns dropped 
+    # <- record: a dictionary of the record; format {"columnName": value}
+    # -> record: the record, with nonexistent columns and corresponding data removed
+    # TODO: does the user need more feedback to avoid data loss on insertion typos?
+    # (TODO: this may be an information leak vector; adjust to True/False?)
     def __check_against_columns(self, record: dict):
         # Get the list of valid columns for the table
         keys = record.keys()
@@ -98,6 +124,10 @@ class sqlTableWorker:
     
     # Determine if the types of the record match the types of the database
     # Return a dictionary describing which types match and which don't
+    # <- record: the record to check the types of. Must be an iterable.
+    # -> match: a dictionary of columns to type correctness; 
+    # "key": True means the type is correct for the "key" column,
+    # "key": False means the type is incorrect for the "key" column
     # TODO: attempt to coerce types, yes or no?
     def __check_types(self, record):
     # Assumption: all columns are filled in the record prior to reaching this function
@@ -124,6 +154,8 @@ class sqlTableWorker:
     
     # Hash a value using password standards
     # Used to protect data before it's stored in the database (passwords)
+    # <- value: the value to hash
+    # -> value: the value, hashed with pbkdf2.
     def hash_value(self, value):
         # https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#pbkdf2
         # NIST FIPS-140; pbkdf2 is used here; TODO check iteration count for final. Temp value for testing is small.
@@ -131,6 +163,11 @@ class sqlTableWorker:
         return value
     
     # Prepare a record to be inserted into a table
+    # <- id_col_name: the name of the table's ID column
+    # <- resource_name: the name of the resource associated with this table; e.g. "customers".
+    # Used to build API links.
+    # <- request: an HTTP request from Flask.
+    # -> record: a tuple containing the record with its contents formatted for the table as needed
     # TODO: there has to be a more compact way to handle special cases, right?
     def __build_record(
         self,
@@ -174,7 +211,7 @@ class sqlTableWorker:
                     row[col] = upname + str(record_id)
                 except:
                     # For now, this works, but there's a better way that's less delicate
-                    return "Columns out of order" # TODO: is this always the case?
+                    return "Columns out of order"
             elif col == "self_link_rel" and resource_name != None:
                 row[col] = "self"
             # Date columns that need to be generated
@@ -204,6 +241,10 @@ class sqlTableWorker:
 
     # Add a new record to the table
     # Also calls checks to validate said record
+    # <- record: a prepared dictionary to insert into the table
+    # -> values: the newly inserted record
+    # -> status: the HTTP code for the operation status
+    # -> content-type for JSON returns
     def add_record(self, record: dict):
         record = self.__build_record(record) # Format and validate
         if record is not None: # Validation passed
@@ -211,6 +252,10 @@ class sqlTableWorker:
         return values, status, {'Content-Type': 'application/json'}
 
     # Update an existing record in the table
+    # <- record_id: the ID of the record to update
+    # <- new_data: the values to update in the record. May contain some or all columns of the table.
+    # -> HTTP status code
+    # -> Updated record
     def update_record(self, record_id: int, new_data: dict):
         # Validate that the columns we're asking to change actually exist
         new_data = self.__check_against_columns(new_data, self.table)
@@ -240,27 +285,31 @@ class sqlTableWorker:
             # Get the updated record to return as per RESTful expectation
             #query = f"SELECT * FROM {self.table} WHERE id = %s;"
             #values = msq.query(query, (row_id,))
+            # TODO: make sure this doesn't reveal sensitive rows!
             return 200, values # All is well; return new row to conform to API expectations
         except Exception as ex:
             print("Query failed:", ex)
             return 500, None
 
     # Delete a record from the table
+    # <- record_id: the ID of the record to delete
+    # -> HTTP status code
     def delete_record(self, record_id: int):
         try:
             status = msq.delete_record(record_id, self.table)
             return status, {'Content-Type': 'application/json'}
         except:
-            return 500
+            return 500, {'Content-Type': 'application/json'}
 
     # View a single record of the table
+    # <- record_id: the ID of the record to return
+    # -> the record or an HTTP error code
     def view_record(self, record_id):
         try:
             # TODO: don't ask for sensitive columns in the first place
             results = msq.query("SELECT * FROM service_delivery_points WHERE id = %s;", (record_id,))
-            # Remove sensitive columns from results
-            sensitiveFilter = results.filter(self.__sensitive_columns)
-            results.drop(sensitiveFilter, inplace=True, axis=1)
+            # Remove sensitive columns from results to avoid leaking information
+            results = self.remove_sensitive_columns(results)
             # Format to JSON
             if results == []:
                 return 404 # Resource not found, does not exist
@@ -268,11 +317,29 @@ class sqlTableWorker:
         except Exception as ex:
             print(ex)
             return 500
+        
+    # Remove sensitive information from a pandas frame for returning to the user
+    # Define sensitive columns in self.__init__
+    # Please also ensure that data is protected in the database itself!
+    # <- data: pandas frame of data to clean
+    # -> data: data with sensitive columns removed
+    def remove_sensitive_columns(self, data):
+        # Remove sensitive columns from results
+        sensitiveFilter = data.filter(self.__sensitive_columns)
+        data.drop(sensitiveFilter, inplace=True, axis=1)
+        return data
 
     # View the entire table
+    # <- nothing
+    # -> the table's records or an HTTP error code
     def view_table(self):
         try:
+            # Get the table
             results = msq.query(f"SELECT * FROM {self.table};")
+            # Transform into return format if necessary
+            results = self.adjust_formatting(results)
+            # Take out any sensitive columns
+            results = self.remove_sensitive_columns(results)
             # Format to JSON
             if results == []:
                 return 404 # Resources not found, do not exist
@@ -281,6 +348,28 @@ class sqlTableWorker:
             print(ex)
             return 500
         
+    # Make changes to output format for a given table to match frontend format expectations
+    # <- data: the raw table data as a pandas frame
+    # -> data: modified pandas frame of data
+    def adjust_formatting(self, data):
+        match self.table:
+            case "retail_customers":
+                # Handle customer name -> one field
+                data["legalName"] = data["first_name"] + " " + data["last_name"]
+                del data["first_name"]
+                del data["last_name"]
+            case "logins":
+                del data["password"] # Not returning this!
+        return data
+        
+    # Ensure that a foreign key exists in the table that corresponds to an existing record
+    # <- fk_id_value: the ID to check in the foreign table
+    # <- fk_id_col: the ID column of the referenced table
+    # <- fk_table: the table to check
+    # -> bool: does the key exist in the FK table?
+    # e.g. if Table1.fk_col references Table2.id, and this Worker is for Table1, then
+    # check_foreign_key_exists(1, "id", "Table2") checks whether a record with ID = 1
+    # exists in Table2. If it does, it returns True. Else, it returns False.
     def check_foreign_key_exists(self, fk_id_value, fk_id_col, fk_table):
         fk_results = msq.query(f"SELECT COUNT({fk_id_col}) FROM {fk_table} WHERE {fk_id_col} = %s;", (fk_id_value,))
         if fk_results.empty: # The ID doesn't exist yet

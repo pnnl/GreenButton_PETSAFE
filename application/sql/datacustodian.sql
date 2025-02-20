@@ -591,8 +591,9 @@ CREATE TABLE `retail_customers` (
   `enabled` bit(1) NOT NULL,
   `first_name` varchar(30) NOT NULL,
   `last_name` varchar(30) NOT NULL,
-  'phone_number' varchar(20) DEFAULT NULL, /* Will need validation of format */
-  'email' varchar(25) DEFAULT NULL, /* Will need validation of format / existence */
+  `accountNumber` varchar(255) NOT NULL,
+  `phone_number` varchar(20) DEFAULT NULL, /* Will need validation of format */
+  `email` varchar(25) DEFAULT NULL, /* Will need validation of format / existence */
   `role` varchar(255) NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=0 DEFAULT CHARSET=utf8;
