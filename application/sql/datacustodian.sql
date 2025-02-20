@@ -591,8 +591,8 @@ CREATE TABLE `retail_customers` (
   `enabled` bit(1) NOT NULL,
   `first_name` varchar(30) NOT NULL,
   `last_name` varchar(30) NOT NULL,
-  'phone_number' varchar(20) DEFAULT NULL,
-  'email' varchar(25) DEFAULT NULL,
+  'phone_number' varchar(20) DEFAULT NULL, /* Will need validation of format */
+  'email' varchar(25) DEFAULT NULL, /* Will need validation of format / existence */
   `role` varchar(255) NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=0 DEFAULT CHARSET=utf8;
@@ -602,7 +602,7 @@ DROP TABLE IF EXISTS `logins`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `logins` (
-  `customer_id` bigint(20) NOT NULL AUTO_INCREMENT,
+  `customer_id` bigint(20) NOT NULL,
   `description` varchar(255) DEFAULT NULL,
   `published` datetime DEFAULT NULL,
   `self_link_href` varchar(255) DEFAULT NULL,
@@ -611,9 +611,9 @@ CREATE TABLE `logins` (
   `up_link_rel` varchar(255) DEFAULT NULL,
   `updated` datetime DEFAULT NULL,
   `uuid` varchar(255) NOT NULL,
-  `password` varchar(100) DEFAULT NULL, /* Store as salted hash! */
-  `username` varchar(30) DEFAULT NULL,
-  PRIMARY KEY (`id`),
+  `password` varchar(100) NOT NULL, /* Store as salted hash! */
+  `username` varchar(30) NOT NULL,
+  PRIMARY KEY (`customer_id`),
   CONSTRAINT 'customer_id' FOREIGN KEY ('customer_id') REFERENCES 'retail_customers' ('id'),
 ) ENGINE=InnoDB AUTO_INCREMENT=0 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -743,7 +743,7 @@ CREATE TABLE `addresses` (
   `zipcode` int(5) DEFAULT NULL, /* 5 digit zip code */
   'zipFour' int(4) DEFAULT NULL, /* 4 digit extension to zip code */
   `fullAddress` varchar(255) DEFAULT NULL, /* Full address, if provided as such */
-  PRIMARY KEY (`meter_id`),
+  PRIMARY KEY (`id`),
   UNIQUE KEY `UK_69b56a22ac704cc796e72e99e6a` (`uuid`),
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
