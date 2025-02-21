@@ -6,6 +6,8 @@ from datetime import datetime as dt
 from database_config import *
 import mysql_database as msq
 
+# TODO: Check the size of data before passing it to MySQL.
+
 # Perform operations on a MySQL table's data; read, write, delete, etc.
 class sqlTableWorker:
     def __init__(

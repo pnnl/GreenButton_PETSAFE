@@ -37,6 +37,8 @@ USE `datacustodian`;
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
+-- SET GLOBAL default_table_encryption=ON;
+
 --
 -- Table structure for table `line_item`
 --
@@ -184,14 +186,12 @@ CREATE TABLE `meter_readings` (
   `up_link_rel` varchar(255) DEFAULT NULL,
   `updated` datetime DEFAULT NULL,
   `uuid` varchar(255) NOT NULL,
-  `reading_type_id` bigint(20) DEFAULT NULL,
   `usage_point_id` bigint(20) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `UK_445adb83af2e4fa4928a31692e4` (`uuid`),
   KEY `FK_67563dc6050e46ba9fcbc86b721` (`reading_type_id`),
   KEY `FK_8eaf32259169401e8cae99a5891` (`usage_point_id`),
-  CONSTRAINT `FK_8eaf32259169401e8cae99a5891` FOREIGN KEY (`usage_point_id`) REFERENCES `usage_points` (`id`),
-  CONSTRAINT `FK_67563dc6050e46ba9fcbc86b721` FOREIGN KEY (`reading_type_id`) REFERENCES `reading_types` (`id`)
+  CONSTRAINT `FK_8eaf32259169401e8cae99a5891` FOREIGN KEY (`usage_point_id`) REFERENCES `usage_points` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -713,7 +713,7 @@ CREATE TABLE `resources` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 --
--- Table structure for table `interval_blocks`
+-- Table structure for table `addresses`
 --
 
 DROP TABLE IF EXISTS `meter_addresses`;
@@ -721,7 +721,7 @@ DROP TABLE IF EXISTS `addresses`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `addresses` (
-  `id` bigint(20) NOT NULL,
+  `id` bigint(20) NOT NULL, /* Analagous to PremiseID */
   `description` varchar(255) DEFAULT NULL,
   `published` datetime DEFAULT NULL,
   `self_link_href` varchar(255) DEFAULT NULL,
@@ -749,11 +749,14 @@ CREATE TABLE `addresses` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
-DROP TABLE IF EXISTS `premises`;
+--
+-- Table structure for table `relationships`
+--
+DROP TABLE IF EXISTS `relationships`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `premises` (
-  `id` bigint(20) NOT NULL,
+CREATE TABLE `relatonships` (
+  `id` bigint(20) NOT NULL, /* Analagous to PremiseID */
   `description` varchar(255) DEFAULT NULL,
   `published` datetime DEFAULT NULL,
   `self_link_href` varchar(255) DEFAULT NULL,
@@ -762,10 +765,15 @@ CREATE TABLE `premises` (
   `up_link_rel` varchar(255) DEFAULT NULL,
   `updated` datetime DEFAULT NULL,
   `uuid` varchar(255) NOT NULL,
-  `address_id` bigint(20) DEFAULT NULL,
-  PRIMARY KEY (`premise_id`),
-  UNIQUE KEY `UK_69b56a22ac704cc796e72e99e6a` (`uuid`),
-  CONSTRAINT `FK_addr_id` FOREIGN KEY (`address_id`) REFERENCES `addresses` (`id`)
+  `meter_id` bigint(20) DEFAULT NULL,
+  `premise_id` bigint(20) DEFAULT NULL,
+  `customer_id` bigint(20) DEFAULT NULL
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `UK_uuid_relationships` (`uuid`),
+  CONSTRAINT `FK_rel_meter_id` FOREIGN KEY (`meter_id`) REFERENCES `usage_points` (`id`),
+  CONSTRAINT `FK_rel_premise_id` FOREIGN KEY (`premise_id`) REFERENCES `addresses` (`id`),
+  CONSTRAINT `FK_rel_customer_id` FOREIGN KEY (`customer_id`) REFERENCES `retail_customers` (`id`),
+
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
