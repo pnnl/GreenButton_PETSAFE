@@ -127,6 +127,7 @@ def delete_record(id, table):
 # (see here: https://github.com/PyMySQL/PyMySQL/blob/main/pymysql/converters.py )
 def convert_to_python_type(msq_datatype: str):
     type_mapping = pymysql.converters.decoders
+    print(type_mapping)
     try:
         python_type = type_mapping[msq_datatype]
         return python_type

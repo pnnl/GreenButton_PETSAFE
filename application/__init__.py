@@ -98,6 +98,20 @@ def init_app():
         def all_customers():
             worker = sqlTableWorker("retail_customers", "id", request, resource_id=None)
             return worker.perform_request_operation()
+        
+        @app.route("/speedes/1_0/test", methods=['GET', 'POST'])
+        # GET
+        # Retrieve list of customers
+        # POST
+        # Add a new customer
+        def testme():
+            try:
+                resource_id = request.values.get("id")
+            except:
+                resource_id = None
+            worker = sqlTableWorker("retail_customers", "id", request, resource_id=resource_id)
+            test, code = worker.perform_request_operation()
+            return test, code
 
             
         @app.route("/speedes/1_0/customers/<int:cust_id>", methods=['GET', 'POST', 'DELETE'])

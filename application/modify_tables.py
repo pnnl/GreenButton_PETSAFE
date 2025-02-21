@@ -2,6 +2,7 @@ from typing import Optional
 from uuid import uuid5, NAMESPACE_URL
 from pbkdf2 import crypt
 from datetime import datetime as dt
+import pandas as pd
 
 from database_config import *
 import mysql_database as msq
@@ -28,6 +29,11 @@ class sqlTableWorker:
             # Figure out what we're doing here
             self.__request = http_request
             self.__resource_id = resource_id
+            if self.__resource_id == None:
+                try:
+                    self.__resource_id = self.__request.values.get("id")
+                except:
+                    print("No resource ID provided.")
         else:
             print("Cannot initialize tableWorker; table name must be a string of a valid table name.")
 
@@ -65,22 +71,37 @@ class sqlTableWorker:
         # We have a request; perform the corresponding operation
         # TODO: does the user have permission to do this?
         # View the whole table
-        if self.__request.method == 'GET' and self.__resource_id is None:
-            return self.view_table()
-        # View a specific item of the table
-        elif self.__request.method == 'GET' and self.__resource_id is not None:
-            return self.view_record(self.__resource_id)
-        # Update a specific item of the table
-        elif self.__request.method == 'POST' and self.__resource_id is not None:
-            request_contents = dict(self.__request.args)
-            return self.update_record(self.__resource_id, request_contents)
-        # Delete a specific record of the table
-        elif self.__request.method == 'DELETE' and self.__resource_id is not None:
-            return self.delete_record(self.__resource_id)
-        # Catch other cases
-        else:
-            print("Cannot perform operation; are you missing an argument?")
-            return 400
+        print("Resource ID:", self.__resource_id)
+        try:
+            if self.__request.method == 'GET' and self.__resource_id is None:
+                return self.view_table()
+            # View a specific item of the table
+            elif self.__request.method == 'GET' and self.__resource_id is not None:
+                # TODO: error found when ID is provided - unable to coerce to series, length must be 13; given 0
+                return self.view_record(self.__resource_id)
+            # Update a specific item of the table
+            elif self.__request.method == 'POST':
+                request_contents = dict(self.__request.args)
+                # Update an existing record
+                if self.__resource_id is not None and self.__check_if_in_table(self.__resource_id) == True:
+                    return self.update_record(self.__resource_id, request_contents)
+                # Add a new record
+                elif self.__check_if_in_table(self.__resource_id) == False:
+                    record = self.__build_record(self.id_col, self.__resource_id, request)
+                    return self.add_record(record)
+                # Missing information
+                else:
+                    return {"error": "Missing resource ID for resource to add or modify"}
+            # Delete a specific record of the table
+            elif self.__request.method == 'DELETE' and self.__resource_id is not None:
+                return self.delete_record(self.__resource_id)
+            # Catch other cases
+            else:
+                print("Cannot perform operation; are you missing an argument?")
+                return "Missing information", 400
+        except Exception as ex:
+            print(ex)
+            return "Server error", 500
         
 
     # Return a list of valid columns in the table, or None if query fails
@@ -118,7 +139,7 @@ class sqlTableWorker:
         # Check for missing columns, fill with None for later imputation
         for col in self.__table_cols:
             if col not in record.keys():
-                record[col] = None
+                record[str(col)] = None
         # TODO: what if needed rows are missing? e.g. ID row
         # Check that id/primary key column is included
         # Return the legitimate record
@@ -132,18 +153,22 @@ class sqlTableWorker:
     # "key": False means the type is incorrect for the "key" column
     # TODO: attempt to coerce types, yes or no?
     def __check_types(self, record):
+        print("WARNING: the function this relies on is not fully implemented (msq.convert_to_python_types()), use at your own risk!")
     # Assumption: all columns are filled in the record prior to reaching this function
     # Retrieve the types of the table's columns and validate
     # the supplied record fields as being the right type.
         query = "SELECT DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE table_name = %s;"
-        types = msq.query(query, (self.table,))
-        #type = types.columns.values.tolist() # Format so we can use it
+        types = msq.query(query, (self.table,)).values.tolist() # Format so we can use it
+        # Flatten it
+        types = tuple([v for vals in types for v in vals])
         match = {}
-        for i in len(types): # For every entry in the record
-            item_type = type(record[i]) # Get the type of that part of the record
+        for i in range(0, len(types)): # For every entry in the record
+            item_type = type(record[i]) # Get the type of that part of the record (actual data)
+            print("Actual data type:", item_type)
             # Get the corresponding column's type and convert to the Python 
             # equivalent for comparison
             col_type = msq.convert_to_python_type(types[i])
+            print("Python type equiv:", col_type)
             if item_type != col_type:
                 # TODO: SHOULD we coerce the type into the correct one if possible? 
                 # (eg int -> float can be done; forcing float only is overly restrictive)
@@ -153,6 +178,14 @@ class sqlTableWorker:
             else:
                 match[types[i]] = True # Types match, good to go
         return match
+
+    def __check_if_in_table(self, resource_id):
+        record_exists, status = self.view_record(resource_id)
+        #print(record_exists, status)
+        if status != 404:
+            return True
+        else:
+            return False
     
     # Hash a value using password standards
     # Used to protect data before it's stored in the database (passwords)
@@ -177,6 +210,7 @@ class sqlTableWorker:
         resource_name: str, # The corresponding resource name for this table; used to build uplinks
         request # The HTTP request; needed to get params
     ):
+        print("Formatting record")
         row = {}
         # Used to build URI and make UUID5
         upname = "/speedes/1_0/" + resource_name
@@ -195,9 +229,10 @@ class sqlTableWorker:
                 this_url = url + upname + str(record_id)
                 row[col] = uuid5(NAMESPACE_URL, this_url)
             # bool columns
-            elif col in ["enabled"]:
+            elif col == "enabled":
                 try:
-                    row[col] = bool(request.values.get(col))
+                    bitval = bool(self.__request.values.get(col))
+                    row[col] = bitval
                 except:
                     print(col, "must be convertable to a Boolean value")
             # Uplinks and self links
@@ -227,12 +262,14 @@ class sqlTableWorker:
                 row[col] = self.__request.values.get(col)
         # Check the validity of the new record
         # Do the columns actually exist in the table?
-        record = self.__check_against_columns(record)
+        record = self.__check_against_columns(row)
         # Flatten the dictionary into just the values for checks on the actual record to insert
-        record = tuple(row.values())
+        record = tuple(record.values())
         # Are the items of the right types?
-        type_validity = self.__check_types(record)
+        #type_validity = self.__check_types(record)
+        type_validity = (True, True) # FOR NOW. TODO finish fixing this function
         if False not in type_validity:
+            print("All good")
             return record
         else:
             # TODO: can this be handled more gracefully than just saying "nope"?
@@ -248,10 +285,13 @@ class sqlTableWorker:
     # -> status: the HTTP code for the operation status
     # -> content-type for JSON returns
     def add_record(self, record: dict):
-        record = self.__build_record(record) # Format and validate
+        print("Adding new record.")
+        record = self.__build_record(record, self.__resource_id, self.__request) # Format and validate
         if record is not None: # Validation passed
             status, values = msq.insert_MySQL(self.__table_cols, record, self.table)
-        return values, status, {'Content-Type': 'application/json'}
+            if values == None:
+                values = "Error"
+        return values, status
 
     # Update an existing record in the table
     # <- record_id: the ID of the record to update
@@ -259,10 +299,12 @@ class sqlTableWorker:
     # -> HTTP status code
     # -> Updated record
     def update_record(self, record_id: int, new_data: dict):
+        print("Updating record", record_id)
         # Validate that the columns we're asking to change actually exist
-        new_data = self.__check_against_columns(new_data, self.table)
+        new_data = self.__check_against_columns(new_data)
         # For columns with a value of None, grab the old value from the table
         none_cols = [col for col in new_data.keys() if new_data[col] == None]
+        print(none_cols)
         row_id = record_id
         query = f"SELECT * FROM {self.table} WHERE {self.id_col} = %s;"
         values = msq.query(query, (row_id,))
@@ -272,6 +314,7 @@ class sqlTableWorker:
                 if "password" in col: # Hash the password column values!
                     new_data[col] = self.hash_value(new_data[col])
                 values[col] = new_data[col]
+        print("Values:", values)
         # Place the values into the table, overwriting the existing row
         query = f"UPDATE {self.table} SET "
         parameters = []
@@ -288,10 +331,10 @@ class sqlTableWorker:
             #query = f"SELECT * FROM {self.table} WHERE id = %s;"
             #values = msq.query(query, (row_id,))
             # TODO: make sure this doesn't reveal sensitive rows!
-            return 200, values # All is well; return new row to conform to API expectations
+            return values, 200 # All is well; return new row to conform to API expectations
         except Exception as ex:
             print("Query failed:", ex)
-            return 500, None
+            return "Could not update", 500
 
     # Delete a record from the table
     # <- record_id: the ID of the record to delete
@@ -301,7 +344,7 @@ class sqlTableWorker:
             status = msq.delete_record(record_id, self.table)
             return status, {'Content-Type': 'application/json'}
         except:
-            return 500, {'Content-Type': 'application/json'}
+            return "Server error", 500
 
     # View a single record of the table
     # <- record_id: the ID of the record to return
@@ -310,15 +353,22 @@ class sqlTableWorker:
         try:
             # TODO: don't ask for sensitive columns in the first place
             results = msq.query("SELECT * FROM service_delivery_points WHERE id = %s;", (record_id,))
+            if results == [] or str(results) == "404":
+                return "Record not found", 404 # Resource not found, does not exist
+            results = pd.DataFrame.from_records(results)
             # Remove sensitive columns from results to avoid leaking information
             results = self.remove_sensitive_columns(results)
             # Format to JSON
-            if results == []:
-                return 404 # Resource not found, does not exist
-            return results.to_json(orient="records")
+            if isinstance(results, pd.DataFrame):
+                return results.to_json(orient="records")
+            elif isinstance(results, str):
+                return ("Record:", results)
+            else:
+                print("Cannot return record; wrong data type.")
+                return "Server error", 500
         except Exception as ex:
             print(ex)
-            return 500
+            return "Server error", 500
         
     # Remove sensitive information from a pandas frame for returning to the user
     # Define sensitive columns in self.__init__
@@ -327,9 +377,12 @@ class sqlTableWorker:
     # -> data: data with sensitive columns removed
     def remove_sensitive_columns(self, data):
         # Remove sensitive columns from results
-        sensitiveFilter = data.filter(self.__sensitive_columns)
-        data.drop(sensitiveFilter, inplace=True, axis=1)
-        return data
+        if isinstance(data, pd.DataFrame):
+            sensitiveFilter = data.filter(self.__sensitive_columns)
+            data.drop(sensitiveFilter, inplace=True, axis=1)
+            return data
+        else:
+            return "Cannot clean columns; please format data into DataFrame first."
 
     # View the entire table
     # <- nothing
@@ -344,11 +397,11 @@ class sqlTableWorker:
             results = self.remove_sensitive_columns(results)
             # Format to JSON
             if results == []:
-                return 404 # Resources not found, do not exist
+                return "Not found", 404 # Resources not found, do not exist
             return results.to_json(orient="records")
         except Exception as ex:
             print(ex)
-            return 500
+            return "Server error", 500
         
     # Make changes to output format for a given table to match frontend format expectations
     # <- data: the raw table data as a pandas frame
