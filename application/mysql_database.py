@@ -85,15 +85,17 @@ def insert_MySQL(columns: tuple, record: tuple, table: str):
     # That makes backticks a potential problem; we need to escape them to prevent problems
     # Escaping backticks = double backtick, not backslash as usual
     escaped_table = conn.escape_string(table).strip('`').replace('`', '``')
+    # TODO: test that table exists!
     # Insert the query if all is well
     with conn.cursor() as cursor:
         try:
             # Time to try the actual insert query
-            query = f"INSERT INTO {escaped_table} %s VALUES %s"
+            query = f"INSERT INTO {escaped_table} %s VALUES %s;"
+            columns = "(" + ", ".join(columns) + ")"
             cursor.execute(query, (columns, record))
             conn.commit()
             status = 201
-            query = f"SELECT * FROM {table} WHERE id = %s;"
+            #query = f"SELECT * FROM {table} WHERE id = %s;"
             values = pd.DataFrame.from_records(record)
         except Exception as ex:
             print(ex)

@@ -112,6 +112,7 @@ class sqlTableWorker:
         try:
             query = 'SELECT column_name FROM INFORMATION_SCHEMA.COLUMNS WHERE table_name = %s;'
             cols_in_table = tuple([v for vals in (msq.query(query, (self.table,)).values) for v in vals]) # Flatten list
+            cols_in_table = tuple(dict.fromkeys(cols_in_table)) # Remove duplicates, keeping order
             return cols_in_table
         except Exception as ex:
             print(self.table, "could not be retrieved:", ex)
@@ -210,7 +211,7 @@ class sqlTableWorker:
         resource_name: str, # The corresponding resource name for this table; used to build uplinks
         request # The HTTP request; needed to get params
     ):
-        print("Formatting record")
+        #print("Formatting record")
         row = {}
         # Used to build URI and make UUID5
         upname = "/speedes/1_0/" + resource_name
@@ -269,7 +270,6 @@ class sqlTableWorker:
         #type_validity = self.__check_types(record)
         type_validity = (True, True) # FOR NOW. TODO finish fixing this function
         if False not in type_validity:
-            print("All good")
             return record
         else:
             # TODO: can this be handled more gracefully than just saying "nope"?
@@ -286,11 +286,12 @@ class sqlTableWorker:
     # -> content-type for JSON returns
     def add_record(self, record: dict):
         print("Adding new record.")
-        record = self.__build_record(record, self.__resource_id, self.__request) # Format and validate
+        if isinstance(record, dict): # Maybe they passed us an already-formatted tuple
+            record = self.__build_record(record, self.__resource_id, self.__request) # Format and validate
         if record is not None: # Validation passed
             status, values = msq.insert_MySQL(self.__table_cols, record, self.table)
             if values == None:
-                values = "Error"
+                values = "Server Error"
         return values, status
 
     # Update an existing record in the table
