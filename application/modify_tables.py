@@ -358,24 +358,35 @@ class sqlTableWorker:
     # <- record_id: the ID of the record to return
     # -> the record or an HTTP error code
     def view_record(self, record_id):
+        print("Retrieving records.")
         try:
             # TODO: don't ask for sensitive columns in the first place
             results = msq.query("SELECT * FROM service_delivery_points WHERE id = %s;", (record_id,))
             if results == [] or str(results) == "404":
-                return "Record not found", 404 # Resource not found, does not exist
-            results = pd.DataFrame.from_records(results)
+                return 404, "Record not found" # Resource not found, does not exist
+        except Exception as ex:
+            print("Could not retrieve table:", ex)
+            return 500, "Server error"
+
+        try:
+            #results = pd.DataFrame.from_records(results)
             # Remove sensitive columns from results to avoid leaking information
             results = self.remove_sensitive_columns(results)
-            # Format to JSON
-            if isinstance(results, pd.DataFrame):
-                return results.to_json(orient="records")
-            elif isinstance(results, str):
-                return ("Record:", results)
-            else:
-                print("Cannot return record; wrong data type.")
-                return "Server error", 500
         except Exception as ex:
-            print(ex)
+            print("Could not coerce to DataFrame or remove sensitive columns:", ex)
+            return 500, "Server error"
+        # Format to JSON
+        if isinstance(results, pd.DataFrame):
+            try:
+                results = results.to_json(orient="records")
+                return results
+            except Exception as ex:
+                print("Could not coerce to JSON:", ex)
+                return results
+        elif isinstance(results, str):
+            return ("Record:", results)
+        else:
+            print("Cannot return record; wrong data type.")
             return "Server error", 500
         
     # Remove sensitive information from a pandas frame for returning to the user
@@ -384,43 +395,67 @@ class sqlTableWorker:
     # <- data: pandas frame of data to clean
     # -> data: data with sensitive columns removed
     def remove_sensitive_columns(self, data):
+        print("Cleaning sensitive columns")
         # Remove sensitive columns from results
-        if isinstance(data, pd.DataFrame):
-            sensitiveFilter = data.filter(self.__sensitive_columns)
-            data.drop(sensitiveFilter, inplace=True, axis=1)
-            return data
-        else:
-            return "Cannot clean columns; please format data into DataFrame first."
+        try:
+            if isinstance(data, pd.DataFrame):
+                sensitiveFilter = data.filter(self.__sensitive_columns)
+                data.drop(sensitiveFilter, inplace=True, axis=1)
+                return data
+            else:
+                print("Cannot clean columns; please format data into DataFrame first.")
+                return None
+        except Exception as ex:
+            print("Cannot remove sensitive columns:", ex)
+            return None
 
     # View the entire table
     # <- nothing
     # -> the table's records or an HTTP error code
     def view_table(self):
+        print("Retrieving table")
         try:
             # Get the table
             results = msq.query(f"SELECT * FROM {self.table};")
-            # Transform into return format if necessary
+        except Exception as ex:
+            print("Cannot query:", ex)
+
+        try:
+            # Transform into return format if necessary; output dataframe
             results = self.adjust_formatting(results)
             # Take out any sensitive columns
             results = self.remove_sensitive_columns(results)
-            # Format to JSON
-            if results == []:
-                return "Not found", 404 # Resources not found, do not exist
-            return results.to_json(orient="records")
+            print("Formatting done")
         except Exception as ex:
-            print(ex)
-            return "Server error", 500
+            print("Could not format table for return:", ex)
+            return 500, "Server error"
+        
+        # Format to JSON
+        print("Checking result existence")
+        if results.empty:
+            print("Table is empty")
+            return 404, "Not found" # Resources not found, do not exist
+        elif results is None:
+            print("No results found; error likely occurred when formatting for return")
+            return 500, "Server error: check console"
+        else:
+            print("All good, returning...")
+            return results.to_json(orient="records")
         
     # Make changes to output format for a given table to match frontend format expectations
     # <- data: the raw table data as a pandas frame
     # -> data: modified pandas frame of data
     def adjust_formatting(self, data):
+        print("Adjusting table display for frontend")
         match self.table:
             case "retail_customers":
-                # Handle customer name -> one field
-                data["legalName"] = data["first_name"] + " " + data["last_name"]
-                del data["first_name"]
-                del data["last_name"]
+                try:
+                    # Handle customer name -> one field
+                    data["legalName"] = data["first_name"] + " " + data["last_name"]
+                    del data["first_name"]
+                    del data["last_name"]
+                except Exception as ex:
+                    print("Could not adjust name fields for retail_customers:", ex)
             case "logins":
                 del data["password"] # Not returning this!
         return data

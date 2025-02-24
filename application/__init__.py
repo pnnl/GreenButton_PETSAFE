@@ -97,7 +97,9 @@ def init_app():
         # Add a new customer
         def all_customers():
             worker = sqlTableWorker("retail_customers", "id", request, resource_id=None)
-            return worker.perform_request_operation()
+            results = worker.perform_request_operation()
+            #return results
+            return Response(results, status=200, mimetype='application/json') # TEMP 200 TODO
         
         @app.route("/speedes/1_0/test", methods=['GET', 'POST'])
         # GET

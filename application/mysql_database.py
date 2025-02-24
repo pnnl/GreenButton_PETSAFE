@@ -43,8 +43,7 @@ def query(
         if results.empty:
             return 404
     except Exception as ex:
-        print(ex)
-        print(results)
+        print("Could not coerce msq query results to DataFrame:", ex)
     return results
 
 def update_record(record_id, column, new_value, table):
