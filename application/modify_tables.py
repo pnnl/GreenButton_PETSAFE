@@ -91,7 +91,7 @@ class sqlTableWorker:
                     return self.add_record(record)
                 # Missing information
                 else:
-                    return {"error": "Missing resource ID for resource to add or modify"}
+                    return {400: "Missing resource ID for resource to add or modify"}
             # Delete a specific record of the table
             elif self.__request.method == 'DELETE' and self.__resource_id is not None:
                 return self.delete_record(self.__resource_id)
@@ -228,7 +228,7 @@ class sqlTableWorker:
             elif col == "uuid":
                 #row[col] = uuid4()
                 this_url = url + upname + str(record_id)
-                row[col] = uuid5(NAMESPACE_URL, this_url)
+                row[col] = str(uuid5(NAMESPACE_URL, this_url))
             # bool columns
             elif col == "enabled":
                 try:
@@ -289,10 +289,17 @@ class sqlTableWorker:
         if isinstance(record, dict): # Maybe they passed us an already-formatted tuple
             record = self.__build_record(record, self.__resource_id, self.__request) # Format and validate
         if record is not None: # Validation passed
-            status, values = msq.insert_MySQL(self.__table_cols, record, self.table)
-            if values == None:
-                values = "Server Error"
-        return values, status
+            try:
+                status, values = msq.insert_MySQL(self.__table_cols, record, self.table)
+            except Exception as ex:
+                print("Could not insert new record:", ex)
+                status = 400
+            if status == "1062": # Duplicate entry for ID error
+                return 400, "Duplicate ID"
+            elif status in [400, 500] or values == None:
+                values = "Server Error: no record inserted"
+        # TODO: should sensitive values be returned in the inserted record (e.g. password hash)?
+        return status, values
 
     # Update an existing record in the table
     # <- record_id: the ID of the record to update

@@ -90,19 +90,25 @@ def insert_MySQL(columns: tuple, record: tuple, table: str):
     with conn.cursor() as cursor:
         try:
             # Time to try the actual insert query
-            query = f"INSERT INTO {escaped_table} %s VALUES %s;"
             columns = "(" + ", ".join(columns) + ")"
-            cursor.execute(query, (columns, record))
+            # TODO: parameterize columns. Tried to before 2025-02-24 but it gave a SQL error
+            query = f"INSERT INTO {escaped_table} {columns} VALUES %s;"
+            cursor.execute(query, (record,))
             conn.commit()
             status = 201
             #query = f"SELECT * FROM {table} WHERE id = %s;"
-            values = pd.DataFrame.from_records(record)
+            #print(record)
+            #values = pd.DataFrame.from_records(record)
         except Exception as ex:
-            print(ex)
-            status = 500
+            print("SQL Insert error:", ex)
+            if isinstance(ex, object): # MySQL error
+                errcode = str(ex).split("(")[1].split(",")[0] # Extract error code- can't find object docs to grab directly
+                status = errcode
+            else:
+                status = 500
             return status, None
     close_conn(conn)
-    return status, values
+    return status, record
 
 def delete_record(id, table):
     conn = connect_DB()

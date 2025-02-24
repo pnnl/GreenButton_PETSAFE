@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request, abort
+from flask import Flask, jsonify, request, abort, Response
 #from json import dumps
 
 from dct_backend.retrieve_coefficients import prepare_coefficients, average_coefficients
@@ -110,8 +110,8 @@ def init_app():
             except:
                 resource_id = None
             worker = sqlTableWorker("retail_customers", "id", request, resource_id=resource_id)
-            test, code = worker.perform_request_operation()
-            return test, code
+            statuscode, values = worker.perform_request_operation()
+            return Response({'inserted': values}, status=statuscode, mimetype='application/json')
 
             
         @app.route("/speedes/1_0/customers/<int:cust_id>", methods=['GET', 'POST', 'DELETE'])
