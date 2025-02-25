@@ -97,9 +97,7 @@ def init_app():
         # Add a new customer
         def all_customers():
             worker = sqlTableWorker("retail_customers", "id", request, resource_id=None)
-            results = worker.perform_request_operation()
-            #return results
-            return Response(results, status=200, mimetype='application/json') # TEMP 200 TODO
+            return worker.perform_request_operation(flask_response=True)
         
         @app.route("/speedes/1_0/test", methods=['GET', 'POST'])
         # GET
@@ -112,8 +110,7 @@ def init_app():
             except:
                 resource_id = None
             worker = sqlTableWorker("retail_customers", "id", request, resource_id=resource_id)
-            statuscode, values = worker.perform_request_operation()
-            return Response({'inserted': values}, status=statuscode, mimetype='application/json')
+            return worker.perform_request_operation(flask_response=True)
 
             
         @app.route("/speedes/1_0/customers/<int:cust_id>", methods=['GET', 'POST', 'DELETE'])
@@ -123,7 +120,7 @@ def init_app():
         # Update the customer
         def specific_customers(cust_id):
             worker = sqlTableWorker("retail_customers", "id", request, resource_id=cust_id)
-            return worker.perform_request_operation()
+            return worker.perform_request_operation(flask_response=True)
             
         # --------------- SERVICE DELIVERY AND USAGE POINTS -------------------
         # TODO Rename to meters?
@@ -189,7 +186,7 @@ def init_app():
         @app.route("/speedes/1_0/usagePoints/<usp_id>", methods=['GET', 'POST', 'DELETE'])
         def specific_usage_point(usp_id):
             worker = sqlTableWorker("usage_points", "id", request, resource_id=usp_id)
-            return worker.perform_request_operation()
+            return worker.perform_request_operation(flask_response=True)
         
 
 
@@ -202,7 +199,7 @@ def init_app():
         # Add a new point
         def all_sdpoints():
             worker = sqlTableWorker("service_delivery_points", "id", request, resource_id=None)
-            return worker.perform_request_operation()
+            return worker.perform_request_operation(flask_response=True)
             
         @app.route("/speedes/1_0/serviceDeliveryPoints/<int:sdp_id>", methods=['GET', 'POST', 'DELETE'])
         # GET
@@ -211,7 +208,7 @@ def init_app():
         # Update the time zone (e.g. DST status)
         def specific_sdpoints(sdp_id):
             worker = sqlTableWorker("service_delivery_points", "id", request, resource_id=None)
-            return worker.perform_request_operation()
+            return worker.perform_request_operation(flask_response=True)
 
         # --------------- DCT DATA -------------------
         

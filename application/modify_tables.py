@@ -3,6 +3,7 @@ from uuid import uuid5, NAMESPACE_URL
 from pbkdf2 import crypt
 from datetime import datetime as dt
 import pandas as pd
+from flask import Response
 
 from database_config import *
 import mysql_database as msq
@@ -61,7 +62,11 @@ class sqlTableWorker:
     # e.g. a GET request would return JSON data of the table's contents,
     # a POST request would return the updated or added record,
     # a DELETE request would return with whether deletion succeeded
-    def perform_request_operation(self, request: Optional[object] = None):
+    def perform_request_operation(
+            self, 
+            flask_response: bool = False,
+            request: Optional[object] = None
+            ):
         # Test whether we HAVE a request
         if request is None and self.__request is None:
             return "No request"
@@ -70,38 +75,47 @@ class sqlTableWorker:
             self.__request = request
         # We have a request; perform the corresponding operation
         # TODO: does the user have permission to do this?
-        # View the whole table
         print("Resource ID:", self.__resource_id)
         try:
+            # View the whole table
             if self.__request.method == 'GET' and self.__resource_id is None:
-                return self.view_table()
+                status, results = self.view_table()
             # View a specific item of the table
             elif self.__request.method == 'GET' and self.__resource_id is not None:
                 # TODO: error found when ID is provided - unable to coerce to series, length must be 13; given 0
-                return self.view_record(self.__resource_id)
+                status, results =  self.view_record(self.__resource_id)
             # Update a specific item of the table
             elif self.__request.method == 'POST':
                 request_contents = dict(self.__request.args)
                 # Update an existing record
                 if self.__resource_id is not None and self.__check_if_in_table(self.__resource_id) == True:
-                    return self.update_record(self.__resource_id, request_contents)
+                    status, results = self.update_record(self.__resource_id, request_contents)
                 # Add a new record
                 elif self.__check_if_in_table(self.__resource_id) == False:
                     record = self.__build_record(self.id_col, self.__resource_id, request)
-                    return self.add_record(record)
+                    status, results = self.add_record(record)
                 # Missing information
                 else:
-                    return {400: "Missing resource ID for resource to add or modify"}
+                    status = 400
+                    results = "Missing resource ID for resource to add or modify"
             # Delete a specific record of the table
             elif self.__request.method == 'DELETE' and self.__resource_id is not None:
-                return self.delete_record(self.__resource_id)
+                status, response = self.delete_record(self.__resource_id)
             # Catch other cases
             else:
                 print("Cannot perform operation; are you missing an argument?")
-                return "Missing information", 400
+                status = 400
+                results = "Missing required information"
         except Exception as ex:
             print(ex)
-            return "Server error", 500
+            status = 500
+            results = "Server error"
+        # If we've requested a Flask-style Response, do so. Otherwise, just return the results
+        if flask_response == True:
+            response = Response(results, status=status, mimetype='application/json')
+            return response
+        else:
+            return status, results
         
 
     # Return a list of valid columns in the table, or None if query fails
@@ -306,6 +320,7 @@ class sqlTableWorker:
     # <- new_data: the values to update in the record. May contain some or all columns of the table.
     # -> HTTP status code
     # -> Updated record
+    # TODO more robust try/catch for this function
     def update_record(self, record_id: int, new_data: dict):
         print("Updating record", record_id)
         # Validate that the columns we're asking to change actually exist
@@ -339,10 +354,10 @@ class sqlTableWorker:
             #query = f"SELECT * FROM {self.table} WHERE id = %s;"
             #values = msq.query(query, (row_id,))
             # TODO: make sure this doesn't reveal sensitive rows!
-            return values, 200 # All is well; return new row to conform to API expectations
+            return 200, values # All is well; return new row to conform to API expectations
         except Exception as ex:
             print("Query failed:", ex)
-            return "Could not update", 500
+            return 500, "Could not update"
 
     # Delete a record from the table
     # <- record_id: the ID of the record to delete
@@ -350,9 +365,9 @@ class sqlTableWorker:
     def delete_record(self, record_id: int):
         try:
             status = msq.delete_record(record_id, self.table)
-            return status, {'Content-Type': 'application/json'}
+            return status, f"Successfully deleted record with ID = {record_id}"
         except:
-            return "Server error", 500
+            return 500, "Server error"
 
     # View a single record of the table
     # <- record_id: the ID of the record to return
@@ -360,9 +375,11 @@ class sqlTableWorker:
     def view_record(self, record_id):
         print("Retrieving records.")
         try:
+            table = self.table
             # TODO: don't ask for sensitive columns in the first place
-            results = msq.query("SELECT * FROM service_delivery_points WHERE id = %s;", (record_id,))
-            if results == [] or str(results) == "404":
+            results = msq.query(f"SELECT * FROM {table} WHERE id = %s;", (record_id,))
+            print(results)
+            if results.empty or str(results) == "404":
                 return 404, "Record not found" # Resource not found, does not exist
         except Exception as ex:
             print("Could not retrieve table:", ex)
@@ -379,15 +396,15 @@ class sqlTableWorker:
         if isinstance(results, pd.DataFrame):
             try:
                 results = results.to_json(orient="records")
-                return results
+                return 200, results
             except Exception as ex:
                 print("Could not coerce to JSON:", ex)
-                return results
+                return 200, results
         elif isinstance(results, str):
             return ("Record:", results)
         else:
             print("Cannot return record; wrong data type.")
-            return "Server error", 500
+            return 500, "Server error"
         
     # Remove sensitive information from a pandas frame for returning to the user
     # Define sensitive columns in self.__init__
@@ -440,7 +457,7 @@ class sqlTableWorker:
             return 500, "Server error: check console"
         else:
             print("All good, returning...")
-            return results.to_json(orient="records")
+            return 200, results.to_json(orient="records")
         
     # Make changes to output format for a given table to match frontend format expectations
     # <- data: the raw table data as a pandas frame
