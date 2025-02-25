@@ -79,9 +79,11 @@ class sqlTableWorker:
         try:
             # View the whole table
             if self.__request.method == 'GET' and self.__resource_id is None:
+                print("Retrieving records.")
                 status, results = self.view_table()
             # View a specific item of the table
             elif self.__request.method == 'GET' and self.__resource_id is not None:
+                print("Retrieving record.")
                 # TODO: error found when ID is provided - unable to coerce to series, length must be 13; given 0
                 status, results =  self.view_record(self.__resource_id)
             # Update a specific item of the table
@@ -90,6 +92,7 @@ class sqlTableWorker:
                 # Update an existing record
                 if self.__resource_id is not None and self.__check_if_in_table(self.__resource_id) == True:
                     status, results = self.update_record(self.__resource_id, request_contents)
+                    print(results)
                 # Add a new record
                 elif self.__check_if_in_table(self.__resource_id) == False:
                     record = self.__build_record(self.id_col, self.__resource_id, request)
@@ -100,7 +103,7 @@ class sqlTableWorker:
                     results = "Missing resource ID for resource to add or modify"
             # Delete a specific record of the table
             elif self.__request.method == 'DELETE' and self.__resource_id is not None:
-                status, response = self.delete_record(self.__resource_id)
+                status, results = self.delete_record(self.__resource_id)
             # Catch other cases
             else:
                 print("Cannot perform operation; are you missing an argument?")
@@ -327,7 +330,6 @@ class sqlTableWorker:
         new_data = self.__check_against_columns(new_data)
         # For columns with a value of None, grab the old value from the table
         none_cols = [col for col in new_data.keys() if new_data[col] == None]
-        print(none_cols)
         row_id = record_id
         query = f"SELECT * FROM {self.table} WHERE {self.id_col} = %s;"
         values = msq.query(query, (row_id,))
@@ -337,7 +339,6 @@ class sqlTableWorker:
                 if "password" in col: # Hash the password column values!
                     new_data[col] = self.hash_value(new_data[col])
                 values[col] = new_data[col]
-        print("Values:", values)
         # Place the values into the table, overwriting the existing row
         query = f"UPDATE {self.table} SET "
         parameters = []
@@ -346,10 +347,9 @@ class sqlTableWorker:
             parameters.append(values[col].iloc[0])
         query = query[:-2] + " " # Remove final comma
         query += f"WHERE id = {row_id};"
-        print(query)
-        print(parameters)
         try:
-            #status = msq.query(query, parameters)
+            msq.query(query, parameters) # Make the change
+            values = values.to_json(orient="records")
             # Get the updated record to return as per RESTful expectation
             #query = f"SELECT * FROM {self.table} WHERE id = %s;"
             #values = msq.query(query, (row_id,))
@@ -373,12 +373,10 @@ class sqlTableWorker:
     # <- record_id: the ID of the record to return
     # -> the record or an HTTP error code
     def view_record(self, record_id):
-        print("Retrieving records.")
         try:
             table = self.table
             # TODO: don't ask for sensitive columns in the first place
             results = msq.query(f"SELECT * FROM {table} WHERE id = %s;", (record_id,))
-            print(results)
             if results.empty or str(results) == "404":
                 return 404, "Record not found" # Resource not found, does not exist
         except Exception as ex:
