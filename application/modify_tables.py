@@ -377,7 +377,10 @@ class sqlTableWorker:
             table = self.table
             # TODO: don't ask for sensitive columns in the first place
             results = msq.query(f"SELECT * FROM {table} WHERE id = %s;", (record_id,))
-            if results.empty or str(results) == "404":
+            if isinstance(results, pd.DataFrame):
+                if results.empty:
+                    return 404, "Record not found" # Resource not found, does not exist
+            elif str(results) == "404":
                 return 404, "Record not found" # Resource not found, does not exist
         except Exception as ex:
             print("Could not retrieve table:", ex)
