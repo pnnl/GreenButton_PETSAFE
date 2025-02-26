@@ -5,7 +5,7 @@ See requirements.txt for packages in use for this repository.
 
 # API
 
-API-related files can be found in the API folder. These files should be self-contained, but rely on the existence of MySQL and Influx databases containing data about meters, energy usage, customers, etc.
+API-related files can be found in the API folder. This directory should be self-contained, but relies on the existence of MySQL and Influx databases containing data about meters, energy usage, customers, etc.
 
 # Database Setup
 
@@ -16,13 +16,13 @@ To import JSON building data into Influx, please see /api/docs/Influx-Setup.docx
 JSON is expected in the following format:
 
 {
-    "timestamp": int of Unix datetime, e.g. 1672531200000,
-    "meter_id": int, e.g. 1,
-    "real_power": float, e.g. 3.145,
-    "apparent_power": float, e.g. 3.145,
-    "pf": float, e.g. 0.123,
-    "privacy": str, e.g. "low",
-    "meter_type":str, e.g. "raw_aggregate"
+    "timestamp": int of Unix datetime, e.g. 1672531200000; the start time of a reading
+    "meter_id": int, e.g. 1; the unique ID for the meter
+    "real_power": float, e.g. 3.145; the real power measurement for this reading
+    "apparent_power": float, e.g. 3.145; the apparent power measurement for this reading
+    "pf": float, e.g. 0.123; the power factor for this reading
+    "privacy": str, e.g. "low"; the privacy level of this reading
+    "meter_type": str, e.g. "aggregate"; whether the meter is raw data, aggregated/virtual, etc.
 }
 
 Consider using the sample data provided in /api/import-to-database/raw for minimal effort in importing sample buildings.
