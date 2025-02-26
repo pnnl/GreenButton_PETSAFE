@@ -34,16 +34,16 @@ user="root"
 pass=${SQL_PASS}
 
 # drop/create databases 
-mysql --user=${user} --password=${pass} < cleandatabases_dc.sql
-mysql --user=${user} --password=${pass} < cleandatabases_tp.sql
+mysql --user=${user} --defaults-file=~/.my.cnf < cleandatabases_dc.sql
+mysql --user=${user} --defaults-file=~/.my.cnf < cleandatabases_tp.sql
 
 # create tables 
-mysql --user=${user} --password=${pass} < ./thirdparty.sql
-mysql --user=${user} --password=${pass} < ./datacustodian.sql
-#mysql --user=${user} --password=${pass} < tokenstore.sql
+mysql --user=${user} --defaults-file=~/.my.cnf < ./thirdparty.sql
+mysql --user=${user} --defaults-file=~/.my.cnf < ./datacustodian.sql
+#mysql --user=${user} --defaults-file=~/.my.cnf < tokenstore.sql
 
 # prepopulate tables
-mysql --user=${user} --password=${pass} < prepopulatesql_users_dc.sql
-mysql --user=${user} --password=${pass} < prepopulatesql_users_tp.sql
-mysql --user=${user} --password=${pass} < prepopulatesql_dc.sql
-mysql --user=${user} --password=${pass} < prepopulatesql_tp.sql
+mysql --user=${user} --defaults-file=~/.my.cnf < prepopulatesql_users_dc.sql
+mysql --user=${user} --defaults-file=~/.my.cnf < prepopulatesql_users_tp.sql
+mysql --user=${user} --defaults-file=~/.my.cnf < prepopulatesql_dc.sql
+mysql --user=${user} --defaults-file=~/.my.cnf < prepopulatesql_tp.sql

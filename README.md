@@ -9,6 +9,10 @@ API-related files can be found in the API folder. This directory should be self-
 
 # Database Setup
 
+## Automated setup
+
+To automatically set up the databases, run ./setup.sh
+
 ## Influx DB
 
 To import JSON building data into Influx, please see /api/docs/Influx-Setup.docx
@@ -35,6 +39,8 @@ Please unpack and place this data in the /data directory. It can be read into a 
 ## MySQL DB
 
 Documentation for setting up MySQL and filling it with sample data is currently being worked on; this README will reference it as soon as it's in place.
+
+If running on Ubuntu, you may run /setup/install-mysql.sh to do most of the setup for the MySQL database for you.
 
 
 # Other

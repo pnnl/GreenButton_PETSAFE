@@ -1,12 +1,15 @@
 #!/bin/bash
 
 # Setup venv
+cd setup
 
 # Ensure necessary commands and libraries are installed
-bash ./setup/install_requirements.sh
+bash install_requirements.sh
 
 # Build databases
-bash ./setup/install_influx.sh
-python ./setup/setup_databases_from_sampledata.py
+bash install_influx.sh
+bash install-mysql.sh
+cd ..
+python setup_databases_from_sampledata.py
 
 # Direct user towards documentation
