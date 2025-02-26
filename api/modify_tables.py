@@ -6,7 +6,7 @@ import pandas as pd
 from flask import Response
 
 from database_config import *
-import mysql_database as msq
+import api.mysql_database as msq
 
 # TODO: Check the size of data before passing it to MySQL.
 

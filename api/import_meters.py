@@ -1,4 +1,4 @@
-import influx_database as idb
+import api.influx_database as idb
 import pandas as pd
 from dct_backend.list_files import iterate
 from database_config import *
@@ -6,6 +6,9 @@ from datetime import datetime as dt
 from time import mktime
 
 from multiprocessing import Pool
+
+# Read from a SQLite database or CSV files into Influx
+# THIS WILL TAKE A WHILE. Set aside some time to wait.
 
 # Reads a CSV file into a pandas frame
 # Used by prepare_data_from_csv() to read from source files

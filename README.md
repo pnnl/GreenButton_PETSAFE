@@ -1,73 +1,48 @@
-PETSAFE (Privacy Enhancing Testbed for Secure meter Aggregation and Energy benchmarking)
+# Requirements
 
-# Contents
-- [Quick Start](#quick-start)
-- [Module Arguments](#module-arguments)
-- [Packages](#required-packages)
+Python (3.12.2)
+See requirements.txt for packages in use for this repository.
 
-# Quick Start
-Edit config.py to configure settings for your use-case.
-If using DCT, edit dct/dct_config.py for DCT-specific settings.
+# API
 
-# Create database from energy data files
-In main.py:
-    populate_database()
+API-related files can be found in the API folder. These files should be self-contained, but rely on the existence of MySQL and Influx databases containing data about meters, energy usage, customers, etc.
 
-## List files
-    from list_files.py import *
-    files = list_files_in_dir([directory path: str], [whether to append path to resulting files: bool])
+# Database Setup
 
-## Process files in list into buildings
-    import create_buildings as cb
-    import config
-    buildings = cb.make_buildings(config.BUILDING_COUNT, pickle=[bool], seed=config.SEED, encrypt=[bool])
+## Influx DB
 
-To enable the use of homomorphic encryption, set `ENCRYPT` to `True` in config.py.
+To import JSON building data into Influx, please see /api/docs/Influx-Setup.docx
 
-To set the number of buildings generated, set `BUILDING_COUNT` in config.py.
+JSON is expected in the following format:
 
-To set the temporal resolution for building aggregation, set `AGG_TEMPORAL_RESOLUTION` in config.py to one of the following values:
-- `"f"`: every fifteen minutes
-- `"h"`: hourly
-- `"d"`: daily
+{
+    "timestamp": int of Unix datetime, e.g. 1672531200000,
+    "meter_id": int, e.g. 1,
+    "real_power": float, e.g. 3.145,
+    "apparent_power": float, e.g. 3.145,
+    "pf": float, e.g. 0.123,
+    "privacy": str, e.g. "low",
+    "meter_type":str, e.g. "raw_aggregate"
+}
 
-To set the number of sites per building, set `MIN_SIZE` and `MAX_SIZE` in config.py. Site number will be selected within this range according to a model of real-world building sizes. To select a specific size, set `MIN_SIZE` and `MAX_SIZE` to the same value.
-Larger building sizes will require more processing time and memory.
+Consider using the sample data provided in /api/import-to-database/raw for minimal effort in importing sample buildings.
 
-To set the date range, change `START_DATE` and `END_DATE` in config.py. Their values should be strings in the format `"YYYY-MM-DD"`, eg. `"2020-12-01"`. Smaller ranges will process more quickly.
+To get JSON building data from scratch, see the files in building-aggregation; these files were made to work with the EULR HEMS dataset, which can be found here:
+https://neea.org/resources/the-northwest-end-use-load-research-eulr-project
 
-## Decrypt files
-    # Assuming that enc_building is a Building object with encryption True:
-    # Get necessary components for decrypting a building
-    cc = enc_building.get_cc()
-    keys = enc_building.get_keys()
-    order = enc_building.get_meter_order()
-    length = enc_building.get_length()
-    enc_data = enc_building.get_data()
+Please unpack and place this data in the /data directory. It can be read into a SQLLite database for further processing by /building_aggregation/create_buildings.py (if creating randomized aggregates) or /main.py (populate_database(), processing raw data).
 
-    # Select a value to decrypt; in this case, the sum of all real power data at the first timestamp
-    timestamp = enc_data.index[0]
-    enc_power_sum = enc_data["real_power"].loc[enc_data.index == timestamp].iloc[0] # encrypted sum
-    decryptor = Decryptor(keys=keys, cc=cc, order=order, length=length)
-    dec_power_sum = decryptor.decrypt_target(enc_power_sum)
+## MySQL DB
 
-## Calculate sum and average of real power for a building
-    Needs to be updated for new mechanisms; TODO
+Documentation for setting up MySQL and filling it with sample data is currently being worked on; this README will reference it as soon as it's in place.
 
----
 
-# Module Arguments
+# Other
 
-TODO
+## Structure
 
----
+The following directories are not guaranteed to be self-contained and may need refactoring after recent reorganization of this repository.
 
-# Required packages
-    lightphe
-    pandas
-    typing
-    matplotlib
-    math
-    random
-    os
-    sys
+- DCT_testing holds files related to experimenting with DCT and privacy protection.
+- building_aggregation holds files that create or export virtual buildings composed of multiple meters.
+- building_analysis holds files that read from aggregated buildings (including, if necessary, decrypting them)

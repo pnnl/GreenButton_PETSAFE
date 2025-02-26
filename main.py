@@ -9,6 +9,7 @@ import dct.dct_main as dct_main
 # Building module-related imports
 import create_buildings as cb
 
+# Populate the SQLLight database
 def populate_database():
     import processor.populateRecords as popdb
     print("Creating database...")

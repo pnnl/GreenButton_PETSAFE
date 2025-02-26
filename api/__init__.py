@@ -1,10 +1,10 @@
-from flask import Flask, jsonify, request, abort, Response
+from flask import Flask, jsonify, request, abort
 #from json import dumps
 
 from dct_backend.retrieve_coefficients import prepare_coefficients, average_coefficients
 from database_config import *
-import influx_database as idb
-import mysql_database as msq
+import api.influx_database as idb
+import api.mysql_database as msq
 from validity_tests import *
 from modify_tables import sqlTableWorker
 
@@ -77,7 +77,7 @@ def init_app():
         # Add a new time zone
         def all_timezones():
             worker = sqlTableWorker("time_configurations", "id", request, resource_id=None)
-            return worker.perform_request_operation()
+            return worker.perform_request_operation(flask_response=True)
         
         @app.route("/speedes/1_0/timezones/<int:tz_id>", methods=['GET', 'POST', 'DELETE'])
         # GET
@@ -86,7 +86,7 @@ def init_app():
         # Update the time zone (e.g. DST status)
         def specific_timezone(tz_id):
             worker = sqlTableWorker("time_configurations", "id", request, resource_id=tz_id)
-            return worker.perform_request_operation()
+            return worker.perform_request_operation(flask_response=True)
             
         # --------------- RETAIL CUSTOMERS --------------------
 

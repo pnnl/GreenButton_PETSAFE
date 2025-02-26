@@ -6,7 +6,7 @@ from datetime import datetime
 import zipfile
 from os import makedirs
 from os.path import exists
-from list_files import list_files_in_dir
+from building_aggregation.list_files import list_files_in_dir
 
 host = "http://127.0.0.1:8086"
 bucket = "Buildings"
