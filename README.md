@@ -40,7 +40,7 @@ Please unpack and place this data in the /data directory. It can be read into a 
 
 Documentation for setting up MySQL and filling it with sample data is currently being worked on; this README will reference it as soon as it's in place.
 
-If running on Ubuntu, you may run /setup/install-mysql.sh to do most of the setup for the MySQL database for you.
+If running on Ubuntu, you may run /setup/install-mysql.sh to do most of the setup for the MySQL database for you. (No guarantees it works yet- still testing)
 
 
 # Other
