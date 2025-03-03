@@ -1,10 +1,7 @@
-from typing import Optional
-from datetime import datetime as dt
-import pandas as pd
-from flask import Response
+from json import load
 
-def read_json(file):
-    jsonfile = open(file, "r")
-    jsondata = jsonfile.readlines()
+def read_json(filepath):
+    jsonfile = open(filepath, "r")
+    jsondata = load(jsonfile)
     jsonfile.close()
     return jsondata
