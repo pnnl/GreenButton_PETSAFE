@@ -7,6 +7,16 @@ See requirements.txt for packages in use for this repository.
 
 API-related files can be found in the API folder. This directory should be self-contained, but relies on the existence of MySQL and Influx databases containing data about meters, energy usage, customers, etc.
 
+## Frontend Testing
+
+A test version of the API is available that does not require setup of the backend databases. To use the test version, run:
+
+    python wgsi.py --test
+
+from **within /api.** This version of the API returns hardcoded JSON that should (in the future) match the format of the data returned when querying against databases. 
+
+At present, it returns hardcoded JSON that matches the JSON present in a frontend being developed for this backend; the format used there is different from the format currently in use for the backend, but the two will eventually match.
+
 # Database Setup
 
 ## Automated setup

@@ -36,6 +36,11 @@ def init_app():
             data = read_json("mockData/electricMeters.json")
             return data
         
+        @app.route("/speedes/1_0/users", methods=["GET"])
+        def list_users():
+            data = read_json("mockData/users.json")
+            return data
+        
 
     return app
 

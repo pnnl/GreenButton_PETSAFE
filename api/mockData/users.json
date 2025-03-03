@@ -1,62 +1,60 @@
-{"Users": 
+{"Users": [
 {
-    username: 'testCustomer',
-    password: 'testCustomer123',
-    role: Roles.CUSTOMER,
-    legalName: 'Test Customer',
-    accountNumber: '',
-    email: '',
-    phone: '',
-    address: {
-      address: '',
-      addressNumber: '',
-      city: '',
-      state: {
-        code: '',
-        name: '',
+    "username": "testCustomer",
+    "role": "Customer",
+    "legalName": "Test Customer",
+    "accountNumber": "",
+    "email": "",
+    "phone": "",
+    "address": {
+      "address": "",
+      "addressNumber": "",
+      "city": "",
+      "state": {
+        "code": "",
+        "name": ""
       },
-      zip: '',
-    },
+      "zip": ""
+    }
 },
 
 {
-    username: 'testUtility',
-    password: 'testUtility123',
-    role: Roles.UTILITY,
-    legalName: 'Test Utility',
-    accountNumber: '',
-    email: '',
-    phone: '',
-    address: {
-      address: '',
-      addressNumber: '',
-      city: '',
-      state: {
-        code: '',
-        name: '',
+    "username": "testUtility",
+    "role": "Utility",
+    "legalName": "Test Utility",
+    "accountNumber": "",
+    "email": "",
+    "phone": "",
+    "address": {
+      "address": "",
+      "addressNumber": "",
+      "city": "",
+      "state": {
+        "code": "",
+        "name": ""
       },
-      zip: '',
-    },
+      "zip": ""
+    }
 },
 
 {
-    username: 'testThirdParty',
-    password: 'testThirdParty123',
-    role: Roles.THIRD_PARTY,
-    legalName: 'Test Third Party',
-    accountNumber: '',
-    email: '',
-    phone: '',
-    address: {
-      address: '',
-      addressNumber: '',
-      city: '',
-      state: {
-        code: '',
-        name: '',
+    "username": "testThirdParty",
+    "role": "Third party",
+    "legalName": "Test Third Party",
+    "accountNumber": "",
+    "email": "",
+    "phone": "",
+    "address": {
+      "address": "",
+      "addressNumber": "",
+      "city": "",
+      "state": {
+        "code": "",
+        "name": ""
       },
-      zip: '',
-    },
+      "zip": ""
+    }
 }
+]
 
 }
