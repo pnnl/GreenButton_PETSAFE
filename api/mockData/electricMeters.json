@@ -1,6 +1,6 @@
-{"meters": {
+{"meters": [
   {
-    "meterId": 1001,
+    "meterId": "1001",
     "requestor": "John Doe",
     "account": "John Doe",
     "accountNumber": "ACC1001",
@@ -54,7 +54,7 @@
     "entity": "GoPV inc.",
     "entityAccessType": "Connect My Data (LiveStream+Past)",
     "purpose": "Renewal",
-    "privacyProfile": "Medium",
+    "privacyProfile": "Medium"
   },
   {
     "meterId": "1004",
@@ -73,7 +73,7 @@
     "entity": "EnergyMap",
     "entityAccessType": "Connect My Data (Past)",
     "purpose": "Activation",
-    "privacyProfile": "High",
+    "privacyProfile": "High"
   },
   {
     "meterId": "1005",
@@ -92,7 +92,7 @@
     "entity": "",
     "entityAccessType": "Connect My Data (Past)",
     "purpose": "Billing",
-    "privacyProfile": "Medium",
+    "privacyProfile": "Medium"
   },
   {
     "meterId": "1006",
@@ -111,7 +111,7 @@
     "entity": "GoPV inc.",
     "entityAccessType": "Connect My Data (Past)",
     "purpose": "Approval Process",
-    "privacyProfile": "High",
+    "privacyProfile": "High"
   },
   {
     "meterId": "1007",
@@ -129,7 +129,7 @@
     "entity": "SuperPower",
     "entityAccessType": "Connect My Data (LiveStream+Past)",
     "purpose": "Renewal",
-    "privacyProfile": "Low",
+    "privacyProfile": "Low"
   },
   {
     "meterId": "1008",
@@ -147,7 +147,7 @@
     "entity": "",
     "entityAccessType": "Connect My Data (Past)",
     "purpose": "Data Update",
-    "privacyProfile": "Medium",
+    "privacyProfile": "Medium"
   },
   {
     "meterId": "1009",
@@ -165,7 +165,7 @@
     "entity": "GoPV inc.",
     "entityAccessType": "Connect My Data (Past)",
     "purpose": "Activation",
-    "privacyProfile": "High",
+    "privacyProfile": "High"
   },
   {
     "meterId": "1010",
@@ -183,7 +183,7 @@
     "entity": "Smart Solutions LLC",
     "entityAccessType": "Connect My Data (LiveStream+Past)",
     "purpose": "Approval Process",
-    "privacyProfile": "High",
+    "privacyProfile": "High"
   },
   {
     "meterId": "1011",
@@ -201,7 +201,7 @@
     "entity": "Personal access",
     "entityAccessType": "Dowload My Data (XML)",
     "purpose": "Renewal",
-    "privacyProfile": "Low",
+    "privacyProfile": "Low"
   },
   {
     "meterId": "1012",
@@ -219,7 +219,7 @@
     "entity": "GoPV inc.",
     "entityAccessType": "Connect My Data (Past)",
     "purpose": "Data Update",
-    "privacyProfile": "Medium",
+    "privacyProfile": "Medium"
   },
   {
     "meterId": "1013",
@@ -237,7 +237,7 @@
     "entity": "Springfield HVAC",
     "entityAccessType": "Connect My Data (Past)",
     "purpose": "Approval Process",
-    "privacyProfile": "High",
+    "privacyProfile": "High"
   },
   {
     "meterId": "1014",
@@ -255,7 +255,7 @@
     "entity": "",
     "entityAccessType": "Connect My Data (Past)",
     "purpose": "Renewal",
-    "privacyProfile": "Low",
+    "privacyProfile": "Low"
   },
   {
     "meterId": "1015",
@@ -273,7 +273,7 @@
     "entity": "EnergyStar PortfolioManager",
     "entityAccessType": "Connect My Data (LiveStream+Past)",
     "purpose": "Activation",
-    "privacyProfile": "High",
+    "privacyProfile": "High"
   },
   {
     "meterId": "1016",
@@ -291,7 +291,7 @@
     "entity": "",
     "entityAccessType": "Connect My Data (Past)",
     "purpose": "Approval Process",
-    "privacyProfile": "Medium",
+    "privacyProfile": "Medium"
   },
   {
     "meterId": "1017",
@@ -309,7 +309,7 @@
     "entity": "Springfield HVAC",
     "entityAccessType": "Connect My Data (Past)",
     "purpose": "Data Update",
-    "privacyProfile": "Medium",
+    "privacyProfile": "Medium"
   },
   {
     "meterId": "1018",
@@ -327,7 +327,7 @@
     "entity": "EnergyStar PortfolioManager",
     "entityAccessType": "Connect My Data (LiveStream)",
     "purpose": "Renewal",
-    "privacyProfile": "Low",
+    "privacyProfile": "Low"
   },
   {
     "meterId": "1019",
@@ -345,7 +345,7 @@
     "entity": "",
     "entityAccessType": "Connect My Data (LiveStream)",
     "purpose": "Activation",
-    "privacyProfile": "High",
+    "privacyProfile": "High"
   },
   {
     "meterId": "1020",
@@ -363,7 +363,7 @@
     "entity": "NIKKOLA PowerWall",
     "entityAccessType": "Connect My Data (LiveStream)",
     "purpose": "NIKKOLA PowerWall",
-    "privacyProfile": "High",
+    "privacyProfile": "High"
   },
   {
     "meterId": "1021",
@@ -381,7 +381,7 @@
     "entity": "NIKKOLA PPA",
     "entityAccessType": "Connect My Data (LiveStream)",
     "purpose": "Data Update",
-    "privacyProfile": "Medium",
+    "privacyProfile": "Medium"
   },
   {
     "meterId": "1022",
@@ -399,8 +399,8 @@
     "entity": "NIKKOLA PPA",
     "entityAccessType": "Connect My Data (LiveStream)",
     "purpose": "Renewal",
-    "privacyProfile": "Low",
-  },
-}
+    "privacyProfile": "Low"
+  }
+]
 }
 
