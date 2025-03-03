@@ -2,7 +2,7 @@ import pandas as pd
 from datetime import datetime
 from random import sample
 
-from site_data_querying.commonDB import DBConn
+from data_querying.commonDB import DBConn
 import database_config as config
 
 def get_site_real(point_id, start_date, end_date):

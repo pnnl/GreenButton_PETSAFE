@@ -3,8 +3,8 @@ from flask import Flask, jsonify, request, abort
 
 from dct_backend.retrieve_coefficients import prepare_coefficients, average_coefficients
 from database_config import *
-import api.influx_database as idb
-import api.mysql_database as msq
+import influx_database as idb
+import mysql_database as msq
 from validity_tests import *
 from modify_tables import sqlTableWorker
 
@@ -97,19 +97,6 @@ def init_app():
         # Add a new customer
         def all_customers():
             worker = sqlTableWorker("retail_customers", "id", request, resource_id=None)
-            return worker.perform_request_operation(flask_response=True)
-        
-        @app.route("/speedes/1_0/test", methods=['GET', 'POST'])
-        # GET
-        # Retrieve list of customers
-        # POST
-        # Add a new customer
-        def testme():
-            try:
-                resource_id = request.values.get("id")
-            except:
-                resource_id = None
-            worker = sqlTableWorker("retail_customers", "id", request, resource_id=resource_id)
             return worker.perform_request_operation(flask_response=True)
 
             

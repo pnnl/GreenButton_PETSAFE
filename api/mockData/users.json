@@ -1,7 +1,5 @@
-import { Roles, User } from '../types';
-
-export const userContainer: User[] = [
-  {
+{"Users": 
+{
     username: 'testCustomer',
     password: 'testCustomer123',
     role: Roles.CUSTOMER,
@@ -19,8 +17,9 @@ export const userContainer: User[] = [
       },
       zip: '',
     },
-  },
-  {
+},
+
+{
     username: 'testUtility',
     password: 'testUtility123',
     role: Roles.UTILITY,
@@ -38,8 +37,9 @@ export const userContainer: User[] = [
       },
       zip: '',
     },
-  },
-  {
+},
+
+{
     username: 'testThirdParty',
     password: 'testThirdParty123',
     role: Roles.THIRD_PARTY,
@@ -57,5 +57,6 @@ export const userContainer: User[] = [
       },
       zip: '',
     },
-  },
-];
+}
+
+}
