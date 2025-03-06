@@ -1,6 +1,9 @@
 from sys import argv
 
-if len(argv) > 0:
+print(len(argv))
+
+flag = None
+if len(argv) > 1:
     flag = argv[1]
 
 # Return hardcoded test JSON data

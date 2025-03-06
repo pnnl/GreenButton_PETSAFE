@@ -22,6 +22,9 @@ def init_app():
         from dct_backend import retrieve_site_data, retrieve_coefficients #, dct_averaging
         # Blueprint registration goes here, e.g. app.register_blueprint(auth.auth_bp)
 
+        from routes import endpoints
+        app.register_blueprint(endpoints)
+
         # By default, a route only answers to GET requests.
 
         @app.route('/speedes/1_0')
@@ -152,7 +155,7 @@ def init_app():
         # Retrieve the customer info
         # PUT (POST instead?)
         # Update the customer
-        def update_customer(cust_id):
+        def delete_customer(cust_id):
             worker = sqlTableWorker("retail_customers", "id", request, resource_id=cust_id)
             return worker.perform_request_operation(flask_response=True)
             
