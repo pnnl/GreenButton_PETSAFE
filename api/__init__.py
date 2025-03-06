@@ -216,30 +216,24 @@ def init_app():
             return {'status':status}, 201, {'Content-Type': 'application/json'}
             
             
-        @app.route("/speedes/1_0/usagePoints/<usp_id>", methods=['GET', 'POST', 'DELETE'])
-        def specific_usage_point(usp_id):
+        @app.route("/speedes/1_0/usagePoints/<usp_id>", methods=['GET'])
+        def get_usage_point(usp_id):
             worker = sqlTableWorker("usage_points", "id", request, resource_id=usp_id)
             return worker.perform_request_operation(flask_response=True)
         
-
-
-        # TODO: combine with Usage Points; the two are never seen separately
-        # and SDP is just the revenue part of a UsagePoint
-        @app.route("/speedes/1_0/serviceDeliveryPoints", methods=['GET', 'POST'])
-        # GET
-        # Retrieve list of all points
-        # POST
-        # Add a new point
-        def all_sdpoints():
-            worker = sqlTableWorker("service_delivery_points", "id", request, resource_id=None)
+        @app.route("/speedes/1_0/usagePoints/<usp_id>/update", methods=['POST'])
+        def update_usage_point(usp_id):
+            worker = sqlTableWorker("usage_points", "id", request, resource_id=usp_id)
             return worker.perform_request_operation(flask_response=True)
+        
+        @app.route("/speedes/1_0/usagePoints/<usp_id>/delete", methods=['DELETE'])
+        def delete_usage_point(usp_id):
+            worker = sqlTableWorker("usage_points", "id", request, resource_id=usp_id)
+            return worker.perform_request_operation(flask_response=True)
+        
             
-        @app.route("/speedes/1_0/serviceDeliveryPoints/<int:sdp_id>", methods=['GET', 'POST', 'DELETE'])
-        # GET
-        # Retrieve the time for this time zone
-        # PUT (POST instead?)
-        # Update the time zone (e.g. DST status)
-        def specific_sdpoints(sdp_id):
+        @app.route("/speedes/1_0/serviceDeliveryPoints/<int:sdp_id>/delete", methods=['DELETE'])
+        def delete_sdpoint(sdp_id):
             worker = sqlTableWorker("service_delivery_points", "id", request, resource_id=None)
             return worker.perform_request_operation(flask_response=True)
 
