@@ -6,12 +6,24 @@ from validity_tests import *
 from modify_tables import sqlTableWorker
 from dct_backend import retrieve_site_data
 
+# Define column names to hide when retrieving data
+sensitive_columns = ["first_name", "last_name", "password"]
+
+# All routes in this blueprint
 endpoints = Blueprint('api_routing', __name__, template_folder='templates')
 
-@endpoints.route('/speedes/1_0')
+prefix = '/speedes/1_0'
+
+@endpoints.route('/')
 def get_index():
-    # Placeholder
-    return jsonify({'message': '/speedes/1_0/buildings'})
+    return jsonify({'available endpoints': {
+                "building energy data": f'{prefix}/buildings',
+                "customer data": f'{prefix}/customers',
+                "premises": f'{prefix}/sites',
+                "time zones": f'{prefix}/timezones',
+                "meters / usage points": f'{prefix}/usagePoints',
+                }
+            })
         
 # --------------- RAW DATA -------------------
         
@@ -19,7 +31,7 @@ def get_index():
     # non-owners should only hae DP access
     # Return the actual power data for a given site
     # TODO Would it be useful (and safe) to also return links to what buildings the site is in?
-@endpoints.route("/speedes/1_0/sites/<int:point_id>")
+@endpoints.route("/sites/<int:point_id>")
 def get_point_data(point_id):
     # TODO: Sanity check point_id exists (relies on querying non-Influx database)
     # Determine if we have any date filtering
@@ -30,14 +42,14 @@ def get_point_data(point_id):
 # Returns what sites a given building contains
 # Relies on non-Influx metadata database
 # TODO: also return links to view those sites' power IF user is authorized to see that
-@endpoints.route("/speedes/1_0/buildings/<int:id>/sites")
+@endpoints.route("/buildings/<int:id>/sites")
 def get_sites_in_building(id):
     sanity_check_building_id(id) # Make sure building exists!
     sites = retrieve_site_data.list_component_sites(id)
     return sites.to_json(orient="columns") # TODO Check that orient makes sense
         
 # Display real power readings for a given building
-@endpoints.route("/speedes/1_0/buildings/<int:id>/realpower")
+@endpoints.route("/buildings/<int:id>/realpower")
 def get_building_real_power(id):
     sanity_check_building_id(id) # Make sure building exists!
     # Prep client
@@ -54,7 +66,7 @@ def get_building_real_power(id):
 # --------- TIME ZONE DATA -----------
 # TODO: combine with Usage Points; the two are never seen separately
         
-@endpoints.route("/speedes/1_0/timezones", methods=['GET'])
+@endpoints.route("/timezones", methods=['GET'])
 # GET
 # Retrieve list of time zones currently supported
 # POST
@@ -63,63 +75,63 @@ def get_all_timezones():
     worker = sqlTableWorker("time_configurations", "id", request, resource_id=None)
     return worker.perform_request_operation(flask_response=True)
         
-@endpoints.route("/speedes/1_0/timezones/add", methods=['POST'])
+@endpoints.route("/timezones/add", methods=['POST'])
 # POST
 # Add a new time zone
 def add_timezones():
     worker = sqlTableWorker("time_configurations", "id", request, resource_id=None)
     return worker.perform_request_operation(flask_response=True)
         
-@endpoints.route("/speedes/1_0/timezones/<int:tz_id>", methods=['GET'])
+@endpoints.route("/timezones/<int:tz_id>", methods=['GET'])
 # GET
 # Retrieve the time for this time zone
 def get_timezone(tz_id):
     worker = sqlTableWorker("time_configurations", "id", request, resource_id=tz_id)
     return worker.perform_request_operation(flask_response=True)
         
-@endpoints.route("/speedes/1_0/timezones/<int:tz_id>/update", methods=['POST'])
+@endpoints.route("/timezones/<int:tz_id>/update", methods=['POST'])
 # POST
 # Update the time zone (e.g. DST status)
 def update_timezone(tz_id):
     worker = sqlTableWorker("time_configurations", "id", request, resource_id=tz_id)
     return worker.perform_request_operation(flask_response=True)
         
-@endpoints.route("/speedes/1_0/timezones/<int:tz_id>/delete", methods=['DELETE'])
+@endpoints.route("/timezones/<int:tz_id>/delete", methods=['DELETE'])
 def delete_timezone(tz_id):
     worker = sqlTableWorker("time_configurations", "id", request, resource_id=tz_id)
     return worker.perform_request_operation(flask_response=True)
             
 # --------------- RETAIL CUSTOMERS --------------------
 
-@endpoints.route("/speedes/1_0/customers", methods=['GET'])
+@endpoints.route("/customers", methods=['GET'])
 # GET
 # Retrieve list of all customers
 def get_all_customers():
     worker = sqlTableWorker("retail_customers", "id", request, resource_id=None)
     return worker.perform_request_operation(flask_response=True)
         
-@endpoints.route("/speedes/1_0/customers/add", methods=['POST'])
+@endpoints.route("/customers/add", methods=['POST'])
 # POST
 # Add a new customer
 def add_customer():
     worker = sqlTableWorker("retail_customers", "id", request, resource_id=None)
     return worker.perform_request_operation(flask_response=True)
         
-@endpoints.route("/speedes/1_0/customers/<int:cust_id>", methods=['GET'])
+@endpoints.route("/customers/<int:cust_id>", methods=['GET'])
 # GET
 # Retrieve the customer info
 def get_customer(cust_id):
     worker = sqlTableWorker("retail_customers", "id", request, resource_id=cust_id)
     return worker.perform_request_operation(flask_response=True)
             
-@endpoints.route("/speedes/1_0/customers/<int:cust_id>/update", methods=['POST'])
+@endpoints.route("/customers/<int:cust_id>/update", methods=['POST'])
 # POST
 # Update the customer
 def update_customer(cust_id):
     worker = sqlTableWorker("retail_customers", "id", request, resource_id=cust_id)
     return worker.perform_request_operation(flask_response=True)
         
-@endpoints.route("/speedes/1_0/customers/<int:cust_id>/delete", methods=['DELETE'])
+@endpoints.route("/customers/<int:cust_id>/delete", methods=['DELETE'])
 def delete_customer(cust_id):
     worker = sqlTableWorker("retail_customers", "id", request, resource_id=cust_id)
     return worker.perform_request_operation(flask_response=True)
@@ -128,7 +140,7 @@ def delete_customer(cust_id):
 # TODO Rename to meters?
 # "Logical point on a network at which consumption or production is either 
 # physically measured (e.g., metered) or estimated (e.g., unmetered street lights)."
-@endpoints.route("/speedes/1_0/usagePoints", methods=['GET'])
+@endpoints.route("/usagePoints", methods=['GET'])
 def get_all_usage_points():
     # Should we also include serviceDeliveryPoints here, or only for specific meters?
     # Makes most sense as specific meters but wait to see use case to confirm
@@ -138,7 +150,7 @@ def get_all_usage_points():
         abort(404) # Resource not found, does not exist
     return results.to_json(orient="records")
             
-@endpoints.route("/speedes/1_0/usagePoints/add", methods=['POST'])
+@endpoints.route("/usagePoints/add", methods=['POST'])
 def add_usage_point():
     table = "service_delivery_points"
     # Add a new point
@@ -182,23 +194,23 @@ def add_usage_point():
     return {'status':status}, 201, {'Content-Type': 'application/json'}
             
             
-@endpoints.route("/speedes/1_0/usagePoints/<usp_id>", methods=['GET'])
+@endpoints.route("/usagePoints/<usp_id>", methods=['GET'])
 def get_usage_point(usp_id):
     worker = sqlTableWorker("usage_points", "id", request, resource_id=usp_id)
     return worker.perform_request_operation(flask_response=True)
         
-@endpoints.route("/speedes/1_0/usagePoints/<usp_id>/update", methods=['POST'])
+@endpoints.route("/usagePoints/<usp_id>/update", methods=['POST'])
 def update_usage_point(usp_id):
     worker = sqlTableWorker("usage_points", "id", request, resource_id=usp_id)
     return worker.perform_request_operation(flask_response=True)
         
-@endpoints.route("/speedes/1_0/usagePoints/<usp_id>/delete", methods=['DELETE'])
+@endpoints.route("/usagePoints/<usp_id>/delete", methods=['DELETE'])
 def delete_usage_point(usp_id):
     worker = sqlTableWorker("usage_points", "id", request, resource_id=usp_id)
     return worker.perform_request_operation(flask_response=True)
         
             
-@endpoints.route("/speedes/1_0/serviceDeliveryPoints/<int:sdp_id>/delete", methods=['DELETE'])
+@endpoints.route("/serviceDeliveryPoints/<int:sdp_id>/delete", methods=['DELETE'])
 def delete_sdpoint(sdp_id):
     worker = sqlTableWorker("service_delivery_points", "id", request, resource_id=None)
     return worker.perform_request_operation(flask_response=True)

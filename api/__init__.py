@@ -1,9 +1,4 @@
-from flask import Flask, jsonify
-#from json import dumps
-from database_config import *
-
-# Define column names to hide when retrieving data
-sensitive_columns = ["first_name", "last_name", "password"]
+from flask import Flask
 
 # Run the app and define its routing
 def init_app():
@@ -15,16 +10,8 @@ def init_app():
     with app.app_context():
 
         from routes import endpoints
-        app.register_blueprint(endpoints)
-
-        # By default, a route only answers to GET requests.
-
-        @app.route('/speedes/1_0')
-        def get_index():
-            # Placeholder
-            return jsonify({'message': '/speedes/1_0/buildings'})
+        app.register_blueprint(endpoints, url_prefix='/speedes/1_0') # Routing
         
-
     return app
 
 if __name__ == "__main__":
