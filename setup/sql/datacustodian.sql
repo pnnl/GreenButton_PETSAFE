@@ -753,6 +753,7 @@ CREATE TABLE `addresses` (
 
 --
 -- Table structure for table `relationships`
+--- Should this be broken into three tables (meter-premise, premise-customer, customer-meter)?
 --
 DROP TABLE IF EXISTS `relationships`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;

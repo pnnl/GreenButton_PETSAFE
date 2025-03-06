@@ -70,42 +70,89 @@ def init_app():
         # --------- TIME ZONE DATA -----------
         # TODO: combine with Usage Points; the two are never seen separately
         
-        @app.route("/speedes/1_0/timezones", methods=['GET', 'POST'])
+        @app.route("/speedes/1_0/timezones", methods=['GET'])
         # GET
         # Retrieve list of time zones currently supported
         # POST
         # Add a new time zone
-        def all_timezones():
+        def get_all_timezones():
             worker = sqlTableWorker("time_configurations", "id", request, resource_id=None)
             return worker.perform_request_operation(flask_response=True)
         
-        @app.route("/speedes/1_0/timezones/<int:tz_id>", methods=['GET', 'POST', 'DELETE'])
+        @app.route("/speedes/1_0/timezones/add", methods=['POST'])
+        # POST
+        # Add a new time zone
+        def add_timezones():
+            worker = sqlTableWorker("time_configurations", "id", request, resource_id=None)
+            return worker.perform_request_operation(flask_response=True)
+        
+        @app.route("/speedes/1_0/timezones/<int:tz_id>", methods=['GET'])
         # GET
         # Retrieve the time for this time zone
         # PUT (POST instead?)
         # Update the time zone (e.g. DST status)
-        def specific_timezone(tz_id):
+        def get_timezone(tz_id):
+            worker = sqlTableWorker("time_configurations", "id", request, resource_id=tz_id)
+            return worker.perform_request_operation(flask_response=True)
+        
+        @app.route("/speedes/1_0/timezones/<int:tz_id>/update", methods=['POST'])
+        # GET
+        # Retrieve the time for this time zone
+        # PUT (POST instead?)
+        # Update the time zone (e.g. DST status)
+        def update_timezone(tz_id):
+            worker = sqlTableWorker("time_configurations", "id", request, resource_id=tz_id)
+            return worker.perform_request_operation(flask_response=True)
+        
+        @app.route("/speedes/1_0/timezones/<int:tz_id>/delete", methods=['DELETE'])
+        # GET
+        # Retrieve the time for this time zone
+        # PUT (POST instead?)
+        # Update the time zone (e.g. DST status)
+        def delete_timezone(tz_id):
             worker = sqlTableWorker("time_configurations", "id", request, resource_id=tz_id)
             return worker.perform_request_operation(flask_response=True)
             
         # --------------- RETAIL CUSTOMERS --------------------
 
-        @app.route("/speedes/1_0/customers", methods=['GET', 'POST'])
+        @app.route("/speedes/1_0/customers", methods=['GET'])
         # GET
-        # Retrieve list of customers
-        # POST
-        # Add a new customer
-        def all_customers():
+        # Retrieve list of all customers
+        def get_all_customers():
             worker = sqlTableWorker("retail_customers", "id", request, resource_id=None)
             return worker.perform_request_operation(flask_response=True)
-
-            
-        @app.route("/speedes/1_0/customers/<int:cust_id>", methods=['GET', 'POST', 'DELETE'])
+        
+        @app.route("/speedes/1_0/customers/add", methods=['POST'])
+        # POST
+        # Add a new customer
+        def add_customer():
+            worker = sqlTableWorker("retail_customers", "id", request, resource_id=None)
+            return worker.perform_request_operation(flask_response=True)
+        
+        @app.route("/speedes/1_0/customers/<int:cust_id>", methods=['GET'])
         # GET
         # Retrieve the customer info
         # PUT (POST instead?)
         # Update the customer
-        def specific_customers(cust_id):
+        def get_customer(cust_id):
+            worker = sqlTableWorker("retail_customers", "id", request, resource_id=cust_id)
+            return worker.perform_request_operation(flask_response=True)
+            
+        @app.route("/speedes/1_0/customers/<int:cust_id>/update", methods=['POST'])
+        # GET
+        # Retrieve the customer info
+        # PUT (POST instead?)
+        # Update the customer
+        def update_customer(cust_id):
+            worker = sqlTableWorker("retail_customers", "id", request, resource_id=cust_id)
+            return worker.perform_request_operation(flask_response=True)
+        
+        @app.route("/speedes/1_0/customers/<int:cust_id>/delete", methods=['DELETE'])
+        # GET
+        # Retrieve the customer info
+        # PUT (POST instead?)
+        # Update the customer
+        def update_customer(cust_id):
             worker = sqlTableWorker("retail_customers", "id", request, resource_id=cust_id)
             return worker.perform_request_operation(flask_response=True)
             
@@ -113,61 +160,60 @@ def init_app():
         # TODO Rename to meters?
         # "Logical point on a network at which consumption or production is either 
         # physically measured (e.g., metered) or estimated (e.g., unmetered street lights)."
-        @app.route("/speedes/1_0/usagePoints", methods=['GET', 'POST'])
-        def usage_points():
+        @app.route("/speedes/1_0/usagePoints", methods=['GET'])
+        def get_all_usage_points():
             #worker = sqlTableWorker("service_delivery_points", "id", request, resource_id=None)
             #return worker.perform_request_operation()
-            if request.method == 'GET':
-                # Should we also include serviceDeliveryPoints here, or only for specific meters?
-                # Makes most sense as specific meters but wait to see use case to confirm
-                results = msq.query("SELECT * FROM usage_points;")
-                # Format to JSON
-                if results == []:
-                    abort(404) # Resource not found, does not exist
-                return results.to_json(orient="records")
+            # Should we also include serviceDeliveryPoints here, or only for specific meters?
+            # Makes most sense as specific meters but wait to see use case to confirm
+            results = msq.query("SELECT * FROM usage_points;")
+            # Format to JSON
+            if results == []:
+                abort(404) # Resource not found, does not exist
+            return results.to_json(orient="records")
             
-            elif request.method == "POST":
-                table = "service_delivery_points"
-                #cols = get_cols_in_table(table)
-                # Add a new point
-                # First things first: we need a serviceDeliveryPoint entry for the usagePoint
-                # The same SDP can be used by many usagePoints, so check if it exists first
-                sdp_id = request.values.get("id")
-                sdp_results = msq.query("SELECT COUNT(id) FROM service_delivery_points WHERE id = %s", sdp_id)
-                if sdp_results.empty: # The ID doesn't exist yet
-                    try:
-                        sdp_name = str(request.values.get("sdp_name"))
-                        sdp_tariffProfile = str(request.values.get("sdp_tariffProfile"))
-                        sdp_customerAgreement = str(request.values.get("sdp_customerAgreement"))
-                        # Add to database
-                        record = (sdp_id, sdp_customerAgreement, sdp_name, sdp_tariffProfile)
-                        status = msq.insert_MySQL(record, table)
-                    except:
-                        # Is this a risk to be concerned about? A user of the API could potentially try to
-                        # add usage points to see if SDPs exist yet by checking the responses.
-                        print("This usagePoint needs sdp_name, sdp_tariffProfile, and sdp_customerAgreement fields supplied.")
-                    if status != "Success": # We failed to add the usagePoint's SDP
-                        print(status)
-                        abort(500) # For now. I think there's a better error code for this though
-                    else:
-                        pass # All is well, SDP exists. Explicit continue.
-                # SDP exists for this usagePoint. 
-                # This table ALSO needs a localTimeParameters_id, sourced from time_configurations
-                # AND a retail_customers_id from retail_customers.
-                # (and a subscription_id, but that's temporarily dropped as a constraint)
-                # For now, we're assuming these already exist, but TODO:
-                # find out whether that assumption is reasonable or not.
-                # Add the usagePoint to the database.
-                table = "usage_points"
-                cols = get_cols_in_table(table)
-                record = build_record(cols, "id", "usagePoints/", request)
-                if False not in check_types(record, table):
+        @app.route("/speedes/1_0/usagePoints/add", methods=['POST'])
+        def add_usage_point():
+            table = "service_delivery_points"
+            # Add a new point
+            # First things first: we need a serviceDeliveryPoint entry for the usagePoint
+            # The same SDP can be used by many usagePoints, so check if it exists first
+            sdp_id = request.values.get("id")
+            sdp_results = msq.query("SELECT COUNT(id) FROM service_delivery_points WHERE id = %s", sdp_id)
+            if sdp_results.empty: # The ID doesn't exist yet
+                try:
+                    sdp_name = str(request.values.get("sdp_name"))
+                    sdp_tariffProfile = str(request.values.get("sdp_tariffProfile"))
+                    sdp_customerAgreement = str(request.values.get("sdp_customerAgreement"))
+                    # Add to database
+                    record = (sdp_id, sdp_customerAgreement, sdp_name, sdp_tariffProfile)
                     status = msq.insert_MySQL(record, table)
+                except:
+                    # Is this a risk to be concerned about? A user of the API could potentially try to
+                    # add usage points to see if SDPs exist yet by checking the responses.
+                    print("This usagePoint needs sdp_name, sdp_tariffProfile, and sdp_customerAgreement fields supplied.")
+                if status != "Success": # We failed to add the usagePoint's SDP
+                    print(status)
+                    abort(500) # For now. I think there's a better error code for this though
                 else:
-                    status = "Cannot insert: invalid data type"
-                    return {'status':status}, 400, {'Content-Type': 'application/json'}
-                # Format status and return
-                return {'status':status}, 201, {'Content-Type': 'application/json'}
+                    pass # All is well, SDP exists. Explicit continue.
+            # SDP exists for this usagePoint. 
+            # This table ALSO needs a localTimeParameters_id, sourced from time_configurations
+            # AND a retail_customers_id from retail_customers.
+            # (and a subscription_id, but that's temporarily dropped as a constraint)
+            # For now, we're assuming these already exist, but TODO:
+            # find out whether that assumption is reasonable or not.
+            # Add the usagePoint to the database.
+            table = "usage_points"
+            cols = get_cols_in_table(table)
+            record = build_record(cols, "id", "usagePoints/", request)
+            if False not in check_types(record, table):
+                status = msq.insert_MySQL(record, table)
+            else:
+                status = "Cannot insert: invalid data type"
+                return {'status':status}, 400, {'Content-Type': 'application/json'}
+            # Format status and return
+            return {'status':status}, 201, {'Content-Type': 'application/json'}
             
             
         @app.route("/speedes/1_0/usagePoints/<usp_id>", methods=['GET', 'POST', 'DELETE'])

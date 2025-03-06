@@ -10,22 +10,22 @@ def init_app():
         # By default, a route only answers to GET requests.
             
         @app.route("/speedes/1_0/customers", methods=['GET'])
-        def list_customers():
+        def get_all_customers():
             data = read_json("mockData/customerMockData.json")
             return data
         
         @app.route("/speedes/1_0/meters", methods=['GET'])
-        def list_meters():
+        def get_all_meters():
             data = read_json("mockData/electricMeters.json")
             return data
         
         @app.route("/speedes/1_0/users", methods=["GET"])
-        def list_users():
+        def get_all_users():
             data = read_json("mockData/users.json")
             return data
 
         @app.route("/speedes/1_0/energy/<building_id>", methods=["GET"])
-        def list_energy_records(building_id):
+        def get_all_energy_records(building_id):
             data = read_json(f"mockData/building-{building_id}-data.json")
             return data
         
