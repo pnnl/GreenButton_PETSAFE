@@ -31,6 +31,7 @@ def init_app():
 
         # Metering data- exact format subject to change at the moment, but this is the endpoint for a specific building's data
         # (temporarily returning the pre-import data from file; what parameters do you want to keep?)
+        # TODO: handling multiple meters for one building instead of just the main line meter
         @app.route("/speedes/1_0/energy/<building_id>", methods=["GET"])
         def get_all_energy_records(building_id):
             data = read_json(f"mockData/building-{building_id}-data.json")
