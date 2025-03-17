@@ -1,5 +1,9 @@
 from flask import Flask
 
+# IF INTEGRATING ENDPOINTS: please see /api/apitest_init.py
+# This file should mirror the eventual endpoints, but does not
+# require the backend to function.
+
 # Run the app and define its routing
 def init_app():
     app = Flask(__name__) # instance_relative_config=False
