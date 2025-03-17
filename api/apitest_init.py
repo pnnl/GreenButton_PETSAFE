@@ -9,25 +9,53 @@ def init_app():
     with app.app_context():
         # By default, a route only answers to GET requests.
             
+        # Mimics customerMockData.json
         @app.route("/speedes/1_0/customers", methods=['GET'])
         def get_all_customers():
             data = read_json("mockData/customerMockData.json")
             return data
         
+        # Mimics electricMeters.json
         @app.route("/speedes/1_0/meters", methods=['GET'])
         def get_all_meters():
             data = read_json("mockData/electricMeters.json")
             return data
         
+        # Mimics users.json
+        # Should this be merged into customer return, or are users sufficiently distinct from customers
+        # to need their own endpoint?
         @app.route("/speedes/1_0/users", methods=["GET"])
         def get_all_users():
             data = read_json("mockData/users.json")
             return data
 
+        # Metering data- exact format subject to change at the moment, but this is the endpoint for a specific building's data
+        # (temporarily returning the pre-import data from file; what parameters do you want to keep?)
         @app.route("/speedes/1_0/energy/<building_id>", methods=["GET"])
         def get_all_energy_records(building_id):
             data = read_json(f"mockData/building-{building_id}-data.json")
             return data
+        
+        # To be added (please let me know if any of these are unnecessary-
+        # I can also merge actions into a single endpoint and go by HTTP request type
+        # if that's preferred):
+
+        # CUSTOMERS
+        # /speedes/1_0/customers/<customer_id> : returns a specific customer
+        # /speedes/1_0/customers/add : add a new customer (POST)
+        # /speedes/1_0/customers/<customer_id>/update : update existing customer records (POST)
+        # /speedes/1_0/customers/<customer_id>/delete : delete existing customer (DELETE)
+
+        # BUILDINGS
+        # /speedes/1_0/buildings/<id> : return metadata about buildings (component meters, address, etc)
+
+        # METERS
+        # /speedes/1_0/meters/add : add a meter (POST)
+        # /speedes/1_0/meters/update : update a meter (POST)
+        # speedes/1_0/meters/delete : delete a meter (DELETE)
+
+        # TIMEZONES? - I do have temporary routes for modifying timezones, though I expect this will be automated
+        # such that there doesn't need to be an endpoint- please let me know if I'm wrong and access is needed
         
 
     return app

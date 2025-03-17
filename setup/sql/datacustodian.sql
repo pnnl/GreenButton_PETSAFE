@@ -770,7 +770,7 @@ CREATE TABLE `relatonships` (
   `uuid` varchar(255) NOT NULL,
   `meter_id` bigint(20) DEFAULT NULL,
   `premise_id` bigint(20) DEFAULT NULL,
-  `customer_id` bigint(20) DEFAULT NULL
+  `customer_id` bigint(20) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `UK_uuid_relationships` (`uuid`),
   CONSTRAINT `FK_rel_meter_id` FOREIGN KEY (`meter_id`) REFERENCES `usage_points` (`id`),
