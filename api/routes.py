@@ -125,6 +125,7 @@ def get_all_users():
             status, login = login_worker.view_record(cust_id)
             if len(login) == 1:
                 login = login[0]
+                del login["password"]
                 # Change customer_id to id to match customer dict for future merging
                 login["id"] = login.pop("customer_id")
             else:
@@ -146,7 +147,7 @@ def get_all_users():
             users.append(user)
         except Exception as ex:
             print(f"Could not append login to output JSON for customer {cust_id}: {ex}")
-    return  Response({"Users": users}, status=200, mimetype='application/json')
+    return Response({"Users": users}, status=200, mimetype='application/json')
 
 
 @endpoints.route("/customers", methods=['GET'])
