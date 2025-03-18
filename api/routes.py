@@ -1,9 +1,9 @@
-from flask import jsonify, request, abort, Blueprint
+from flask import jsonify, request, abort, Blueprint, Response
 from database_config import *
 import influx_database as idb
 import mysql_database as msq
 from validity_tests import *
-from modify_tables import sqlTableWorker
+from modify_tables import sqlTableWorker, combine_dict
 from dct_backend import retrieve_site_data
 
 # Define column names to hide when retrieving data
@@ -102,6 +102,52 @@ def delete_timezone(tz_id):
     return worker.perform_request_operation(flask_response=True)
             
 # --------------- RETAIL CUSTOMERS --------------------
+
+# TODO: needs testing
+@endpoints.route("/users", methods=['GET'])
+def get_all_users():
+    # User data is spread across two tables: retail_customers and logins
+    # (possibly four? relationships -> addresses)
+    status, customers = sqlTableWorker("retail_customers", "id", request, resource_id=None).view_table()
+    # Will hold IDs of customers referenced by logins from table IDs
+    customer_ids = []
+    # Only customers with fields needed for user output
+    user_customers = []
+    for customer in customers:
+        customer_ids.append(customer["id"])
+        cleaned_customer = {k: customer[k] for k in ('first_name', 'last_name', 'accountNumber', 'email', 'phone_number', 'role')}
+        user_customers.append(cleaned_customer)
+    # Get login details of these customers by id
+    login_worker = sqlTableWorker("logins", "id", request, resource_id=None)
+    logins = [] # Will be a list of dicts
+    for cust_id in customer_ids:
+        try:
+            status, login = login_worker.view_record(cust_id)
+            if len(login) == 1:
+                login = login[0]
+                # Change customer_id to id to match customer dict for future merging
+                login["id"] = login.pop("customer_id")
+            else:
+                raise Exception # We should never have duplicate customer IDs returned
+            logins.append(login)
+            if status != 200:
+                raise Exception # TODO: find a more specific exception?
+        except Exception as ex:
+            print(f"Cannot retrieve login for ID {cust_id}: {ex}")
+    # Combine cleaned customer dicts with login dicts
+    users = [] # Will be a list of dicts
+    for cust_id in customer_ids:
+        try:
+            # Get customer matching ID
+            user_customer = next((item for item in user_customers if item["id"] == cust_id), False)
+            # Get login matching ID
+            user_login = next((item for item in logins if item["id"] == cust_id), False)
+            user = combine_dict(user_login, user_customer)
+            users.append(user)
+        except Exception as ex:
+            print(f"Could not append login to output JSON for customer {cust_id}: {ex}")
+    return  Response({"Users": users}, status=200, mimetype='application/json')
+
 
 @endpoints.route("/customers", methods=['GET'])
 # GET

@@ -591,6 +591,7 @@ CREATE TABLE `retail_customers` (
   `enabled` bit(1) NOT NULL,
   `first_name` varchar(30) NOT NULL,
   `last_name` varchar(30) NOT NULL,
+  `full_name` varchar(40) DEFAULT NULL,
   `accountNumber` varchar(255) NOT NULL,
   `phone_number` varchar(20) DEFAULT NULL, /* Will need validation of format */
   `email` varchar(25) DEFAULT NULL, /* Will need validation of format / existence */
