@@ -104,7 +104,7 @@ def delete_timezone(tz_id):
 # --------------- RETAIL CUSTOMERS --------------------
 
 # TODO: needs testing
-# TODO: needs address
+# TODO: needs mailing address
 @endpoints.route("/users", methods=['GET'])
 def get_all_users():
     # User data is spread across two tables: retail_customers and logins
