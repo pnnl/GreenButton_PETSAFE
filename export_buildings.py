@@ -6,18 +6,19 @@ import datetime
 from json import dumps, JSONEncoder
 from shutil import make_archive, rmtree
 
-from list_files import list_files_in_dir
+from building_aggregation.list_files import list_files_in_dir
 
 # Variables for controlling exports; change as needed
 buildings_to_export = range(0, 30)
 start_date = "2023-01-01"
-end_date = "2023-12-31"
+end_date = "2023-01-28"
 privacy_tag = "raw"
 
 # Path variables
 # Ensure read_dir and export_dir end with slashes
 read_dir = "output/buildings/"
-export_dir = "application/import-to-database/"
+export_dir = "output/building-month-slices/"
+filename_prefix = "jan"
 
 
 # subclass JSONEncoder
@@ -75,9 +76,15 @@ def export_simple_csv(building_data, export_path):
 
 # Export straight to JSON, no modification
 # Record orientation for human comprehension
-def export_simple_json(building_data, meter_type, export_path, tag):
+def export_simple_json(
+        building_data, 
+        #meter_type, 
+        export_path,
+        tag
+        ):
     # Tag the data
-    building_data["privacy"] = tag
+    #building_data["privacy"] = tag
+    #building_data["meter_type"] = meter_type
     building_data = building_data.drop(["duration"], axis=1)
     # Export the building to CSV
     if exists(export_path):
@@ -86,7 +93,6 @@ def export_simple_json(building_data, meter_type, export_path, tag):
         mode = "w"
     with open(export_path, mode) as outfile:
             building_data = building_data.reset_index()
-            building_data["meter_type"] = meter_type
             building_data = building_data.rename(columns={"building_id": "meter_id"})
             building_data.to_json(outfile, indent=4, orient='records')
     print("Done.")
@@ -95,8 +101,10 @@ def export_simple_json(building_data, meter_type, export_path, tag):
 def export_json_metadata(
         metadata: dict, 
         export_dir: str,
-        tag: str
+        tag: str,
+        meter_type: str
         ):
+    metadata["meter_type"] = meter_type
     metadata["privacy"] = tag
     bid = metadata["building_id"]
     if isinstance(metadata, dict):
@@ -142,12 +150,12 @@ def main():
         building_data = select_building(buildings, id)
         building_data = select_dates(building_data, start_date, end_date)
         metadata, building_data = extract_metadata(building_data, start_date, end_date)
-        export_json_metadata(metadata, export_dir + "data/", tag=privacy_tag)
+        export_json_metadata(metadata, export_dir + "data/", tag=privacy_tag, meter_type="aggregate")
         #export_simple_csv(building_data, export_path)
-        export_simple_json(building_data, "aggregate", export_path, tag=privacy_tag)
+        export_simple_json(building_data=building_data, export_path=export_path, tag=privacy_tag)
     
     # Zip up the results
-    make_archive(export_dir + today + "-" + privacy_tag, 'zip', export_dir + "/data")
+    make_archive(export_dir + filename_prefix + "-" + today + "-" + privacy_tag, 'zip', export_dir + "/data")
 
     # Delete the WIP zipfile directory; no longer needed
     rmtree(export_dir + "data")

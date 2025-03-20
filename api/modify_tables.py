@@ -219,7 +219,7 @@ class sqlTableWorker:
         # https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#pbkdf2
         # NIST FIPS-140; pbkdf2 is used here; TODO check iteration count for final. Temp value for testing is small.
         value = crypt(value, iterations=6000)
-        # TODO: Supposedly it uses a salt by default. Supposedly. Check the repo and make sure of that.
+        # TODO: Confirmed salt can be generated or supplied. Supply one to ensure reproducability.
         return value
     
     # Prepare a record to be inserted into a table
