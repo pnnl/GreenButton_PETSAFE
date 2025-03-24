@@ -1,6 +1,6 @@
 from typing import Optional
 from uuid import uuid5, NAMESPACE_URL
-from pbkdf2 import crypt
+import argon2 as a2
 from datetime import datetime as dt
 import pandas as pd
 from flask import Response
@@ -216,11 +216,36 @@ class sqlTableWorker:
     # <- value: the value to hash
     # -> value: the value, hashed with pbkdf2.
     def hash_value(self, value):
-        # https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#pbkdf2
-        # NIST FIPS-140; pbkdf2 is used here; TODO check iteration count for final. Temp value for testing is small.
-        value = crypt(value, iterations=6000)
-        # TODO: Confirmed salt can be generated or supplied. Supply one to ensure reproducability.
+        # Argon2id is used for hashing - see https://argon2-cffi.readthedocs.io/en/stable/
+        value = a2.hash(value)
         return value
+    
+    def check_password(self, user_id, password):
+        # Sanity check that we can actually get to the login table
+        if self.table != "logins":
+            print("Worker must be attached to logins table to verify.")
+            return False
+        # Get the hash for the specified user
+        try:
+            results = msq.query(f"SELECT password FROM {self.table} WHERE id = %s;", (user_id,))
+            if isinstance(results, pd.DataFrame): # Ensure that we only have one row!
+                # Ensure we only have one row- one password per user. Otherwise, raise an exception to complain.
+                if results.shape[0] != 1:
+                    raise Exception # TODO Find something more specific
+                # Get the hash for the specified user
+                hash = results["password"].iloc[0]
+            else: # Something went wrong with our SQL query
+                print("Password not found.")
+                return False
+        except Exception as ex:
+            print("Could not retrieve hashed password:", ex)
+        # Verify the entered password against the hash
+        try:
+            a2.verify(hash, password)
+            return True
+        except a2.exceptions.VerifyMismatchError:
+            print("Incorrect password.")
+            return False
     
     # Prepare a record to be inserted into a table
     # <- id_col_name: the name of the table's ID column

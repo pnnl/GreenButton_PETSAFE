@@ -157,6 +157,14 @@ def get_all_users():
 def get_all_customers():
     worker = sqlTableWorker("retail_customers", "id", request, resource_id=None)
     return worker.perform_request_operation(flask_response=True)
+
+@endpoints.route("/hashtest", methods=['GET'])
+# GET
+# Retrieve list of all customers
+def test_hash():
+    hash = hash_value("testpass")
+    print(hash)
+    return {"Hash": hash}
         
 @endpoints.route("/customers/add", methods=['POST'])
 # POST
