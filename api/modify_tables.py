@@ -216,11 +216,13 @@ class sqlTableWorker:
     # <- value: the value to hash
     # -> value: the value, hashed with pbkdf2.
     def hash_value(self, value):
+        hasher = a2.PasswordHasher()
         # Argon2id is used for hashing - see https://argon2-cffi.readthedocs.io/en/stable/
-        value = a2.hash(value)
+        value = hasher.hash(value)
         return value
     
     def check_password(self, user_id, password):
+        hasher = a2.PasswordHasher()
         # Sanity check that we can actually get to the login table
         if self.table != "logins":
             print("Worker must be attached to logins table to verify.")
@@ -241,7 +243,8 @@ class sqlTableWorker:
             print("Could not retrieve hashed password:", ex)
         # Verify the entered password against the hash
         try:
-            a2.verify(hash, password)
+            hasher.verify(hash, password)
+            # TODO: Check if rehash is needed and rehash (then store rehashed) if necessary
             return True
         except a2.exceptions.VerifyMismatchError:
             print("Incorrect password.")
