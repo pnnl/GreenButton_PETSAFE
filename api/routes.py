@@ -150,7 +150,7 @@ def get_all_users():
             print(f"Could not append login to output JSON for customer {cust_id}: {ex}")
     return Response({"Users": users}, status=200, mimetype='application/json')
 
-@endpoints.route("/speedes/1_0/users/<user_id>/login", methods=["POST"])
+@endpoints.route("/speedes/1_0/login", methods=["POST"])
 # POST
 # Validate whether a user's password is correct
 # Takes user_id (specified in URL) and entered password (POSTed)
