@@ -243,8 +243,6 @@ CREATE TABLE `meter_readings` (
 --
 -- Table structure for table `addresses`
 --
-
-DROP TABLE IF EXISTS `meter_addresses`;
 DROP TABLE IF EXISTS `addresses`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
@@ -637,7 +635,9 @@ CREATE TABLE `retail_customers` (
   `phone_number` varchar(20) DEFAULT NULL, /* Will need validation of format */
   `email` varchar(25) DEFAULT NULL, /* Will need validation of format / existence */
   `role` varchar(255) NOT NULL,
-  PRIMARY KEY (`id`)
+  'address_id' bigint(20) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  CONSTRAINT `address_id` FOREIGN KEY (`address_id`) REFERENCES `addresses` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=0 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
