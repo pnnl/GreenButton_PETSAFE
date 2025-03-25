@@ -48,7 +48,10 @@ class sqlTableWorker:
     # Requires opening a connection to use escape_string()
     # <- string: the string to escape
     # -> escaped_str or None: the string, post-escaping
-    def escape_string(self, string):
+    def escape_string(
+            self, 
+            string: str
+            ):
         if isinstance(string, str):
             conn = msq.connect_DB()
             # Backticks are not covered by escape_string
@@ -147,7 +150,10 @@ class sqlTableWorker:
     # -> record: the record, with nonexistent columns and corresponding data removed
     # TODO: does the user need more feedback to avoid data loss on insertion typos?
     # (TODO: this may be an information leak vector; adjust to True/False?)
-    def __check_against_columns(self, record: dict):
+    def __check_against_columns(
+            self, 
+            record: dict
+            ):
         # Get the list of valid columns for the table
         keys = record.keys()
         # Detect invalid columns
@@ -176,7 +182,10 @@ class sqlTableWorker:
     # "key": True means the type is correct for the "key" column,
     # "key": False means the type is incorrect for the "key" column
     # TODO: attempt to coerce types, yes or no?
-    def __check_types(self, record):
+    def __check_types(
+            self, 
+            record: tuple # Or list, or set, or other iterable
+            ):
         print("WARNING: the function this relies on is not fully implemented (msq.convert_to_python_types()), use at your own risk!")
     # Assumption: all columns are filled in the record prior to reaching this function
     # Retrieve the types of the table's columns and validate
@@ -203,7 +212,10 @@ class sqlTableWorker:
                 match[types[i]] = True # Types match, good to go
         return match
 
-    def __check_if_in_table(self, resource_id):
+    def __check_if_in_table(
+            self, 
+            resource_id: int
+            ):
         record_exists, status = self.view_record(resource_id)
         #print(record_exists, status)
         if status != 404:
@@ -215,18 +227,31 @@ class sqlTableWorker:
     # Used to protect data before it's stored in the database (passwords)
     # <- value: the value to hash
     # -> value: the value, hashed with pbkdf2.
-    def hash_value(self, value):
+    @staticmethod
+    def hash_value(
+        value: str
+        ):
         hasher = a2.PasswordHasher()
         # Argon2id is used for hashing - see https://argon2-cffi.readthedocs.io/en/stable/
         value = hasher.hash(value)
         return value
     
-    def check_password(self, user_id, password):
+    # Check whether an entered password matches the password in the database
+    # Also rehashes the password if needed (e.g. password hash mechanism has changed)
+    # Requires worker to be attached to the logins table
+    # <- user_id: the id of the user to check against
+    # <- password: the entered password to test
+    # -> int, bool: the HTTP status code and whether the password matches
+    def check_password(
+            self, 
+            user_id: int, 
+            password: str
+            ):
         hasher = a2.PasswordHasher()
         # Sanity check that we can actually get to the login table
         if self.table != "logins":
             print("Worker must be attached to logins table to verify.")
-            return False
+            return 500, False # Server error; API code is the problem
         # Get the hash for the specified user
         try:
             results = msq.query(f"SELECT password FROM {self.table} WHERE id = %s;", (user_id,))
@@ -238,17 +263,23 @@ class sqlTableWorker:
                 hash = results["password"].iloc[0]
             else: # Something went wrong with our SQL query
                 print("Password not found.")
-                return False
+                return 404, False # For now? Break this into server error vs not existing
         except Exception as ex:
             print("Could not retrieve hashed password:", ex)
         # Verify the entered password against the hash
         try:
             hasher.verify(hash, password)
             # TODO: Check if rehash is needed and rehash (then store rehashed) if necessary
-            return True
+            if hasher.check_needs_rehash(password):
+                new_hash = hasher.hash(password)
+                status, updated_row = self.update_record(user_id, {"password": new_hash})
+            return 200, True
         except a2.exceptions.VerifyMismatchError:
             print("Incorrect password.")
-            return False
+            return 401, False # User error, password is incorrect; 401? 400?
+        except Exception as ex:
+            print("Could not verify password:", ex)
+            return 500, False # Server error
     
     # Prepare a record to be inserted into a table
     # <- id_col_name: the name of the table's ID column

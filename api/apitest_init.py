@@ -28,6 +28,18 @@ def init_app():
         def get_all_users():
             data = read_json("mockData/users.json")
             return data
+        
+        # Validate whether a user's password is correct
+        # Takes user_id (specified in URL) and entered password (POSTed)
+        # Status True means password matches
+        # Status False means incorrect password
+        # Temporary; returns will likely be adjusted once auth tables are handled
+        # True/false is too easy to fake; auth tokens are a bit harder
+        # Will try to keep inputs the same if possible, but expect outputs may change
+        @app.route("/speedes/1_0/users/<user_id>/login", methods=["POST"])
+        def test_password(user_id, password):
+            # Placeholder; actual API tests against the stored password
+            return {"Password match": True}
 
         # Metering data- exact format subject to change at the moment, but this is the endpoint for a specific building's data
         # (temporarily returning the pre-import data from file; what parameters do you want to keep?)

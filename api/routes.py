@@ -150,6 +150,18 @@ def get_all_users():
             print(f"Could not append login to output JSON for customer {cust_id}: {ex}")
     return Response({"Users": users}, status=200, mimetype='application/json')
 
+@endpoints.route("/speedes/1_0/users/<user_id>/login", methods=["POST"])
+# POST
+# Validate whether a user's password is correct
+# Takes user_id (specified in URL) and entered password (POSTed)
+# Status True means password matches
+# Status False means incorrect password
+# TODO: there has to be a better way to return this that ties into tokens, etc.
+# This is too easy to fake right now
+def test_password(user_id, password):
+    worker = sqlTableWorker("logins", "customer_id", request, resource_id=user_id)
+    statuscode, password_correct = worker.check_password(user_id, password)
+    return Response({"Password match": password_correct}, status=statuscode, mimetype='application/json')
 
 @endpoints.route("/customers", methods=['GET'])
 # GET
@@ -157,14 +169,6 @@ def get_all_users():
 def get_all_customers():
     worker = sqlTableWorker("retail_customers", "id", request, resource_id=None)
     return worker.perform_request_operation(flask_response=True)
-
-@endpoints.route("/hashtest", methods=['GET'])
-# GET
-# Retrieve list of all customers
-def test_hash():
-    hash = hash_value("testpass")
-    print(hash)
-    return {"Hash": hash}
         
 @endpoints.route("/customers/add", methods=['POST'])
 # POST
