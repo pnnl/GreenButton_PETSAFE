@@ -230,9 +230,10 @@ CREATE TABLE `meter_readings` (
   `updated` datetime DEFAULT NULL,
   `uuid` varchar(255) NOT NULL,
   `usage_point_id` bigint(20) DEFAULT NULL,
+  `reading_type_id` bigint(20) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `UK_445adb83af2e4fa4928a31692e4` (`uuid`),
-  /*KEY `FK_67563dc6050e46ba9fcbc86b721` (`reading_type_id`),*/
+  KEY `FK_67563dc6050e46ba9fcbc86b721` (`reading_type_id`),
   KEY `FK_8eaf32259169401e8cae99a5891` (`usage_point_id`),
   CONSTRAINT `FK_8eaf32259169401e8cae99a5891` FOREIGN KEY (`usage_point_id`) REFERENCES `usage_points` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
@@ -620,7 +621,7 @@ DROP TABLE IF EXISTS `retail_customers`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `retail_customers` (
-  `id` bigint(20) NOT NULL AUTO_INCREMENT,
+  `id` bigint(20) NOT NULL,
   `description` varchar(255) DEFAULT NULL,
   `published` datetime DEFAULT NULL,
   `self_link_href` varchar(255) DEFAULT NULL,
@@ -629,7 +630,6 @@ CREATE TABLE `retail_customers` (
   `up_link_rel` varchar(255) DEFAULT NULL,
   `updated` datetime DEFAULT NULL,
   `uuid` varchar(255) NOT NULL,
-  `enabled` bit(1) NOT NULL,
   `first_name` varchar(30) NOT NULL,
   `last_name` varchar(30) NOT NULL,
   `full_name` varchar(40) DEFAULT NULL,
@@ -654,6 +654,7 @@ CREATE TABLE `logins` (
   `up_link_rel` varchar(255) DEFAULT NULL,
   `updated` datetime DEFAULT NULL,
   `uuid` varchar(255) NOT NULL,
+  `enabled` bit(1) NOT NULL,
   `password` varchar(100) NOT NULL, /* Store as salted hash! */
   `username` varchar(30) NOT NULL,
   PRIMARY KEY (`customer_id`),
