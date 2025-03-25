@@ -30,6 +30,8 @@
 # The user to connect with
 user="root"
 
+echo "running from setup"
+
 # Password needs to be in ~/.my.cnf
 
 # drop/create databases 
