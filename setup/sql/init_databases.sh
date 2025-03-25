@@ -29,22 +29,21 @@
 
 # The user to connect with
 user="root"
-# Get the SQL password from environment variables
-# to avoid storing a secret in a repository
-pass=${SQL_PASS}
+
+# Password needs to be in ~/.my.cnf
 
 # drop/create databases 
-mysql --user=${user} --defaults-file=~/.my.cnf < cleandatabases_dc.sql
-mysql --user=${user} --defaults-file=~/.my.cnf < cleandatabases_tp.sql
+mysql --defaults-file=~/.my.cnf --user=${user} < cleandatabases_dc.sql
+mysql --defaults-file=~/.my.cnf --user=${user} < cleandatabases_tp.sql
 
 # create tables 
-mysql --user=${user} --defaults-file=~/.my.cnf < ./thirdparty.sql
-mysql --user=${user} --defaults-file=~/.my.cnf < ./datacustodian.sql
-#mysql --user=${user} --defaults-file=~/.my.cnf < tokenstore.sql
+mysql --defaults-file=~/.my.cnf --user=${user} < ./thirdparty.sql
+mysql --defaults-file=~/.my.cnf --user=${user} < ./datacustodian.sql
+mysql --defaults-file=~/.my.cnf --user=${user} < tokenstore.sql
 
 # prepopulate tables
-mysql --user=${user} --defaults-file=~/.my.cnf < populate_dc_sample_data.sql
+mysql --defaults-file=~/.my.cnf --user=${user} < ./populate_dc_sample_data.sql
 #mysql --user=${user} --defaults-file=~/.my.cnf < prepopulatesql_users_dc.sql
-mysql --user=${user} --defaults-file=~/.my.cnf < prepopulatesql_users_tp.sql
+mysql --defaults-file=~/.my.cnf --user=${user} < ./prepopulatesql_users_tp.sql
 #mysql --user=${user} --defaults-file=~/.my.cnf < prepopulatesql_dc.sql
-mysql --user=${user} --defaults-file=~/.my.cnf < prepopulatesql_tp.sql
+mysql --defaults-file=~/.my.cnf --user=${user} < ./prepopulatesql_tp.sql
