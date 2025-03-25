@@ -759,7 +759,7 @@ CREATE TABLE `addresses` (
 DROP TABLE IF EXISTS `relationships`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `relatonships` (
+CREATE TABLE `relationships` (
   `id` bigint(20) NOT NULL, /* Analagous to PremiseID */
   `description` varchar(255) DEFAULT NULL,
   `published` datetime DEFAULT NULL,

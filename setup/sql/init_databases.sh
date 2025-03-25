@@ -43,7 +43,8 @@ mysql --user=${user} --defaults-file=~/.my.cnf < ./datacustodian.sql
 #mysql --user=${user} --defaults-file=~/.my.cnf < tokenstore.sql
 
 # prepopulate tables
-mysql --user=${user} --defaults-file=~/.my.cnf < prepopulatesql_users_dc.sql
+mysql --user=${user} --defaults-file=~/.my.cnf < populate_dc_sample_data.sql
+#mysql --user=${user} --defaults-file=~/.my.cnf < prepopulatesql_users_dc.sql
 mysql --user=${user} --defaults-file=~/.my.cnf < prepopulatesql_users_tp.sql
-mysql --user=${user} --defaults-file=~/.my.cnf < prepopulatesql_dc.sql
+#mysql --user=${user} --defaults-file=~/.my.cnf < prepopulatesql_dc.sql
 mysql --user=${user} --defaults-file=~/.my.cnf < prepopulatesql_tp.sql
