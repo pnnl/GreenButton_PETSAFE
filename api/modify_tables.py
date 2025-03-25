@@ -272,6 +272,7 @@ class sqlTableWorker:
             # TODO: Check if rehash is needed and rehash (then store rehashed) if necessary
             if hasher.check_needs_rehash(password):
                 new_hash = hasher.hash(password)
+                # TODO: also update "updated" column?
                 status, updated_row = self.update_record(user_id, {"password": new_hash})
             return 200, True
         except a2.exceptions.VerifyMismatchError:
