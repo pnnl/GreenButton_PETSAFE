@@ -2,6 +2,7 @@
 
 Python (3.12.2)
 See requirements.txt for packages in use for this repository.
+For API-specific packages, see /api/requirements.txt.
 
 # API
 
