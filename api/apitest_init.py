@@ -36,7 +36,7 @@ def init_app():
         # Temporary; returns will likely be adjusted once auth tables are handled
         # True/false is too easy to fake; auth tokens are a bit harder
         # Will try to keep inputs the same if possible, but expect outputs may change
-        @app.route("/speedes/1_0/users/<user_id>/login", methods=["POST"])
+        @app.route("/speedes/1_0/login", methods=["POST"])
         def test_password(user_id, password):
             # Placeholder; actual API tests against the stored password
             return {"Password match": True}
