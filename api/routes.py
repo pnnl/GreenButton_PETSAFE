@@ -152,7 +152,15 @@ def get_all_users():
         if formatted_addr == None:
             # Format the address
             addr = {}
-            addr["address"] = customer_address["fullAddress"]
+            addr["address"] = str(customer_address["building"]) + " " + \
+                                str(customer_address["streetPrefix"]) + " " + \
+                                str(customer_address["streetNumber"]) + " " + \
+                                str(customer_address["streetName"]) + " " + \
+                                str(customer_address["streetSuffix"]) #+ " " + \
+                                #str(customer_address["streetType"])+ " " + \
+            addr["addressNumber"] = str(customer_address["houseFractionNumber"]) + " " + \
+                                    str(customer_address["unit"]) + " " + \
+                                    str(customer_address["building"])
             addr["city"] = customer_address["city"]
             addr["state"] = {"code": customer_address["state"], "name": ""} # TODO: handle name lookup or store name
             addr["zip"] = str(customer_address["zipCode"]) + "-" + str(customer_address["zipFour"])
