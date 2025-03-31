@@ -39,6 +39,7 @@ def init_app():
         @app.route("/speedes/1_0/login", methods=["POST"])
         def test_password(user_id, password):
             # Placeholder; actual API tests against the stored password
+            # and returns JWT (TODO: placeholder for that instead of True)
             return {"Password match": True}
 
         # Metering data- exact format subject to change at the moment, but this is the endpoint for a specific building's data

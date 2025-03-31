@@ -635,7 +635,7 @@ CREATE TABLE `retail_customers` (
   `phone_number` varchar(20) DEFAULT NULL, /* Will need validation of format */
   `email` varchar(25) DEFAULT NULL, /* Will need validation of format / existence */
   `role` varchar(255) NOT NULL,
-  `address_id` bigint(20) DEFAULT NULL,
+  `address_id` bigint(20) DEFAULT NULL, /* mailing address reference */
   PRIMARY KEY (`id`),
   CONSTRAINT `address_id` FOREIGN KEY (`address_id`) REFERENCES `addresses` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=0 DEFAULT CHARSET=utf8;

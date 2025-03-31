@@ -247,7 +247,15 @@ class sqlTableWorker:
             user_id: int, 
             password: str
             ):
-        hasher = a2.PasswordHasher()
+        # Check for nonexistent passwords or incorrect types
+        if password == None or not isinstance(password, str) or password.strip() == "":
+            return 400, False # User error; no password provided
+        if not isinstance(user_id, int):
+            try: # TODO Is coercing it the right move?
+                int(user_id)
+            except Exception as ex:
+                print("User ID for password verification is required.")
+                return 400, False
         # Sanity check that we can actually get to the login table
         if self.table != "logins":
             print("Worker must be attached to logins table to verify.")
@@ -266,6 +274,8 @@ class sqlTableWorker:
                 return 404, False # For now? Break this into server error vs not existing
         except Exception as ex:
             print("Could not retrieve hashed password:", ex)
+        # Prep for password verification
+        hasher = a2.PasswordHasher()
         # Verify the entered password against the hash
         try:
             hasher.verify(hash, password)
@@ -281,6 +291,26 @@ class sqlTableWorker:
         except Exception as ex:
             print("Could not verify password:", ex)
             return 500, False # Server error
+        
+    # TODO Currently unused- remove if it remains unused!
+    def run_query(
+            self,
+            query: str,
+            parameters: Optional[tuple] = None
+    ):
+        try:
+            if parameters is not None:
+                # TODO Clean strings?
+                # Run query
+                results = msq.query(query, parameters)
+            else:
+                results = msq.query(query)
+            if isinstance(results, pd.DataFrame): # It SHOULD be, but worth a check
+                results.to_dict(orient="records")
+            return 200, results
+        except Exception as ex:
+            print("Could not query:", ex)
+            return 500, None
     
     # Prepare a record to be inserted into a table
     # <- id_col_name: the name of the table's ID column
@@ -439,7 +469,11 @@ class sqlTableWorker:
     # View a single record of the table
     # <- record_id: the ID of the record to return
     # -> the record or an HTTP error code
-    def view_record(self, record_id):
+    def view_record(
+            self, 
+            record_id: int,
+            return_as_json: Optional[bool] = True
+            ):
         try:
             table = self.table
             # TODO: don't ask for sensitive columns in the first place
@@ -461,15 +495,17 @@ class sqlTableWorker:
             print("Could not coerce to DataFrame or remove sensitive columns:", ex)
             return 500, "Server error"
         # Format to JSON
-        if isinstance(results, pd.DataFrame):
+        if isinstance(results, pd.DataFrame) and return_as_json == True:
             try:
                 results = results.to_json(orient="records")
                 return 200, results
             except Exception as ex:
                 print("Could not coerce to JSON:", ex)
                 return 200, results
+        elif isinstance(results, pd.DataFrame):
+            return 200, results
         elif isinstance(results, str):
-            return ("Record:", results)
+            return 200, ("Record:", results)
         else:
             print("Cannot return record; wrong data type.")
             return 500, "Server error"

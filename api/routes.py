@@ -113,13 +113,19 @@ def get_all_users():
     # Will hold IDs of customers referenced by logins from table IDs
     customer_ids = []
     # Only customers with fields needed for user output
-    user_customers = []
+    user_customers = {}
     for customer in customers:
-        customer_ids.append(customer["id"])
+        cust_id = customer["id"]
+        customer_ids.append(cust_id)
         cleaned_customer = {k: customer[k] for k in ('first_name', 'last_name', 'accountNumber', 'email', 'phone_number', 'role')}
-        user_customers.append(cleaned_customer)
+        user_customers[cust_id] = cleaned_customer
     # Get login details of these customers by id
-    login_worker = sqlTableWorker("logins", "id", request, resource_id=None)
+    login_worker = sqlTableWorker("logins", "customer_id", request, resource_id=None)
+    logins = {} # Will be a dict of dicts
+    # Will be used to retrieve mailing addresses
+    address_table = "addresses"
+    address_worker = sqlTableWorker(address_table, "id", request, resource_id=None)
+    addresses = []
     logins = [] # Will be a list of dicts
     for cust_id in customer_ids:
         try:
@@ -131,19 +137,34 @@ def get_all_users():
                 login["id"] = login.pop("customer_id")
             else:
                 raise Exception # We should never have duplicate customer IDs returned
-            logins.append(login)
+            logins[cust_id] = login
             if status != 200:
                 raise Exception # TODO: find a more specific exception?
         except Exception as ex:
             print(f"Cannot retrieve login for ID {cust_id}: {ex}")
+        # Get mailing address from addresses
+        # description == "mailing", referenced in retail_customers
+        customer_addr_id = user_customers[cust_id]["address_id"]
+        customer_address = address_worker.view_record(customer_addr_id, return_as_json=False).iloc[0]
+        formatted_addr = customer_address["fullAddress"]
+        # TODO: format address first!
+        # TODO: move to format_addr function for reuse as needed
+        if formatted_addr == None:
+            # Format the address
+            addr = {}
+            addr["address"] = customer_address["fullAddress"]
+            addr["city"] = customer_address["city"]
+            addr["state"] = {"code": customer_address["state"], "name": ""} # TODO: handle name lookup or store name
+            addr["zip"] = str(customer_address["zipCode"]) + "-" + str(customer_address["zipFour"])
+        user_customers[cust_id]["address"] = formatted_addr
     # Combine cleaned customer dicts with login dicts
-    users = [] # Will be a list of dicts
+    users = [] # Will be a list of dicts; TODO dict of dicts?
     for cust_id in customer_ids:
         try:
             # Get customer matching ID
-            user_customer = next((item for item in user_customers if item["id"] == cust_id), False)
+            user_customer = user_customers[cust_id]
             # Get login matching ID
-            user_login = next((item for item in logins if item["id"] == cust_id), False)
+            user_login = logins[cust_id]
             user = combine_dict(user_login, user_customer)
             users.append(user)
         except Exception as ex:
@@ -156,8 +177,7 @@ def get_all_users():
 # Takes user_id (specified in URL) and entered password (POSTed)
 # Status True means password matches
 # Status False means incorrect password
-# TODO: there has to be a better way to return this that ties into tokens, etc.
-# This is too easy to fake right now
+# TODO: tie this into JWT
 def test_password(user_id, password):
     worker = sqlTableWorker("logins", "customer_id", request, resource_id=user_id)
     statuscode, password_correct = worker.check_password(user_id, password)
@@ -197,7 +217,6 @@ def delete_customer(cust_id):
     return worker.perform_request_operation(flask_response=True)
             
 # --------------- SERVICE DELIVERY AND USAGE POINTS -------------------
-# TODO Rename to meters?
 # "Logical point on a network at which consumption or production is either 
 # physically measured (e.g., metered) or estimated (e.g., unmetered street lights)."
 @endpoints.route("/meters", methods=['GET'])
