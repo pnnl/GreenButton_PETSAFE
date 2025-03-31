@@ -3,16 +3,17 @@ from database_config import *
 import influx_database as idb
 import mysql_database as msq
 from validity_tests import *
-from modify_tables import sqlTableWorker, combine_dict
+from sqlWorkerClass import sqlTableWorker
+from common_functions import *
 from dct_backend import retrieve_site_data
 
 # Define column names to hide when retrieving data
 sensitive_columns = ["first_name", "last_name", "password"]
+# Versioning information for the API
+prefix = '/speedes/1_0'
 
 # All routes in this blueprint
 endpoints = Blueprint('api_routing', __name__, template_folder='templates')
-
-prefix = '/speedes/1_0'
 
 @endpoints.route('/')
 def get_index():
@@ -146,25 +147,7 @@ def get_all_users():
         # description == "mailing", referenced in retail_customers
         customer_addr_id = user_customers[cust_id]["address_id"]
         customer_address = address_worker.view_record(customer_addr_id, return_as_json=False).iloc[0]
-        formatted_addr = customer_address["fullAddress"]
-        # TODO: format address first!
-        # TODO: move to format_addr function for reuse as needed
-        if formatted_addr == None:
-            # Format the address
-            addr = {}
-            addr["address"] = str(customer_address["building"]) + " " + \
-                                str(customer_address["streetPrefix"]) + " " + \
-                                str(customer_address["streetNumber"]) + " " + \
-                                str(customer_address["streetName"]) + " " + \
-                                str(customer_address["streetSuffix"]) #+ " " + \
-                                #str(customer_address["streetType"])+ " " + \
-            addr["addressNumber"] = str(customer_address["houseFractionNumber"]) + " " + \
-                                    str(customer_address["unit"]) + " " + \
-                                    str(customer_address["building"])
-            addr["city"] = customer_address["city"]
-            addr["state"] = {"code": customer_address["state"], "name": ""} # TODO: handle name lookup or store name
-            addr["zip"] = str(customer_address["zipCode"]) + "-" + str(customer_address["zipFour"])
-        user_customers[cust_id]["address"] = formatted_addr
+        user_customers[cust_id]["address"] = build_address(customer_address)
     # Combine cleaned customer dicts with login dicts
     users = [] # Will be a list of dicts; TODO dict of dicts?
     for cust_id in customer_ids:

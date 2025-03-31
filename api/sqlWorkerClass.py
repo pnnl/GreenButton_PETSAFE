@@ -8,12 +8,6 @@ from flask import Response
 from database_config import *
 import mysql_database as msq
 
-def combine_dict(d1, d2):
-    return {
-        k: tuple(d[k] for d in (d1, d2) if k in d)
-        for k in set(d1.keys()) | set(d2.keys())
-    }
-
 # TODO: Check the size of data before passing it to MySQL.
 
 # Perform operations on a MySQL table's data; read, write, delete, etc.
