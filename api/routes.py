@@ -162,6 +162,10 @@ def get_all_users():
             print(f"Could not append login to output JSON for customer {cust_id}: {ex}")
     return Response({"Users": users}, status=200, mimetype='application/json')
 
+# TODO: add address to customer
+# TODO: modify address
+# TODO: delete address
+
 @endpoints.route("/speedes/1_0/login", methods=["POST"])
 # POST
 # Validate whether a user's password is correct
