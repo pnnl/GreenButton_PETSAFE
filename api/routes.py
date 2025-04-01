@@ -110,11 +110,18 @@ def delete_timezone(tz_id):
 def get_all_users():
     # User data is spread across two tables: retail_customers and logins
     # (possibly four? relationships -> addresses)
-    status, customers = sqlTableWorker("retail_customers", "id", request, resource_id=None).view_table()
+    status, customers = sqlTableWorker("retail_customers", "id", request, resource_id=None).view_table(return_as_json=False)
+    customers = customers.to_dict(orient="records")
     # Will hold IDs of customers referenced by logins from table IDs
     customer_ids = []
     # Only customers with fields needed for user output
     user_customers = {}
+    try:
+        assert isinstance(customers, list)
+    except AssertionError:
+        print("Customers must be a list of dicts.")
+        print("Customers type:", type(customers))
+        return Response({"Status": "Server Error"}, status=500, mimetype='application/json')
     for customer in customers:
         cust_id = customer["id"]
         customer_ids.append(cust_id)

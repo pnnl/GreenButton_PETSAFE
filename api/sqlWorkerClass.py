@@ -527,7 +527,10 @@ class sqlTableWorker:
     # View the entire table
     # <- nothing
     # -> the table's records or an HTTP error code
-    def view_table(self):
+    def view_table(
+            self,
+            return_as_json: Optional[bool] = True
+            ):
         print("Retrieving table")
         try:
             # Get the table
@@ -555,7 +558,10 @@ class sqlTableWorker:
             return 500, "Server error: check console"
         else:
             print("All good, returning...")
-            return 200, results.to_json(orient="records")
+            if return_as_json == True:
+                return 200, results.to_json(orient="records")
+            else:
+                return 200, results
         
     # Make changes to output format for a given table to match frontend format expectations
     # <- data: the raw table data as a pandas frame
