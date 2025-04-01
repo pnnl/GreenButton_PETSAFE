@@ -101,11 +101,14 @@ def update_timezone(tz_id):
 def delete_timezone(tz_id):
     worker = sqlTableWorker("time_configurations", "id", request, resource_id=tz_id)
     return worker.perform_request_operation(flask_response=True)
+
+# --------------- ADDRESSES --------------------
+
+
             
 # --------------- RETAIL CUSTOMERS --------------------
 
-# TODO: needs testing
-# TODO: needs mailing address
+# TODO: needs testing to ensure correct output
 @endpoints.route("/users", methods=['GET'])
 def get_all_users():
     # User data is spread across two tables: retail_customers and logins

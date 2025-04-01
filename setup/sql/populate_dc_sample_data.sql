@@ -113,6 +113,16 @@ INSERT INTO interval_blocks (`id`,`description`,`published`,`self_link_href`,`se
 INSERT INTO interval_blocks (`id`,`description`,`published`,`self_link_href`,`self_link_rel`,`up_link_href`,`up_link_rel`,`updated`,`uuid`, `duration`, `start`, `meter_reading_id`) VALUES (6, "", 1737536400900, "/speedes/1_0/intervalblocks/6", "self", "/speedes/1_0/intervalblocks", "up", 1737536400900, "0d61be09-5c1d-400a-8548-8fad95f329a2", 900, 1737536400900, 3);
 COMMIT;
 
+/* Addresses; 1 and 3 lack fullAddress, 2 and 4 have it */
+/* 1 and 2 have no unit number. 3 and 4 do. */
+START TRANSACTION;
+INSERT INTO addresses (`id`,`description`,`published`,`self_link_href`,`self_link_rel`,`up_link_href`,`up_link_rel`,`updated`,`uuid`, `houseFractionNumber`, `unit`, `building`, `streetName`, `streetNumber`, `streetPrefix`, `streetSuffix`, `streetType`, `city`, `county`, `state`, `zipcode`, `zipFour`, `fullAddress`, `latitude`, `longitude`) VALUES (1, "mailing", 1737536400000, "/speedes/1_0/addresses/1", "self", "/speedes/1_0/addresses", "up", 1737536400000, "bcec381a-5e5b-4022-aa09-d17108bfae07", "", "", "123", "Test", "", "West", "", "Street", "Testown", "Koala", "WA", "00000", "0000", "", "", "");
+INSERT INTO addresses (`id`,`description`,`published`,`self_link_href`,`self_link_rel`,`up_link_href`,`up_link_rel`,`updated`,`uuid`, `houseFractionNumber`, `unit`, `building`, `streetName`, `streetNumber`, `streetPrefix`, `streetSuffix`, `streetType`, `city`, `county`, `state`, `zipcode`, `zipFour`, `fullAddress`, `latitude`, `longitude`) VALUES (2, "mailing", 1737536400000, "/speedes/1_0/addresses/2", "self", "/speedes/1_0/addresses", "up", 1737536400000, "bc609426-15a6-4497-88df-3f99c1b88985", "", "", "321", "Test", "", "West", "", "Street", "Testown", "Koala", "WA", "00000", "0000", "321 West Test Street, Testown WA 00000", "", "");
+
+INSERT INTO addresses (`id`,`description`,`published`,`self_link_href`,`self_link_rel`,`up_link_href`,`up_link_rel`,`updated`,`uuid`, `houseFractionNumber`, `unit`, `building`, `streetName`, `streetNumber`, `streetPrefix`, `streetSuffix`, `streetType`, `city`, `county`, `state`, `zipcode`, `zipFour`, `fullAddress`, `latitude`, `longitude`) VALUES (3, "mailing", 1737536400000, "/speedes/1_0/addresses/3", "self", "/speedes/1_0/addresses", "up", 1737536400000, "2ec98e31-4da1-4270-9554-c3bee6e9f68c", "1/2", "8", "500", "Test", "", "", "", "Street", "Testown", "Koala", "WA", "00000", "0000", "", "", "");
+INSERT INTO addresses (`id`,`description`,`published`,`self_link_href`,`self_link_rel`,`up_link_href`,`up_link_rel`,`updated`,`uuid`, `houseFractionNumber`, `unit`, `building`, `streetName`, `streetNumber`, `streetPrefix`, `streetSuffix`, `streetType`, `city`, `county`, `state`, `zipcode`, `zipFour`, `fullAddress`, `latitude`, `longitude`) VALUES (4, "mailing", 1737536400000, "/speedes/1_0/addresses/4", "self", "/speedes/1_0/addresses", "up", 1737536400000, "95e753b1-3e78-4b13-8b6e-fa219abf4529", "2/2", "5", "600", "Test", "", "", "", "Street", "Testown", "Koala", "WA", "00000", "0000", "2/2 Unit 5, 600 Test Street, Testown WA 00000", "", "");
+COMMIT;
+
 /* TODO:
 - usage_summaries
 - electric_power_quality_summaries
