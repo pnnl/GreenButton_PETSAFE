@@ -471,7 +471,7 @@ class sqlTableWorker:
         try:
             table = self.table
             # TODO: don't ask for sensitive columns in the first place
-            results = msq.query(f"SELECT * FROM {table} WHERE id = %s;", (record_id,))
+            results = msq.query(f"SELECT * FROM {table} WHERE {self.id_col} = %s;", (record_id,))
             if isinstance(results, pd.DataFrame):
                 if results.empty:
                     return 404, "Record not found" # Resource not found, does not exist

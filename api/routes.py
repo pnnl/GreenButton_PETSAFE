@@ -125,7 +125,7 @@ def get_all_users():
     for customer in customers:
         cust_id = customer["id"]
         customer_ids.append(cust_id)
-        cleaned_customer = {k: customer[k] for k in ('first_name', 'last_name', 'accountNumber', 'email', 'phone_number', 'role')}
+        cleaned_customer = {k: customer[k] for k in ('legalName', 'accountNumber', 'email', 'phone_number', 'role', 'address_id')}
         user_customers[cust_id] = cleaned_customer
     # Get login details of these customers by id
     login_worker = sqlTableWorker("logins", "customer_id", request, resource_id=None)
@@ -134,26 +134,33 @@ def get_all_users():
     address_table = "addresses"
     address_worker = sqlTableWorker(address_table, "id", request, resource_id=None)
     addresses = []
-    logins = [] # Will be a list of dicts
+    logins = {} # Will be a dict of dicts
     for cust_id in customer_ids:
         try:
-            status, login = login_worker.view_record(cust_id)
+            status, login = login_worker.view_record(cust_id, return_as_json=False)
+            if isinstance(login, pd.DataFrame):
+                login = login.to_dict(orient="records")
             if len(login) == 1:
                 login = login[0]
-                del login["password"]
+                if "password" in login:
+                    del login["password"]
                 # Change customer_id to id to match customer dict for future merging
                 login["id"] = login.pop("customer_id")
             else:
+                print(f"Duplicate logins for customer {cust_id}")
+                print(login)
+                # TODO: Exception error messages
                 raise Exception # We should never have duplicate customer IDs returned
             logins[cust_id] = login
             if status != 200:
+                print("Status:", status)
                 raise Exception # TODO: find a more specific exception?
         except Exception as ex:
             print(f"Cannot retrieve login for ID {cust_id}: {ex}")
         # Get mailing address from addresses
         # description == "mailing", referenced in retail_customers
         customer_addr_id = user_customers[cust_id]["address_id"]
-        customer_address = address_worker.view_record(customer_addr_id, return_as_json=False).iloc[0]
+        customer_address = address_worker.view_record(customer_addr_id, return_as_json=False)
         user_customers[cust_id]["address"] = build_address(customer_address)
     # Combine cleaned customer dicts with login dicts
     users = {} # Will be a dict of dicts
@@ -161,6 +168,7 @@ def get_all_users():
         try:
             # Get customer matching ID
             user_customer = user_customers[cust_id]
+            print(user_customer)
             # Get login matching ID
             user_login = logins[cust_id]
             user = combine_dict(user_login, user_customer)

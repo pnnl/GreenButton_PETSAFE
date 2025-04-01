@@ -32,6 +32,8 @@ def combine_dict(d1, d2):
  #
  # -> formatted_addr: a dict of strings and dicts; describes the address for use in JSON output
 def build_address(address_record: pd.Series):
+    if not isinstance(address_record, pd.Series) or not isinstance(address_record, pd.DataFrame):
+         address_record = pd.DataFrame(address_record)
     print(address_record)
     formatted_addr = address_record["fullAddress"]
     if formatted_addr == None:
