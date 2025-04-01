@@ -6,6 +6,7 @@ from validity_tests import *
 from sqlWorkerClass import sqlTableWorker
 from common_functions import *
 from dct_backend import retrieve_site_data
+from json import dumps
 
 # Define column names to hide when retrieving data
 sensitive_columns = ["first_name", "last_name", "password"]
@@ -108,74 +109,35 @@ def delete_timezone(tz_id):
 # TODO: needs testing to ensure correct output
 @endpoints.route("/users", methods=['GET'])
 def get_all_users():
-    # User data is spread across two tables: retail_customers and logins
-    # (possibly four? relationships -> addresses)
-    status, customers = sqlTableWorker("retail_customers", "id", request, resource_id=None).view_table(return_as_json=False)
-    customers = customers.to_dict(orient="records")
-    # Will hold IDs of customers referenced by logins from table IDs
-    customer_ids = []
-    # Only customers with fields needed for user output
-    user_customers = {}
+    # Get a list of all users: basic information, username and contact info, and mailing address
+    query = "SELECT logins.username, retail_customers.role, retail_customers.first_name,\
+        retail_customers.last_name, retail_customers.full_name, retail_customers.accountNumber,\
+        retail_customers.email, retail_customers.phone_number, addresses.*  \
+        FROM retail_customers \
+        LEFT JOIN addresses ON retail_customers.address_id=addresses.id \
+        LEFT JOIN logins ON retail_customers.id=logins.customer_id;"
     try:
-        assert isinstance(customers, list)
-    except AssertionError:
-        print("Customers must be a list of dicts.")
-        print("Customers type:", type(customers))
-        return Response({"Status": "Server Error"}, status=500, mimetype='application/json')
-    for customer in customers:
-        cust_id = customer["id"]
-        customer_ids.append(cust_id)
-        cleaned_customer = {k: customer[k] for k in ('legalName', 'accountNumber', 'email', 'phone_number', 'role', 'address_id')}
-        user_customers[cust_id] = cleaned_customer
-    # Get login details of these customers by id
-    login_worker = sqlTableWorker("logins", "customer_id", request, resource_id=None)
-    logins = {} # Will be a dict of dicts
-    # Will be used to retrieve mailing addresses
-    address_table = "addresses"
-    address_worker = sqlTableWorker(address_table, "id", request, resource_id=None)
-    addresses = []
-    logins = {} # Will be a dict of dicts
-    for cust_id in customer_ids:
-        try:
-            status, login = login_worker.view_record(cust_id, return_as_json=False)
-            if isinstance(login, pd.DataFrame):
-                login = login.to_dict(orient="records")
-            if len(login) == 1:
-                login = login[0]
-                if "password" in login:
-                    del login["password"]
-                # Change customer_id to id to match customer dict for future merging
-                login["id"] = login.pop("customer_id")
-            else:
-                print(f"Duplicate logins for customer {cust_id}")
-                print(login)
-                # TODO: Exception error messages
-                raise Exception # We should never have duplicate customer IDs returned
-            logins[cust_id] = login
-            if status != 200:
-                print("Status:", status)
-                raise Exception # TODO: find a more specific exception?
-        except Exception as ex:
-            print(f"Cannot retrieve login for ID {cust_id}: {ex}")
-        # Get mailing address from addresses
-        # description == "mailing", referenced in retail_customers
-        customer_addr_id = user_customers[cust_id]["address_id"]
-        customer_address = address_worker.view_record(customer_addr_id, return_as_json=False)
-        user_customers[cust_id]["address"] = build_address(customer_address)
-    # Combine cleaned customer dicts with login dicts
-    users = {} # Will be a dict of dicts
-    for cust_id in customer_ids:
-        try:
-            # Get customer matching ID
-            user_customer = user_customers[cust_id]
-            print(user_customer)
-            # Get login matching ID
-            user_login = logins[cust_id]
-            user = combine_dict(user_login, user_customer)
-            users[cust_id] = user
-        except Exception as ex:
-            print(f"Could not append login to output JSON for customer {cust_id}: {ex}")
-    return Response({"Users": users}, status=200, mimetype='application/json')
+        status, users = sqlTableWorker.run_query(query)
+        # If there is no full_name, build one from other columns if possible
+        name_mask = users.full_name.isin([None, ""])
+        users.loc[name_mask, "full_name"] = users["first_name"] + " " + users["last_name"]
+        # Rename the column to match expected output
+        users.rename(columns={"full_name": "legalName"}, inplace=True)
+        # Remove any unneeded columns after processing (particularly in addresses)
+        remove_cols = ["self_link_href", "self_link_rel", "up_link_href", "up_link_rel", \
+                       "updated", "uuid", "id", "description", "first_name", "last_name"]
+        for col in remove_cols:
+            if col in users.columns:
+                del users[col]
+        # TODO Format the address into the expected return format {"Address": {json}}
+        # Return the list of users
+        users = {"Users": users.to_dict(orient="records")}
+        users = dumps(users)
+    except Exception as ex:
+        print("Could not retrieve users:", ex)
+        users = None
+    return Response(users, status=status, mimetype='application/json')
+
 
 # TODO: add address to customer
 # TODO: modify address

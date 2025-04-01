@@ -287,8 +287,8 @@ class sqlTableWorker:
             return 500, False # Server error
         
     # TODO Currently unused- remove if it remains unused!
+    @staticmethod
     def run_query(
-            self,
             query: str,
             parameters: Optional[tuple] = None
     ):
