@@ -102,9 +102,6 @@ def delete_timezone(tz_id):
     worker = sqlTableWorker("time_configurations", "id", request, resource_id=tz_id)
     return worker.perform_request_operation(flask_response=True)
 
-# --------------- ADDRESSES --------------------
-
-
             
 # --------------- RETAIL CUSTOMERS --------------------
 
@@ -152,7 +149,7 @@ def get_all_users():
         customer_address = address_worker.view_record(customer_addr_id, return_as_json=False).iloc[0]
         user_customers[cust_id]["address"] = build_address(customer_address)
     # Combine cleaned customer dicts with login dicts
-    users = [] # Will be a list of dicts; TODO dict of dicts?
+    users = {} # Will be a dict of dicts
     for cust_id in customer_ids:
         try:
             # Get customer matching ID
@@ -160,7 +157,7 @@ def get_all_users():
             # Get login matching ID
             user_login = logins[cust_id]
             user = combine_dict(user_login, user_customer)
-            users.append(user)
+            users[cust_id] = user
         except Exception as ex:
             print(f"Could not append login to output JSON for customer {cust_id}: {ex}")
     return Response({"Users": users}, status=200, mimetype='application/json')
