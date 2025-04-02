@@ -123,15 +123,31 @@ def get_all_users():
         users.loc[name_mask, "full_name"] = users["first_name"] + " " + users["last_name"]
         # Rename the column to match expected output
         users.rename(columns={"full_name": "legalName"}, inplace=True)
+        # Get addresses in their own frame for future use to convert to a dictionary
+        user_addresses = pd.DataFrame()
+        # Find out which columns contain address fields
+        query = "SELECT column_name FROM INFORMATION_SCHEMA.COLUMNS WHERE table_name=%s;"
+        status, address_cols = sqlTableWorker.run_query(query, ("addresses",))
+        # Format the address frame into ONLY address columns
+        ignore_cols = ["id", "description", "published", "self_link_href", "self_link_rel", "up_link_href", "up_link_rel", \
+                       "updated", "uuid"]
+        # TODO: there has to be a better way to do this
+        for col in address_cols["COLUMN_NAME"]:
+            if col not in ignore_cols and col in users.columns:
+                user_addresses[col] = users[col]
         # Remove any unneeded columns after processing (particularly in addresses)
-        remove_cols = ["self_link_href", "self_link_rel", "up_link_href", "up_link_rel", \
+        remove_cols = ["published", "self_link_href", "self_link_rel", "up_link_href", "up_link_rel", \
                        "updated", "uuid", "id", "description", "first_name", "last_name"]
+        remove_cols = remove_cols + user_addresses.columns.to_list()
         for col in remove_cols:
             if col in users.columns:
                 del users[col]
-        # TODO Format the address into the expected return format {"Address": {json}}
+        # Build the dictionaries for addresses to store as {"address": {user_addresses}}
+        users["address"] = user_addresses.to_dict(orient="records")
+        # Format for return
+        dict_users = users.to_dict(orient="records")
+        users = {"Users": dict_users}
         # Return the list of users
-        users = {"Users": users.to_dict(orient="records")}
         users = dumps(users)
     except Exception as ex:
         print("Could not retrieve users:", ex)
