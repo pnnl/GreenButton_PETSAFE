@@ -104,40 +104,31 @@ def delete_timezone(tz_id):
     return worker.perform_request_operation(flask_response=True)
 
 # --------------- ADDRESSES --------------------
-
-@endpoints.route("/addresses", methods=['GET'])
-# GET
-# Retrieve list of time zones currently supported
-# POST
-# Add a new time zone
-def get_all_timezones():
-    worker = sqlTableWorker("addresses", "id", request, resource_id=None)
-    return worker.perform_request_operation(flask_response=True)
         
 @endpoints.route("/addresses/add", methods=['POST'])
 # POST
 # Add a new time zone
-def add_timezones():
+def add_address():
     worker = sqlTableWorker("addresses", "id", request, resource_id=None)
     return worker.perform_request_operation(flask_response=True)
         
-@endpoints.route("/addresses/<int:tz_id>", methods=['GET'])
+@endpoints.route("/addresses/<int:address_id>", methods=['GET'])
 # GET
 # Retrieve the time for this time zone
-def get_timezone(tz_id):
-    worker = sqlTableWorker("addresses", "id", request, resource_id=tz_id)
+def get_address(address_id):
+    worker = sqlTableWorker("addresses", "id", request, resource_id=address_id)
     return worker.perform_request_operation(flask_response=True)
         
-@endpoints.route("/addresses/<int:tz_id>/update", methods=['POST'])
+@endpoints.route("/addresses/<int:address_id>/update", methods=['POST'])
 # POST
 # Update the time zone (e.g. DST status)
-def update_timezone(tz_id):
-    worker = sqlTableWorker("addresses", "id", request, resource_id=tz_id)
+def update_timezone(address_id):
+    worker = sqlTableWorker("addresses", "id", request, resource_id=address_id)
     return worker.perform_request_operation(flask_response=True)
         
-@endpoints.route("/addresses/<int:tz_id>/delete", methods=['DELETE'])
-def delete_timezone(tz_id):
-    worker = sqlTableWorker("addresses", "id", request, resource_id=tz_id)
+@endpoints.route("/addresses/<int:address_id>/delete", methods=['DELETE'])
+def delete_timezone(address_id):
+    worker = sqlTableWorker("addresses", "id", request, resource_id=address_id)
     return worker.perform_request_operation(flask_response=True)
 
             
