@@ -7,15 +7,23 @@
     "email": "",
     "phone": "",
     "address": {
-      "address": "",
-      "addressNumber": "",
-      "city": "",
-      "state": {
-        "code": "",
-        "name": ""
-      },
-      "zip": ""
-    }
+        "houseFractionNumber": "",
+        "unit": "",
+        "building": "",
+        "streetName": "",
+        "streetNumber": "",
+        "streetPrefix": "",
+        "streetSuffix": "",
+        "streetType": "",
+        "city": "",
+        "county": "",
+        "state": "",
+        "zipcode": "",
+        "zipFour": "",
+        "fullAddress": "",
+        "latitude": "",
+        "longitude": ""
+      }
 },
 
 {
@@ -26,15 +34,23 @@
     "email": "",
     "phone": "",
     "address": {
-      "address": "",
-      "addressNumber": "",
-      "city": "",
-      "state": {
-        "code": "",
-        "name": ""
-      },
-      "zip": ""
-    }
+        "houseFractionNumber": "",
+        "unit": "",
+        "building": "",
+        "streetName": "",
+        "streetNumber": "",
+        "streetPrefix": "",
+        "streetSuffix": "",
+        "streetType": "",
+        "city": "",
+        "county": "",
+        "state": "",
+        "zipcode": "",
+        "zipFour": "",
+        "fullAddress": "",
+        "latitude": "",
+        "longitude": ""
+      }
 },
 
 {
@@ -45,15 +61,23 @@
     "email": "",
     "phone": "",
     "address": {
-      "address": "",
-      "addressNumber": "",
-      "city": "",
-      "state": {
-        "code": "",
-        "name": ""
-      },
-      "zip": ""
-    }
+        "houseFractionNumber": "",
+        "unit": "",
+        "building": "",
+        "streetName": "",
+        "streetNumber": "",
+        "streetPrefix": "",
+        "streetSuffix": "",
+        "streetType": "",
+        "city": "",
+        "county": "",
+        "state": "",
+        "zipcode": "",
+        "zipFour": "",
+        "fullAddress": "",
+        "latitude": "",
+        "longitude": ""
+      }
 }
 ]
 
