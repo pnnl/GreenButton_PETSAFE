@@ -106,7 +106,6 @@ def delete_timezone(tz_id):
             
 # --------------- RETAIL CUSTOMERS --------------------
 
-# TODO: needs testing to ensure correct output
 @endpoints.route("/users", methods=['GET'])
 def get_all_users():
     # Get a list of all users: basic information, username and contact info, and mailing address
@@ -123,6 +122,8 @@ def get_all_users():
         users.loc[name_mask, "full_name"] = users["first_name"] + " " + users["last_name"]
         # Rename the column to match expected output
         users.rename(columns={"full_name": "legalName"}, inplace=True)
+        # Deal with null values
+        users.fillna("", inplace=True)
         # Get addresses in their own frame for future use to convert to a dictionary
         user_addresses = pd.DataFrame()
         # Find out which columns contain address fields
