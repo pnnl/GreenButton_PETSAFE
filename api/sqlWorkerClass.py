@@ -93,11 +93,11 @@ class sqlTableWorker:
             elif self.__request.method == 'POST':
                 request_contents = dict(self.__request.args)
                 # Update an existing record
-                if self.__resource_id is not None and self.__check_if_in_table(self.__resource_id) == True:
+                if self.__resource_id is not None and self.check_if_in_table(self.__resource_id) == True:
                     status, results = self.update_record(self.__resource_id, request_contents)
                     print(results)
                 # Add a new record
-                elif self.__check_if_in_table(self.__resource_id) == False:
+                elif self.check_if_in_table(self.__resource_id) == False:
                     record = self.__build_record(self.id_col, self.__resource_id, request)
                     status, results = self.add_record(record)
                 # Missing information
@@ -206,7 +206,7 @@ class sqlTableWorker:
                 match[types[i]] = True # Types match, good to go
         return match
 
-    def __check_if_in_table(
+    def check_if_in_table(
             self, 
             resource_id: int
             ):
