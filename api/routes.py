@@ -103,6 +103,43 @@ def delete_timezone(tz_id):
     worker = sqlTableWorker("time_configurations", "id", request, resource_id=tz_id)
     return worker.perform_request_operation(flask_response=True)
 
+# --------------- ADDRESSES --------------------
+
+@endpoints.route("/addresses", methods=['GET'])
+# GET
+# Retrieve list of time zones currently supported
+# POST
+# Add a new time zone
+def get_all_timezones():
+    worker = sqlTableWorker("addresses", "id", request, resource_id=None)
+    return worker.perform_request_operation(flask_response=True)
+        
+@endpoints.route("/addresses/add", methods=['POST'])
+# POST
+# Add a new time zone
+def add_timezones():
+    worker = sqlTableWorker("addresses", "id", request, resource_id=None)
+    return worker.perform_request_operation(flask_response=True)
+        
+@endpoints.route("/addresses/<int:tz_id>", methods=['GET'])
+# GET
+# Retrieve the time for this time zone
+def get_timezone(tz_id):
+    worker = sqlTableWorker("addresses", "id", request, resource_id=tz_id)
+    return worker.perform_request_operation(flask_response=True)
+        
+@endpoints.route("/addresses/<int:tz_id>/update", methods=['POST'])
+# POST
+# Update the time zone (e.g. DST status)
+def update_timezone(tz_id):
+    worker = sqlTableWorker("addresses", "id", request, resource_id=tz_id)
+    return worker.perform_request_operation(flask_response=True)
+        
+@endpoints.route("/addresses/<int:tz_id>/delete", methods=['DELETE'])
+def delete_timezone(tz_id):
+    worker = sqlTableWorker("addresses", "id", request, resource_id=tz_id)
+    return worker.perform_request_operation(flask_response=True)
+
             
 # --------------- RETAIL CUSTOMERS --------------------
 
@@ -155,10 +192,6 @@ def get_all_users():
         users = None
     return Response(users, status=status, mimetype='application/json')
 
-
-# TODO: add address to customer
-# TODO: modify address
-# TODO: delete address
 
 @endpoints.route("/speedes/1_0/login", methods=["POST"])
 # POST
