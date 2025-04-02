@@ -39,12 +39,12 @@ def get_index():
     # non-owners should only hae DP access
     # Return the actual power data for a given site
     # TODO Would it be useful (and safe) to also return links to what buildings the site is in?
-@endpoints.route("/sites/<int:point_id>")
-def get_point_data(point_id):
-    # TODO: Sanity check point_id exists (relies on querying non-Influx database)
+@endpoints.route("/sites/<int:address_id>")
+def get_point_data(address_id):
+    # TODO: Sanity check address_id exists (relies on querying non-Influx database)
     # Determine if we have any date filtering
     start, end = check_for_date_limiter_arguments(request)
-    point_data = retrieve_site_data.get_site_real(point_id, start, end)
+    point_data = retrieve_site_data.get_site_real(address_id, start, end)
     return point_data.to_json(orient="columns") # TODO Check that orient makes sense
         
 # Returns what sites a given building contains
