@@ -283,8 +283,7 @@ def add_usage_point():
     # This table ALSO needs a localTimeParameters_id, sourced from time_configurations
     # AND a retail_customers_id from retail_customers.
     # (and a subscription_id, but that's temporarily dropped as a constraint)
-    # For now, we're assuming these already exist, but TODO:
-    # find out whether that assumption is reasonable or not.
+    # For now, we're assuming these already exist.
     # Add the usagePoint to the database.
     table = "usage_points"
     cols = get_cols_in_table(table)
@@ -313,8 +312,7 @@ def delete_usage_point(usp_id):
     worker = sqlTableWorker("usage_points", "id", request, resource_id=usp_id)
     return worker.perform_request_operation(flask_response=True)
         
-            
 @endpoints.route("/service-delivery-points/<int:sdp_id>/delete", methods=['DELETE'])
 def delete_sdpoint(sdp_id):
-    worker = sqlTableWorker("service_delivery_points", "id", request, resource_id=None)
+    worker = sqlTableWorker("service_delivery_points", "id", request, resource_id=sdp_id)
     return worker.perform_request_operation(flask_response=True)
