@@ -8,6 +8,12 @@ from common_functions import *
 from dct_backend import retrieve_site_data
 from json import dumps
 
+# OVERARCHING TODO:
+# Hook all actions into authentication/authorization.
+# Right now, they're way too open- anyone can do anything.
+# The goal state is users only being permitted to alter or view
+# resources they have the correct permissions to work with.
+
 # Define column names to hide when retrieving data
 sensitive_columns = ["first_name", "last_name", "password"]
 # Versioning information for the API
@@ -121,12 +127,13 @@ def get_address(address_id):
         
 @endpoints.route("/addresses/<int:address_id>/update", methods=['POST'])
 # POST
-# Update the time zone (e.g. DST status)
+# Update the address
 def update_timezone(address_id):
     worker = sqlTableWorker("addresses", "id", request, resource_id=address_id)
     return worker.perform_request_operation(flask_response=True)
         
 @endpoints.route("/addresses/<int:address_id>/delete", methods=['DELETE'])
+# Delete the address record
 def delete_timezone(address_id):
     worker = sqlTableWorker("addresses", "id", request, resource_id=address_id)
     return worker.perform_request_operation(flask_response=True)
