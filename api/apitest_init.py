@@ -16,6 +16,7 @@ def init_app():
             return data
         
         # Mimics electricMeters.json
+        # Note: format may change
         @app.route("/speedes/1_0/meters", methods=['GET'])
         def get_all_meters():
             data = read_json("mockData/electricMeters.json")
@@ -44,7 +45,8 @@ def init_app():
 
         # Metering data- exact format subject to change at the moment, but this is the endpoint for a specific building's data
         # (temporarily returning the pre-import data from file; what parameters do you want to keep?)
-        # TODO: handling multiple meters for one building instead of just the main line meter
+        # TODO: handling multiple meters for one building instead of just the main line meter?
+        # Format should be stable for the moment
         @app.route("/speedes/1_0/energy/<building_id>", methods=["GET"])
         def get_all_energy_records(building_id):
             data = read_json(f"mockData/building-{building_id}-data.json")
@@ -55,17 +57,18 @@ def init_app():
         # if that's preferred):
 
         # CUSTOMERS
-        # /speedes/1_0/customers/<customer_id> : returns a specific customer
-        # /speedes/1_0/customers/add : add a new customer (POST)
-        # /speedes/1_0/customers/<customer_id>/update : update existing customer records (POST)
+        # /speedes/1_0/customers/<customer_id> : returns a specific customer (GET)
+        # /speedes/1_0/customers/add : add a new customer (POST; takes JSON matching /customers output as input)
+        # /speedes/1_0/customers/<customer_id>/update : update existing customer records (POST; same format as /add, but 
+        # only columns that need changing are required)
         # /speedes/1_0/customers/<customer_id>/delete : delete existing customer (DELETE)
 
         # BUILDINGS
         # /speedes/1_0/buildings/<id> : return metadata about buildings (component meters, address, etc)
 
         # METERS
-        # /speedes/1_0/meters/add : add a meter (POST)
-        # /speedes/1_0/meters/update : update a meter (POST)
+        # /speedes/1_0/meters/add : add a meter (POST; JSON matching output format of /meters)
+        # /speedes/1_0/meters/update : update a meter (POST; same format as /add, only requires columns to change)
         # speedes/1_0/meters/delete : delete a meter (DELETE)
 
         # TIMEZONES? - I do have temporary routes for modifying timezones, though I expect this will be automated

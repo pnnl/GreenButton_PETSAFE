@@ -133,13 +133,13 @@ def get_address(address_id):
 @endpoints.route("/addresses/<int:address_id>/update", methods=['POST'])
 # POST
 # Update the address
-def update_timezone(address_id):
+def update_address(address_id):
     worker = sqlTableWorker("addresses", "id", request, resource_id=address_id)
     return worker.perform_request_operation(flask_response=True)
         
 @endpoints.route("/addresses/<int:address_id>/delete", methods=['DELETE'])
 # Delete the address record
-def delete_timezone(address_id):
+def delete_address(address_id):
     worker = sqlTableWorker("addresses", "id", request, resource_id=address_id)
     return worker.perform_request_operation(flask_response=True)
 
@@ -271,7 +271,7 @@ def add_usage_point():
             record = (sdp_id, sdp_customerAgreement, sdp_name, sdp_tariffProfile)
             status = msq.insert_MySQL(record, table)
         except:
-            # Is this a risk to be concerned about? A user of the API could potentially try to
+            # TODO Is this a risk to be concerned about? A user of the API could potentially try to
             # add usage points to see if SDPs exist yet by checking the responses.
             print("This usagePoint needs sdp_name, sdp_tariffProfile, and sdp_customerAgreement fields supplied.")
         if status != "Success": # We failed to add the usagePoint's SDP
