@@ -76,27 +76,24 @@ def check_for_date_limiter_arguments(request):
 # If it does, returns the id
 # Otherwise, aborts request (404: building does not exist, not found error)
 # id: the id to check
-def sanity_check_building_id(id):
+def sanity_check_building_id(meter_id):
     try:
-        client = idb.init_database()
-        # Setup apis
-        query_api = client.query_api()
         # TODO: parameterize, not fstring
-        #query = f"SELECT 1 FROM POWER WHERE building_id = {id} LIMIT 1;"
+        #"SELECT real_power FROM POWER WHERE building_id = {id} LIMIT 1;""
         query = f'from(bucket:"{influx_bucket}")\
         |> range(start: {data_startdate}, stop: {data_enddate})\
-        |> filter(fn:(r) => r._measurement == "power" and r._field == "real_power" and r.building_id == "{id}")\
+        |> filter(fn:(r) => r._measurement == "power" and r._field == "real_power" and r.meter_id == "{meter_id}")\
         |> limit(n: 1)'
-        results = query_api.query(query=query)
-        idb.close_client(client)
+        results = idb.query(query=query)
     except Exception as ex:
-        print(ex)
+        print("Could not verify that meter ID", meter_id, "exists:", ex)
         # Refine this as needed; for now, assume the code is at fault
         abort(500)
     # Test if we have any results
-    if results:
-        return id # Building exists
+    if not results.empty:
+        return meter_id # Building exists
     else:
+        print("Building not found in Influx database.")
         abort(404) # Building does not exist; bad request
 
 def hash_value(value):

@@ -66,7 +66,7 @@ def get_sites_in_building(id):
 def get_building_real_power(id):
     sanity_check_building_id(id) # Make sure building exists!
     # Prep client
-    client = idb.init_database()
+    client = idb.init_client()
     # Get real power
     # TODO: different tag depending on permissions granted by OAuth status
     # For now, raw is what's in the database
