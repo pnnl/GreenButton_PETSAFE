@@ -5,7 +5,6 @@ import mysql_database as msq
 from validity_tests import *
 from sqlWorkerClass import sqlTableWorker
 from common_functions import *
-from dct_backend import retrieve_site_data
 from json import dumps
 
 # OVERARCHING TODO:
@@ -35,20 +34,18 @@ def get_index():
         
 # --------------- RAW DATA -------------------
         
-    # Needs permission checks- third parties should not have access,
-    # non-owners should only have DP access
-    # Return the actual power data for a given site
-    # TODO Would it be useful (and safe) to also return links to what buildings the site is in?
-@endpoints.route("/sites/<int:address_id>")
+# Needs permission checks- third parties should not have access,
+# non-owners should only have DP access
+# Return the actual power data for a given site
+# TODO Would it be useful (and safe) to also return links to what buildings the site is in?
+@endpoints.route("/meters/<int:address_id>")
 def get_point_data(address_id):
     # Sanity check address_id exists (relies on querying non-Influx database)
     worker = sqlTableWorker("addresses", "id", resource_id=address_id)
     address_exists = worker.check_if_in_table(address_id)
     if address_exists:
-        # Determine if we have any date filtering
-        start, end = check_for_date_limiter_arguments(request)
-        point_data = retrieve_site_data.get_site_real(address_id, start, end)
-        return point_data.to_json(orient="columns") # TODO Check that orient makes sense
+        # Find out what meters list this address as their site
+        return Response("Address exists; meter query not yet implemented.", status=200, mimetype='application/json')
     else:
         return Response("Address not found.", status=404, mimetype='application/json')
         

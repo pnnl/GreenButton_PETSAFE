@@ -1,5 +1,4 @@
 import influxdb_client as influx
-from influxdb_client.client.write_api import SYNCHRONOUS
 import influxdb_client_3 as influx3
 from typing import Optional
 from os.path import exists, splitext
