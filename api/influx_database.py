@@ -123,7 +123,7 @@ def read_points_in_range(
             results.rename(columns={"_time": "time"}, inplace=True)
             # Commented- setting as index means it doesn't show up in json returns
             #results.set_index("time", inplace=True)
-        print(results)
+        # TODO: should meter_id, privacy_tag be included in output?
         return results
     # Return subset of data between two dates
     # Sanity checks on date range come first
