@@ -1,4 +1,5 @@
 import pandas as pd
+from sqlWorkerClass import sqlTableWorker
 
 # <- d1: a dictionary. Any contents permitted.
 # <- d2: a dictionary. Any contents permitted.
@@ -11,6 +12,12 @@ def combine_dict(d1, d2):
         k: tuple(d[k] for d in (d1, d2) if k in d)
         for k in set(d1.keys()) | set(d2.keys())
     }
+
+def list_component_sites(address_id):
+    # Retrieve building from database
+    query = "SELECT id FROM usage_points WHERE address_id == %s"
+    status, results = sqlTableWorker.run_query(query, (address_id,))
+    return status, results
 
 
 # <- address_record: the full address record with the following fields expected by this function

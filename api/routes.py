@@ -52,14 +52,14 @@ def get_point_data(address_id):
     else:
         return Response("Address not found.", status=404, mimetype='application/json')
         
-# Returns what sites a given building contains
+# Returns what usage points a given building contains
 # Relies on non-Influx metadata database
 # TODO: also return links to view those sites' power IF user is authorized to see that
-@endpoints.route("/buildings/<int:id>/sites")
-def get_sites_in_building(id):
-    sanity_check_building_id(id) # Make sure building exists!
-    sites = retrieve_site_data.list_component_sites(id)
-    return sites.to_json(orient="columns") # TODO Check that orient makes sense
+@endpoints.route("/buildings/<int:address_id>/sites")
+def get_sites_in_building(address_id):
+    sanity_check_building_id(address_id) # Make sure building exists!
+    status, sites = list_component_sites(address_id)
+    return Response(sites.to_json(), status=status, mimetype='application/json')
         
 # Display real power readings for a given building
 @endpoints.route("/buildings/<int:id>/realpower")

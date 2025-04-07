@@ -100,22 +100,29 @@ def read_points_in_range(
     if start_datetime == None and end_datetime == None: # Return all data
         # Roughly equivalent to
         # "SELECT time, building_id, real_power FROM POWER WHERE building_id == {building_id})
+        # Paren will be closed in a few lines! Left open in case we need to add a building id
         query = f'from(bucket:"{influx_bucket}") \
 |> range(start: {data_startdate}, stop: {data_enddate}) \
-|> filter(fn:(r) => r._measurement == "power" and r._field == "real_power" and r.privacy == "{privacy_tag}'
+|> filter(fn:(r) => r._measurement == "power" and r._field == "real_power" and r.privacy == "{privacy_tag}"'
         if building_id != None:
             try:
                 building_id = int(building_id)
             except:
                 return "Cannot query: building id must be an integer"
             # TODO: parameterized, not fstring
-            query = query + f' and r.building_id == "{building_id}"'
+            query = query + f' and r.meter_id == "{building_id}"'
         query = query + ")" # Close the open paren
         query = query + ' |> keep(columns: ["_time", "_field", "_value", "building_id"])'
         query = query + ' |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")' # For performance
         results = query_api.query_data_frame(query=query)
-        del results["result"] # It's just full of "_result", not needed data
-        del results["table"] # Client doesn't need to know which table it came from
+        if not results.empty: # Clean up formatting before returning it
+            if "result" in results.columns:
+                del results["result"] # It's just full of "_result", not needed data
+            if "table" in results.columns:
+                del results["table"] # Client doesn't need to know which table it came from
+            results.rename(columns={"_time": "time"}, inplace=True)
+            results.set_index("time", inplace=True)
+        print(results)
         return results
     # Return subset of data between two dates
     # Sanity checks on date range come first
