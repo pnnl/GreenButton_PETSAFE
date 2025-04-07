@@ -41,7 +41,7 @@ def test_password(user_id, password):
 # (temporarily returning the pre-import data from file; what parameters do you want to keep?)
 # TODO: handling multiple meters for one building instead of just the main line meter?
 # Format should be stable for the moment
-@test_endpoints.route("/energy/<building_id>", methods=["GET"])
+@test_endpoints.route("/energy/realpower/<building_id>", methods=["GET"])
 def get_all_energy_records(building_id):
     data = read_json(f"mockData/building-{building_id}-data.json")
     return data

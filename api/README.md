@@ -12,7 +12,7 @@ At present, it returns hardcoded JSON that matches the JSON present in a fronten
 
 ## Automated setup
 
-To automatically set up the databases, run ./setup.sh
+To automatically set up the databases, run /setup.sh
 
 ## Influx DB
 
