@@ -21,10 +21,12 @@ prefix = '/speedes/1_0'
 # All routes in this blueprint
 endpoints = Blueprint('api_routing', __name__, template_folder='templates')
 
+# --------------- DIRECTIONS -------------------
+
 @endpoints.route('/')
 def get_index():
     return jsonify({'available endpoints': {
-                "building energy data": f'{prefix}/buildings',
+                "building energy data": f'{prefix}/energy',
                 "customer data": f'{prefix}/customers',
                 "premises": f'{prefix}/sites',
                 "time zones": f'{prefix}/timezones',
@@ -34,31 +36,9 @@ def get_index():
         
 # --------------- RAW DATA -------------------
         
-# Needs permission checks- third parties should not have access,
-# non-owners should only have DP access
-# Return the actual power data for a given site
-# TODO Would it be useful (and safe) to also return links to what buildings the site is in?
-@endpoints.route("/meters/<int:address_id>")
-def get_point_data(address_id):
-    # Sanity check address_id exists (relies on querying non-Influx database)
-    worker = sqlTableWorker("addresses", "id", resource_id=address_id)
-    address_exists = worker.check_if_in_table(address_id)
-    if address_exists:
-        # Find out what meters list this address as their site
-        return Response("Address exists; meter query not yet implemented.", status=200, mimetype='application/json')
-    else:
-        return Response("Address not found.", status=404, mimetype='application/json')
-        
-# Returns what usage points a given building contains
-# Relies on non-Influx metadata database
-# TODO: also return links to view those sites' power IF user is authorized to see that
-@endpoints.route("/buildings/<int:address_id>/sites")
-def get_sites_in_building(address_id):
-    sanity_check_building_id(address_id) # Make sure building exists!
-    status, sites = list_component_sites(address_id)
-    return Response(sites.to_json(), status=status, mimetype='application/json')
-        
-# Display real power readings for a given building
+# Display real power readings for a given meter
+# TODO: do we need apparent power equiv, or would it be better to include
+# both in the same endpoint?
 @endpoints.route("/energy/realpower/<int:meter_id>")
 def get_building_real_power(meter_id):
     sanity_check_building_id(meter_id) # Make sure building exists!
@@ -69,6 +49,8 @@ def get_building_real_power(meter_id):
     # For now, raw is what's in the database
     power = idb.read_points_in_range(client=client, building_id=meter_id, privacy_tag="raw")
     idb.close_client(client)
+    # Mark which meter the data comes from
+    power["meter_id"] = meter_id
     # TODO: make datetimes obviously datetimes (currently UNIX stamps, which may be confusing to humans)
     # Right now it's hard to understand and that will be a problem in the future. Make it easier to work with
     return power.to_json(orient="records")
@@ -308,6 +290,24 @@ def update_usage_point(usp_id):
 def delete_usage_point(usp_id):
     worker = sqlTableWorker("usage_points", "id", request, resource_id=usp_id)
     return worker.perform_request_operation(flask_response=True)
+
+# Return the list of meters at a given address
+# TODO Would it be useful (and safe) to also return links to what buildings the site is in?
+# TODO JWT to secure this against unauthorized users who want to know what meters exist in a
+# building they don't own
+@endpoints.route("/addresses/<int:address_id>/meters")
+def get_point_data(address_id):
+    # Sanity check address_id exists (relies on querying non-Influx database)
+    worker = sqlTableWorker("addresses", "id", resource_id=address_id)
+    address_exists = worker.check_if_in_table(address_id)
+    if address_exists:
+        # Find out what meters list this address as their site
+        sanity_check_building_id(address_id)
+        status, sites = list_component_sites(address_id)
+        # TODO: also return links to view those sites' power IF user is authorized to see that
+        return Response(sites.to_json(), status=status, mimetype='application/json')
+    else:
+        return Response("Address not found.", status=404, mimetype='application/json')
         
 @endpoints.route("/service-delivery-points/<int:sdp_id>/delete", methods=['DELETE'])
 def delete_sdpoint(sdp_id):

@@ -111,7 +111,7 @@ def read_points_in_range(
             # TODO: parameterized, not fstring
             query = query + f' and r.meter_id == "{building_id}"'
         query = query + ")" # Close the open paren
-        query = query + ' |> keep(columns: ["_time", "_field", "_value", "building_id"])'
+        query = query + ' |> keep(columns: ["_time", "_field", "_value", "building_id", "privacy"])'
         query = query + ' |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")' # For performance
         results = query_api.query_data_frame(query=query)
         if not results.empty: # Clean up formatting before returning it
@@ -119,9 +119,9 @@ def read_points_in_range(
                 del results["result"] # It's just full of "_result", not needed data
             if "table" in results.columns:
                 del results["table"] # Client doesn't need to know which table it came from
-            results.rename(columns={"_time": "time"}, inplace=True)
+            results.rename(columns={"_time": "timestamp"}, inplace=True)
             # Commented- setting as index means it doesn't show up in json returns
-            #results.set_index("time", inplace=True)
+            #results.set_index("timestamp", inplace=True)
         # TODO: should meter_id, privacy_tag be included in output?
         return results
     # Return subset of data between two dates

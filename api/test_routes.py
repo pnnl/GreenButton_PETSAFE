@@ -58,12 +58,13 @@ def get_all_energy_records(building_id):
 # /speedes/1_0/customers/<customer_id>/delete : delete existing customer (DELETE)
 
 # BUILDINGS
+# /speedes/1_0/addresses/<address_id>/meters : return the list of meter_ids associated with the given address
 # /speedes/1_0/buildings/<id> : return metadata about buildings (component meters, address, etc)
 
 # METERS
 # /speedes/1_0/meters/add : add a meter (POST; JSON matching output format of /meters)
 # /speedes/1_0/meters/update : update a meter (POST; same format as /add, only requires columns to change)
-# speedes/1_0/meters/delete : delete a meter (DELETE)
+# /speedes/1_0/meters/delete : delete a meter (DELETE)
 
 # TIMEZONES? - I do have temporary routes for modifying timezones, though I expect this will be automated
 # such that there doesn't need to be an endpoint- please let me know if I'm wrong and access is needed
