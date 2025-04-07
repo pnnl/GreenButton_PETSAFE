@@ -85,11 +85,11 @@ def query(query):
     conn.close()
     return results
 
-# Return real_power data for a given building between two dates, or all real_power data if dates not specified
+# Return real_power data for a given meter between two dates, or all real_power data if dates not specified
 # TODO: return different data depending on privacy profile settings
 def read_points_in_range(
         client: object, 
-        building_id: int,
+        meter_id: int,
         privacy_tag: str,
         start_datetime: Optional[datetime] = None, 
         end_datetime: Optional[datetime] = None,
@@ -103,15 +103,15 @@ def read_points_in_range(
         query = f'from(bucket:"{influx_bucket}") \
 |> range(start: {data_startdate}, stop: {data_enddate}) \
 |> filter(fn:(r) => r._measurement == "power" and r._field == "real_power" and r.privacy == "{privacy_tag}"'
-        if building_id != None:
+        if meter_id != None:
             try:
-                building_id = int(building_id)
+                meter_id = int(meter_id)
             except:
                 return "Cannot query: building id must be an integer"
             # TODO: parameterized, not fstring
-            query = query + f' and r.meter_id == "{building_id}"'
+            query = query + f' and r.meter_id == "{meter_id}"'
         query = query + ")" # Close the open paren
-        query = query + ' |> keep(columns: ["_time", "_field", "_value", "building_id", "privacy"])'
+        query = query + ' |> keep(columns: ["_time", "_field", "_value", "meter_id", "privacy"])'
         query = query + ' |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")' # For performance
         results = query_api.query_data_frame(query=query)
         if not results.empty: # Clean up formatting before returning it
@@ -133,7 +133,7 @@ def read_points_in_range(
         #query = f"SELECT * FROM POWER WHERE timestamp BETWEEN '{start_datetime}' AND '{end_datetime};"
         query = f'from(bucket:"{influx_bucket}")\
         |> range(start: {start_datetime}, stop: {end_datetime})\
-        |> filter(fn:(r) => r._measurement == "power" and r._field == "real_power" and r.building_id == "{building_id}")\
+        |> filter(fn:(r) => r._measurement == "power" and r._field == "real_power" and r.meter_id == "{meter_id}")\
         |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")'
         results = query_api.query_data_frame(query=query)
         return results
