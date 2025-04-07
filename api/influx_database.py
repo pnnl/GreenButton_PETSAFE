@@ -121,7 +121,8 @@ def read_points_in_range(
             if "table" in results.columns:
                 del results["table"] # Client doesn't need to know which table it came from
             results.rename(columns={"_time": "time"}, inplace=True)
-            results.set_index("time", inplace=True)
+            # Commented- setting as index means it doesn't show up in json returns
+            #results.set_index("time", inplace=True)
         print(results)
         return results
     # Return subset of data between two dates
