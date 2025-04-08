@@ -175,17 +175,28 @@ def get_all_users():
     return Response(users, status=status, mimetype='application/json')
 
 
-@endpoints.route("/speedes/1_0/login", methods=["POST"])
+
+
+
+@endpoints.route("/login", methods=["POST"])
 # POST
 # Validate whether a user's password is correct
 # Takes user_id (specified in URL) and entered password (POSTed)
-# Status True means password matches
-# Status False means incorrect password
-# TODO: tie this into JWT
-def test_password(user_id, password):
-    worker = sqlTableWorker("logins", "customer_id", request, resource_id=user_id)
-    statuscode, password_correct = worker.check_password(user_id, password)
+# password_correct == True means password matches
+# password_correct == False means incorrect password or other failure to match
+# TODO: tie this into JWT - return is a placeholder for the token integration 
+# (request a token, return to user?)
+def test_password(customer_id, password):
+    # Retrieve the login information for this user_id
+    worker = sqlTableWorker("logins", "customer_id", request, resource_id=customer_id)
+    # Returns True if successful match, False in any other case
+    # If False, see status code for reason matching failed (wrong password, user not found, etc.)
+    statuscode, password_correct = worker.check_password(customer_id, password)
+    # Will likely return the token instead of placeholder
     return Response({"Password match": password_correct}, status=statuscode, mimetype='application/json')
+
+
+
 
 @endpoints.route("/customers", methods=['GET'])
 # GET

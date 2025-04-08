@@ -86,7 +86,6 @@ def query(query):
     return results
 
 # Return real_power data for a given meter between two dates, or all real_power data if dates not specified
-# TODO: return different data depending on privacy profile settings
 def read_points_in_range(
         client: object, 
         meter_id: int,
