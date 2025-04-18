@@ -51,7 +51,7 @@ CREATE TABLE `line_item` (
   `amount` bigint(20) NOT NULL, /* Cost of the line item */
   `dateTime` bigint(20) NOT NULL,
   `note` varchar(255) DEFAULT NULL,
-  `rounding` bigint(20) DEFAULT NULL,
+  `rounding` bigint(20) DEFAULT NULL, /* Number of decimal places BEFORE the period; e.g. 2 for a value of 57390 = 57.390 */
   `usage_summary_id` bigint(20) DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `fk_line_item_1_idx` (`usage_summary_id`),
@@ -98,12 +98,12 @@ DROP TABLE IF EXISTS `interval_readings`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `interval_readings` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT,
-  `cost` bigint(20) DEFAULT NULL, /* Costs associated with this reading */
-  `duration` bigint(20) DEFAULT NULL,
-  `start` bigint(20) DEFAULT NULL,
+  `cost` bigint(20) DEFAULT NULL, /* Costs associated with this reading; Scaling default is hundred-thousandths, e.g. $3.21USD = 321000 */
+  `duration` bigint(20) DEFAULT NULL, /* duration of reading in seconds. 15 mins is 900 seconds. */
+  `start` bigint(20) DEFAULT NULL, /* UNIX timestamp of reading start time */
   `value` bigint(20) DEFAULT NULL, /* The actual energy usage value; the readings */
   `interval_block_id` bigint(20) DEFAULT NULL,
-  `consumptionTier` bigint(20) DEFAULT NULL,
+  `consumptionTier` bigint(20) DEFAULT NULL, /* The default consumption tier for the readings. */
   `tou` bigint(20) DEFAULT NULL, /* Numeric code for the Time Of Use type of reading */
   `cpp` bigint(20) DEFAULT NULL, /* Critical Peak Period bucket that reading is attributed to */
   

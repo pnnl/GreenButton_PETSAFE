@@ -1,17 +1,29 @@
-argon2-cffi==23.1.0 
+argon2-cffi==23.1.0
 argon2-cffi-bindings==21.2.0
-cryptography @ file:///croot/cryptography_1724940562255/work
+blinker==1.9.0
+certifi==2025.1.31
+cffi==1.17.1
+click==8.1.8
 Flask==3.1.0
 influxdb-client==1.48.0
 influxdb3-python==0.10.0
-jsonpatch @ file:///croot/jsonpatch_1714483231291/work
+itsdangerous==2.2.0
+Jinja2==3.1.6
 jsonpointer==2.1
-jsonschema @ file:///croot/jsonschema_1728486696720/work
-jsonschema-specifications @ file:///work/perseverance-python-buildout/croot/jsonschema-specifications_1701731664072/work
+MarkupSafe==3.0.2
 numpy==2.1.2
 pandas==2.2.3
 pbkdf2==1.3
+pyarrow==19.0.1
+pycparser==2.22
 PyMySQL==1.1.1
+python-dateutil==2.9.0.post0
+pytz==2025.2
+reactivex==4.0.4
 scipy==1.14.1
+setuptools==78.1.0
+six==1.17.0
 typing_extensions==4.12.2
-
+tzdata==2025.2
+urllib3==2.4.0
+Werkzeug==3.1.3
