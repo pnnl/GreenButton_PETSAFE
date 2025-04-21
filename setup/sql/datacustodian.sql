@@ -635,30 +635,12 @@ CREATE TABLE `retail_customers` (
   `phone_number` varchar(20) DEFAULT NULL, /* Will need validation of format */
   `email` varchar(25) DEFAULT NULL, /* Will need validation of format / existence */
   `role` varchar(255) NOT NULL,
-  `address_id` bigint(20) DEFAULT NULL, /* mailing address reference */
-  PRIMARY KEY (`id`),
-  CONSTRAINT `address_id` FOREIGN KEY (`address_id`) REFERENCES `addresses` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=0 DEFAULT CHARSET=utf8;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
-DROP TABLE IF EXISTS `logins`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `logins` (
-  `customer_id` bigint(20) NOT NULL,
-  `description` varchar(255) DEFAULT NULL,
-  `published` datetime DEFAULT NULL,
-  `self_link_href` varchar(255) DEFAULT NULL,
-  `self_link_rel` varchar(255) DEFAULT NULL,
-  `up_link_href` varchar(255) DEFAULT NULL,
-  `up_link_rel` varchar(255) DEFAULT NULL,
-  `updated` datetime DEFAULT NULL,
-  `uuid` varchar(255) NOT NULL,
   `enabled` bit(1) NOT NULL,
   `password` varchar(100) NOT NULL, /* Store as salted hash! */
   `username` varchar(30) NOT NULL,
-  PRIMARY KEY (`customer_id`),
-  CONSTRAINT `customer_id` FOREIGN KEY (`customer_id`) REFERENCES `retail_customers` (`id`)
+  `address_id` bigint(20) DEFAULT NULL, /* mailing address reference */
+  PRIMARY KEY (`id`),
+  CONSTRAINT `address_id` FOREIGN KEY (`address_id`) REFERENCES `addresses` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=0 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 

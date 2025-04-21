@@ -13,6 +13,10 @@ from json import dumps
 # The goal state is users only being permitted to alter or view
 # resources they have the correct permissions to work with.
 
+# OVERARCHING TODO:
+# Determine which add/update/delete endpoints are covered by GB
+# implementation and remove them if not needed in this API
+
 # Define column names to hide when retrieving data
 sensitive_columns = ["first_name", "last_name", "password"]
 # Versioning information for the API
@@ -67,6 +71,7 @@ def get_all_timezones():
     worker = sqlTableWorker("time_configurations", "id", request, resource_id=None)
     return worker.perform_request_operation(flask_response=True)
         
+# TODO: Can this be removed? Does GB handle this in its entirety?
 @endpoints.route("/timezones/add", methods=['POST'])
 # POST
 # Add a new time zone
@@ -80,14 +85,16 @@ def add_timezones():
 def get_timezone(tz_id):
     worker = sqlTableWorker("time_configurations", "id", request, resource_id=tz_id)
     return worker.perform_request_operation(flask_response=True)
-        
+
+# TODO: Can this be removed? Does GB handle this in its entirety? 
 @endpoints.route("/timezones/<int:tz_id>/update", methods=['POST'])
 # POST
 # Update the time zone (e.g. DST status)
 def update_timezone(tz_id):
     worker = sqlTableWorker("time_configurations", "id", request, resource_id=tz_id)
     return worker.perform_request_operation(flask_response=True)
-        
+
+# TODO: Can this be removed? Does GB handle this in its entirety?  
 @endpoints.route("/timezones/<int:tz_id>/delete", methods=['DELETE'])
 def delete_timezone(tz_id):
     worker = sqlTableWorker("time_configurations", "id", request, resource_id=tz_id)
@@ -176,8 +183,7 @@ def get_all_users():
 
 
 
-
-
+# TODO: See if this can be removed; GB API handles this, right?
 @endpoints.route("/login", methods=["POST"])
 # POST
 # Validate whether a user's password is correct
@@ -205,6 +211,7 @@ def get_all_customers():
     worker = sqlTableWorker("retail_customers", "id", request, resource_id=None)
     return worker.perform_request_operation(flask_response=True)
         
+# TODO: Can this be removed? Does GB handle this in its entirety?
 @endpoints.route("/customers/add", methods=['POST'])
 # POST
 # Add a new customer
@@ -219,13 +226,15 @@ def get_customer(cust_id):
     worker = sqlTableWorker("retail_customers", "id", request, resource_id=cust_id)
     return worker.perform_request_operation(flask_response=True)
             
+# TODO: Can this be removed? Does GB handle this in its entirety?
 @endpoints.route("/customers/<int:cust_id>/update", methods=['POST'])
 # POST
 # Update the customer
 def update_customer(cust_id):
     worker = sqlTableWorker("retail_customers", "id", request, resource_id=cust_id)
     return worker.perform_request_operation(flask_response=True)
-        
+
+# TODO: Can this be removed? Does GB handle this in its entirety?        
 @endpoints.route("/customers/<int:cust_id>/delete", methods=['DELETE'])
 def delete_customer(cust_id):
     worker = sqlTableWorker("retail_customers", "id", request, resource_id=cust_id)
@@ -243,7 +252,8 @@ def get_all_usage_points():
     if results == []:
         abort(404) # Resource not found, does not exist
     return results.to_json(orient="records")
-            
+
+# TODO: Can this be removed? Does GB handle this in its entirety?            
 @endpoints.route("/meters/add", methods=['POST'])
 def add_usage_point():
     table = "service_delivery_points"
@@ -292,11 +302,13 @@ def get_usage_point(usp_id):
     worker = sqlTableWorker("usage_points", "id", request, resource_id=usp_id)
     return worker.perform_request_operation(flask_response=True)
         
+# TODO: Can this be removed? Does GB handle this in its entirety?
 @endpoints.route("/meters/<usp_id>/update", methods=['POST'])
 def update_usage_point(usp_id):
     worker = sqlTableWorker("usage_points", "id", request, resource_id=usp_id)
     return worker.perform_request_operation(flask_response=True)
         
+# TODO: Can this be removed? Does GB handle this in its entirety?
 @endpoints.route("/meters/<usp_id>/delete", methods=['DELETE'])
 def delete_usage_point(usp_id):
     worker = sqlTableWorker("usage_points", "id", request, resource_id=usp_id)
@@ -319,7 +331,8 @@ def get_point_data(address_id):
         return Response(sites.to_json(), status=status, mimetype='application/json')
     else:
         return Response("Address not found.", status=404, mimetype='application/json')
-        
+
+# TODO: Can this be removed? Does GB handle this in its entirety?
 @endpoints.route("/service-delivery-points/<int:sdp_id>/delete", methods=['DELETE'])
 def delete_sdpoint(sdp_id):
     worker = sqlTableWorker("service_delivery_points", "id", request, resource_id=sdp_id)
