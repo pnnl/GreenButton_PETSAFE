@@ -13,11 +13,28 @@ def combine_dict(d1, d2):
         for k in set(d1.keys()) | set(d2.keys())
     }
 
+# Extract all usage points whose address matches a given address.
+# This should effectively list all meters at that address.
 def list_component_sites(address_id):
     # Retrieve building from database
-    query = "SELECT id FROM usage_points WHERE address_id == %s"
+    query = "SELECT id FROM usage_points WHERE address_id == %s;"
     status, results = sqlTableWorker.run_query(query, (address_id,))
     return status, results
+
+# Check a customer's provided token against the one stored in the MySQL database.
+# IF it matches, return True.
+# If it doesn't, return False.
+def authenticate_token(
+          submitted_token: str, # The OAuth token
+          customer_id: int # The customer ID in the token's claim
+          ):
+     # TODO: We should probably extract the token's customer id claim here instead
+     # of asking for it, since it should be part of the claim.
+     # TODO: Work out which of these actually contain needed information
+     query = "SELECT access_token, status, state, ap_start, ap_duration FROM authorizations WHERE retail_customer_id == %s;"
+     status, results = sqlTableWorker.run_query(query, (customer_id,))
+     # TODO: will a customer ever have more than one token? If so, should they all be considered
+     # potentially valid, or should we assume something is wrong?
 
 
 # <- address_record: the full address record with the following fields expected by this function
