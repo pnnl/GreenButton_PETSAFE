@@ -58,60 +58,19 @@ def get_building_real_power(meter_id):
     # TODO: make datetimes obviously datetimes (currently UNIX stamps, which may be confusing to humans)
     # Right now it's hard to understand and that will be a problem in the future. Make it easier to work with
     return power.to_json(orient="records")
-        
-# --------- TIME ZONE DATA -----------
-# TODO: combine with Usage Points; the two are never seen separately
-        
-@endpoints.route("/timezones", methods=['GET'])
-# GET
-# Retrieve list of time zones currently supported
-# POST
-# Add a new time zone
-def get_all_timezones():
-    worker = sqlTableWorker("time_configurations", "id", request, resource_id=None)
-    return worker.perform_request_operation(flask_response=True)
-        
-# TODO: Can this be removed? Does GB handle this in its entirety?
-@endpoints.route("/timezones/add", methods=['POST'])
-# POST
-# Add a new time zone
-def add_timezones():
-    worker = sqlTableWorker("time_configurations", "id", request, resource_id=None)
-    return worker.perform_request_operation(flask_response=True)
-        
-@endpoints.route("/timezones/<int:tz_id>", methods=['GET'])
-# GET
-# Retrieve the time for this time zone
-def get_timezone(tz_id):
-    worker = sqlTableWorker("time_configurations", "id", request, resource_id=tz_id)
-    return worker.perform_request_operation(flask_response=True)
-
-# TODO: Can this be removed? Does GB handle this in its entirety? 
-@endpoints.route("/timezones/<int:tz_id>/update", methods=['POST'])
-# POST
-# Update the time zone (e.g. DST status)
-def update_timezone(tz_id):
-    worker = sqlTableWorker("time_configurations", "id", request, resource_id=tz_id)
-    return worker.perform_request_operation(flask_response=True)
-
-# TODO: Can this be removed? Does GB handle this in its entirety?  
-@endpoints.route("/timezones/<int:tz_id>/delete", methods=['DELETE'])
-def delete_timezone(tz_id):
-    worker = sqlTableWorker("time_configurations", "id", request, resource_id=tz_id)
-    return worker.perform_request_operation(flask_response=True)
 
 # --------------- ADDRESSES --------------------
         
 @endpoints.route("/addresses/add", methods=['POST'])
 # POST
-# Add a new time zone
+# Add a new address
 def add_address():
     worker = sqlTableWorker("addresses", "id", request, resource_id=None)
     return worker.perform_request_operation(flask_response=True)
         
 @endpoints.route("/addresses/<int:address_id>", methods=['GET'])
 # GET
-# Retrieve the time for this time zone
+# Retrieve the address at this id
 def get_address(address_id):
     worker = sqlTableWorker("addresses", "id", request, resource_id=address_id)
     return worker.perform_request_operation(flask_response=True)
@@ -181,29 +140,6 @@ def get_all_users():
         users = None
     return Response(users, status=status, mimetype='application/json')
 
-
-
-# TODO: See if this can be removed; GB API handles this, right?
-@endpoints.route("/login", methods=["POST"])
-# POST
-# Validate whether a user's password is correct
-# Takes user_id (specified in URL) and entered password (POSTed)
-# password_correct == True means password matches
-# password_correct == False means incorrect password or other failure to match
-# TODO: tie this into JWT - return is a placeholder for the token integration 
-# (request a token, return to user?)
-def test_password(customer_id, password):
-    # Retrieve the login information for this user_id
-    worker = sqlTableWorker("logins", "customer_id", request, resource_id=customer_id)
-    # Returns True if successful match, False in any other case
-    # If False, see status code for reason matching failed (wrong password, user not found, etc.)
-    statuscode, password_correct = worker.check_password(customer_id, password)
-    # Will likely return the token instead of placeholder
-    return Response({"Password match": password_correct}, status=statuscode, mimetype='application/json')
-
-
-
-
 @endpoints.route("/customers", methods=['GET'])
 # GET
 # Retrieve list of all customers
@@ -211,32 +147,10 @@ def get_all_customers():
     worker = sqlTableWorker("retail_customers", "id", request, resource_id=None)
     return worker.perform_request_operation(flask_response=True)
         
-# TODO: Can this be removed? Does GB handle this in its entirety?
-@endpoints.route("/customers/add", methods=['POST'])
-# POST
-# Add a new customer
-def add_customer():
-    worker = sqlTableWorker("retail_customers", "id", request, resource_id=None)
-    return worker.perform_request_operation(flask_response=True)
-        
 @endpoints.route("/customers/<int:cust_id>", methods=['GET'])
 # GET
 # Retrieve the customer info
 def get_customer(cust_id):
-    worker = sqlTableWorker("retail_customers", "id", request, resource_id=cust_id)
-    return worker.perform_request_operation(flask_response=True)
-            
-# TODO: Can this be removed? Does GB handle this in its entirety?
-@endpoints.route("/customers/<int:cust_id>/update", methods=['POST'])
-# POST
-# Update the customer
-def update_customer(cust_id):
-    worker = sqlTableWorker("retail_customers", "id", request, resource_id=cust_id)
-    return worker.perform_request_operation(flask_response=True)
-
-# TODO: Can this be removed? Does GB handle this in its entirety?        
-@endpoints.route("/customers/<int:cust_id>/delete", methods=['DELETE'])
-def delete_customer(cust_id):
     worker = sqlTableWorker("retail_customers", "id", request, resource_id=cust_id)
     return worker.perform_request_operation(flask_response=True)
             
@@ -251,9 +165,74 @@ def get_all_usage_points():
     # Format to JSON
     if results == []:
         abort(404) # Resource not found, does not exist
-    return results.to_json(orient="records")
+    return results.to_json(orient="records")       
+            
+@endpoints.route("/meters/<usp_id>", methods=['GET'])
+def get_usage_point(usp_id):
+    worker = sqlTableWorker("usage_points", "id", request, resource_id=usp_id)
+    return worker.perform_request_operation(flask_response=True)
 
-# TODO: Can this be removed? Does GB handle this in its entirety?            
+# Return the list of meters at a given address
+# TODO Would it be useful (and safe) to also return links to what buildings the site is in?
+# TODO JWT to secure this against unauthorized users who want to know what meters exist in a
+# building they don't own
+@endpoints.route("/addresses/<int:address_id>/meters")
+def get_point_data(address_id):
+    # Sanity check address_id exists (relies on querying non-Influx database)
+    worker = sqlTableWorker("addresses", "id", resource_id=address_id)
+    address_exists = worker.check_if_in_table(address_id)
+    if address_exists:
+        # Find out what meters list this address as their site
+        sanity_check_building_id(address_id)
+        status, sites = list_component_sites(address_id)
+        # TODO: also return links to view those sites' power IF user is authorized to see that
+        return Response(sites.to_json(), status=status, mimetype='application/json')
+    else:
+        return Response("Address not found.", status=404, mimetype='application/json')
+
+
+# --------------- ADD, UPDATE, DELETE --------------------
+# TODO: These endpoints may need to be removed if the GB implementation
+# is fully responsible for these operations; else, consider constraining use
+# or otherwise limiting these further
+
+# Add a new customer
+@endpoints.route("/customers/add", methods=['POST'])
+def add_customer():
+    worker = sqlTableWorker("retail_customers", "id", request, resource_id=None)
+    return worker.perform_request_operation(flask_response=True)
+
+# Update a customer
+@endpoints.route("/customers/<int:cust_id>/update", methods=['POST'])
+def update_customer(cust_id):
+    worker = sqlTableWorker("retail_customers", "id", request, resource_id=cust_id)
+    return worker.perform_request_operation(flask_response=True)
+
+# Delete a customer       
+@endpoints.route("/customers/<int:cust_id>/delete", methods=['DELETE'])
+def delete_customer(cust_id):
+    worker = sqlTableWorker("retail_customers", "id", request, resource_id=cust_id)
+    return worker.perform_request_operation(flask_response=True)
+
+# Edit meters (usage_points)
+@endpoints.route("/meters/<usp_id>/update", methods=['POST'])
+def update_usage_point(usp_id):
+    worker = sqlTableWorker("usage_points", "id", request, resource_id=usp_id)
+    return worker.perform_request_operation(flask_response=True)
+        
+# Delete meters (usage_points)
+@endpoints.route("/meters/<usp_id>/delete", methods=['DELETE'])
+def delete_usage_point(usp_id):
+    worker = sqlTableWorker("usage_points", "id", request, resource_id=usp_id)
+    return worker.perform_request_operation(flask_response=True)
+
+# Delete service_delivery_points
+@endpoints.route("/service-delivery-points/<int:sdp_id>/delete", methods=['DELETE'])
+def delete_sdpoint(sdp_id):
+    worker = sqlTableWorker("service_delivery_points", "id", request, resource_id=sdp_id)
+    return worker.perform_request_operation(flask_response=True)
+
+# Add service_delivery_points and usage_points together- AKA add a meter           
 @endpoints.route("/meters/add", methods=['POST'])
 def add_usage_point():
     table = "service_delivery_points"
@@ -295,45 +274,54 @@ def add_usage_point():
         return {'status':status}, 400, {'Content-Type': 'application/json'}
     # Format status and return
     return {'status':status}, 201, {'Content-Type': 'application/json'}
-            
-            
-@endpoints.route("/meters/<usp_id>", methods=['GET'])
-def get_usage_point(usp_id):
-    worker = sqlTableWorker("usage_points", "id", request, resource_id=usp_id)
+
+# TODO: See if this can be removed; GB API handles this, right?
+@endpoints.route("/login", methods=["POST"])
+# POST
+# Validate whether a user's password is correct
+# Takes user_id (specified in URL) and entered password (POSTed)
+# password_correct == True means password matches
+# password_correct == False means incorrect password or other failure to match
+# TODO: tie this into JWT - return is a placeholder for the token integration 
+# (request a token, return to user?)
+def test_password(customer_id, password):
+    # Retrieve the login information for this user_id
+    worker = sqlTableWorker("logins", "customer_id", request, resource_id=customer_id)
+    # Returns True if successful match, False in any other case
+    # If False, see status code for reason matching failed (wrong password, user not found, etc.)
+    statuscode, password_correct = worker.check_password(customer_id, password)
+    # Will likely return the token instead of placeholder
+    return Response({"Password match": password_correct}, status=statuscode, mimetype='application/json')
+
+@endpoints.route("/timezones", methods=['GET'])
+# GET
+# Retrieve list of time zones currently supported
+# POST
+# Add a new time zone
+def get_all_timezones():
+    worker = sqlTableWorker("time_configurations", "id", request, resource_id=None)
     return worker.perform_request_operation(flask_response=True)
         
-# TODO: Can this be removed? Does GB handle this in its entirety?
-@endpoints.route("/meters/<usp_id>/update", methods=['POST'])
-def update_usage_point(usp_id):
-    worker = sqlTableWorker("usage_points", "id", request, resource_id=usp_id)
+# Add a new time zone
+@endpoints.route("/timezones/add", methods=['POST'])
+def add_timezones():
+    worker = sqlTableWorker("time_configurations", "id", request, resource_id=None)
     return worker.perform_request_operation(flask_response=True)
         
-# TODO: Can this be removed? Does GB handle this in its entirety?
-@endpoints.route("/meters/<usp_id>/delete", methods=['DELETE'])
-def delete_usage_point(usp_id):
-    worker = sqlTableWorker("usage_points", "id", request, resource_id=usp_id)
+# Retrieve the details for this time zone
+@endpoints.route("/timezones/<int:tz_id>", methods=['GET'])
+def get_timezone(tz_id):
+    worker = sqlTableWorker("time_configurations", "id", request, resource_id=tz_id)
     return worker.perform_request_operation(flask_response=True)
 
-# Return the list of meters at a given address
-# TODO Would it be useful (and safe) to also return links to what buildings the site is in?
-# TODO JWT to secure this against unauthorized users who want to know what meters exist in a
-# building they don't own
-@endpoints.route("/addresses/<int:address_id>/meters")
-def get_point_data(address_id):
-    # Sanity check address_id exists (relies on querying non-Influx database)
-    worker = sqlTableWorker("addresses", "id", resource_id=address_id)
-    address_exists = worker.check_if_in_table(address_id)
-    if address_exists:
-        # Find out what meters list this address as their site
-        sanity_check_building_id(address_id)
-        status, sites = list_component_sites(address_id)
-        # TODO: also return links to view those sites' power IF user is authorized to see that
-        return Response(sites.to_json(), status=status, mimetype='application/json')
-    else:
-        return Response("Address not found.", status=404, mimetype='application/json')
+# POST, update a time zone
+@endpoints.route("/timezones/<int:tz_id>/update", methods=['POST'])
+def update_timezone(tz_id):
+    worker = sqlTableWorker("time_configurations", "id", request, resource_id=tz_id)
+    return worker.perform_request_operation(flask_response=True)
 
-# TODO: Can this be removed? Does GB handle this in its entirety?
-@endpoints.route("/service-delivery-points/<int:sdp_id>/delete", methods=['DELETE'])
-def delete_sdpoint(sdp_id):
-    worker = sqlTableWorker("service_delivery_points", "id", request, resource_id=sdp_id)
+# Delete a timezone 
+@endpoints.route("/timezones/<int:tz_id>/delete", methods=['DELETE'])
+def delete_timezone(tz_id):
+    worker = sqlTableWorker("time_configurations", "id", request, resource_id=tz_id)
     return worker.perform_request_operation(flask_response=True)

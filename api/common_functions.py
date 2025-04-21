@@ -25,11 +25,11 @@ def list_component_sites(address_id):
 # IF it matches, return True.
 # If it doesn't, return False.
 def authenticate_token(
-          submitted_token: str, # The OAuth token
-          customer_id: int # The customer ID in the token's claim
+          submitted_token: str # The OAuth token
           ):
-     # TODO: We should probably extract the token's customer id claim here instead
+     # TODO: We should extract the token's customer id claim here instead
      # of asking for it, since it should be part of the claim.
+     customer_id = 0 # Placeholder for extracted claim retail_customer_id
      # TODO: Work out which of these actually contain needed information
      query = "SELECT access_token, status, state, ap_start, ap_duration FROM authorizations WHERE retail_customer_id == %s;"
      status, results = sqlTableWorker.run_query(query, (customer_id,))
