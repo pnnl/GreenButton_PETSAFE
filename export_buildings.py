@@ -128,6 +128,7 @@ def extract_metadata(building_data, start_date, end_date):
     metadata["component_sites"] = building_data["point_id"].iloc[0][1:-1] # Cut out brackets
     metadata["start_date"] = datetime.datetime.strptime(start_date,'%Y-%m-%d') # TODO: start date of full data?
     metadata["end_date"] = datetime.datetime.strptime(end_date,'%Y-%m-%d') # TODO: does this need to be the end of the day (23:45)?
+    metadata["unit_of_measure"] = "kW"
     building_data = building_data.drop(columns=["point_id"]) # We keep building_id since it's needed when making multiple files
     return metadata, building_data
 
