@@ -737,33 +737,6 @@ CREATE TABLE `resources` (
   CONSTRAINT `FK_37f4ae42a5f94b85ac063017869` FOREIGN KEY (`id`) REFERENCES `BatchList` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
---
--- Table structure for table `relationships`
--- Should this be broken into three tables (meter-premise, premise-customer, customer-meter)?
---
-DROP TABLE IF EXISTS `relationships`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `relationships` (
-  `id` bigint(20) NOT NULL, /* Analagous to PremiseID */
-  `description` varchar(255) DEFAULT NULL,
-  `published` datetime DEFAULT NULL,
-  `self_link_href` varchar(255) DEFAULT NULL,
-  `self_link_rel` varchar(255) DEFAULT NULL,
-  `up_link_href` varchar(255) DEFAULT NULL,
-  `up_link_rel` varchar(255) DEFAULT NULL,
-  `updated` datetime DEFAULT NULL,
-  `uuid` varchar(255) NOT NULL,
-  `meter_id` bigint(20) DEFAULT NULL,
-  `premise_id` bigint(20) DEFAULT NULL,
-  `customer_id` bigint(20) DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `UK_uuid_relationships` (`uuid`),
-  CONSTRAINT `FK_rel_meter_id` FOREIGN KEY (`meter_id`) REFERENCES `usage_points` (`id`),
-  CONSTRAINT `FK_rel_premise_id` FOREIGN KEY (`premise_id`) REFERENCES `addresses` (`id`),
-  CONSTRAINT `FK_rel_customer_id` FOREIGN KEY (`customer_id`) REFERENCES `retail_customers` (`id`)
-
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 /*!40101 SET character_set_client = @saved_cs_client */;

@@ -1,3 +1,0 @@
-#!/bin/bash
-# VSCode should auto-activate this, but in case it needs to be done manually:
-conda activate ../.conda

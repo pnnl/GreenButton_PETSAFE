@@ -1,1 +1,0 @@
-/usr/bin/c++ CMakeFiles/main.dir/main.cpp.o -o main  -Wl,-rpath,/usr/local/lib /usr/local/lib/libhelib.a /usr/lib/x86_64-linux-gnu/libarrow.so.1601.0.0 /usr/local/lib/libntl.so /usr/local/lib/libgmp.so -ldl -lrt 

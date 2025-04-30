@@ -1,3 +1,0 @@
-/home/rami742/Documents/toy-HE-example/CMakeFiles/main.dir
-/home/rami742/Documents/toy-HE-example/CMakeFiles/edit_cache.dir
-/home/rami742/Documents/toy-HE-example/CMakeFiles/rebuild_cache.dir
