@@ -98,8 +98,7 @@ def get_all_users():
         retail_customers.last_name, retail_customers.full_name, retail_customers.accountNumber,\
         retail_customers.email, retail_customers.phone_number, addresses.*  \
         FROM retail_customers \
-        LEFT JOIN addresses ON retail_customers.address_id=addresses.id \
-        LEFT JOIN logins ON retail_customers.id=logins.customer_id;"
+        LEFT JOIN addresses ON retail_customers.address_id=addresses.id;"
     try:
         status, users = sqlTableWorker.run_query(query)
         # If there is no full_name, build one from other columns if possible
