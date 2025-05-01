@@ -149,6 +149,7 @@ CREATE TABLE `usage_points` (
   `roleFlags` tinyblob,
   `status` smallint(6) DEFAULT NULL,
   `uri` varchar(255) DEFAULT NULL,
+  `isVirtual` bit(1) DEFAULT NULL, /* Set to 1 if meter is virtual */
   `localTimeParameters_id` bigint(20) DEFAULT NULL,
   `retail_customer_id` bigint(20) DEFAULT NULL,
   `address_id` bigint(20) DEFAULT NULL,
@@ -166,6 +167,18 @@ CREATE TABLE `usage_points` (
   CONSTRAINT `FK_41107ba4248e4bf79b62c405385` FOREIGN KEY (`retail_customer_id`) REFERENCES `retail_customers` (`id`),
   CONSTRAINT `FK_9fa5cbe1eaeb4dbfb7209cb0213` FOREIGN KEY (`localTimeParameters_id`) REFERENCES `time_configurations` (`id`),
   CONSTRAINT `FK_c3909436c6934c8bb14da2bb93b` FOREIGN KEY (`serviceDeliveryPoint_id`) REFERENCES `service_delivery_points` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `virtual_meter_mappings`
+--
+CREATE TABLE `virtual_meter_mappings` (
+  `virtual_meter_id` bigint(20) NOT NULL,
+  `component_meter_id` bigint(20) NOT NULL,
+  PRIMARY KEY (`virtual_meter_id`, `component_meter_id`),
+  CONSTRAINT `FK_vm_id` FOREIGN KEY (`virtual_meter_id`) REFERENCES `usage_points` (`id`),
+  CONSTRAINT `FK_component_id` FOREIGN KEY (`component_meter_id`) REFERENCES `usage_points` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 

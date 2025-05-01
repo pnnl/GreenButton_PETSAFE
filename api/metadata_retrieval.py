@@ -64,3 +64,26 @@ class metadataCaller:
     def get_share_purpose(self, customer_id):
         pass
 
+    # Determine if this meter is a virtual meter
+    # TODO: check that it shows up in Pandas as "1" and not 1 or True
+    # (Or expand the check if any of those are possible translations of bit(1))
+    def check_if_virtual_meter(self):
+        virtualization_col = self.__metadata["isVirtual"]
+        match virtualization_col[0]: # There should only be one entry here
+            case "1": # Meter is marked as being virtual
+                return True
+            case __: # Meter not marked as being virtual
+                return False
+
+    # If meter is virtual, determine which meters are
+    # being aggregated to create it
+    def get_meters_in_virtual_meter(self):
+        isVirtual = self.check_if_virtual_meter()
+        if not isVirtual: # Not a virtual meter, no aggregation
+            return None
+        # Ask the database
+        query = "SELECT * FROM virtual_meter_mappings \
+            WHERE virtual_meter_id = %s;"
+        component_meters = msq.query(query, (self.meter_id,))
+        return component_meters["component_meter_id"].to_list()
+
