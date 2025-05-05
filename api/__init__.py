@@ -5,12 +5,15 @@ from flask import Flask
 # require the backend to function.
 
 # Run the app and define its routing
-def init_app():
+def init_app(is_test=True):
     app = Flask(__name__) # instance_relative_config=False
     # app.config.from_object('config.Config')
     # If we need plugins, their inits go here
     with app.app_context():
-        from routes import endpoints
+        if is_test == True:
+            from test_routes import test_endpoints as endpoints
+        else:
+            from routes import endpoints
         app.register_blueprint(endpoints, url_prefix='/speedes/1_0') # Routing
     return app
 

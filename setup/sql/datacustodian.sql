@@ -750,6 +750,27 @@ CREATE TABLE `resources` (
   CONSTRAINT `FK_37f4ae42a5f94b85ac063017869` FOREIGN KEY (`id`) REFERENCES `BatchList` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
+--
+-- Table structure for table `resources`
+--
+
+DROP TABLE IF EXISTS `access_metadata`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `access_metadata` (
+  `id` bigint(20) NOT NULL,
+  `meter_id` bigint(20) NOT NULL,
+  `customer_id` bigint(20) DEFAULT NULL,
+  `third_party_id` bigint(20) DEFAULT NULL,
+  `access_level` bigint(20) DEFAULT NULL, /* Numeric code for access level */
+  `share_purpose` varchar(255) DEFAULT NULL,
+  `uri` varchar(255) DEFAULT NULL,
+  KEY `PK_access` (`id`),
+  CONSTRAINT `FK_meter_id` FOREIGN KEY (`meter_id`) REFERENCES `usage_points` (`id`),
+  /*CONSTRAINT `FK_third_party_id` FOREIGN KEY (`third_party_id`) REFERENCES `usage_points` (`id`) */
+  CONSTRAINT `FK_customer_id` FOREIGN KEY (`customer_id`) REFERENCES `retail_customers` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 /*!40101 SET character_set_client = @saved_cs_client */;

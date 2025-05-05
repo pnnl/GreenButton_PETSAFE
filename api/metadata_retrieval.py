@@ -1,4 +1,3 @@
-from sqlWorkerClass import sqlTableWorker
 from . import mysql_database as msq
 import pandas as pd
 
@@ -11,6 +10,7 @@ class metadataCaller:
         
         self.meter_id = meter_id
         self.__metadata = self.__query_meter()
+        self.__address = self.get_address()
 
     # Get information associated with the meter from the
     # MySQL database
@@ -19,7 +19,8 @@ class metadataCaller:
     # usage_points?
     def __query_meter(self):
         query = "SELECT * FROM usage_points WHERE id = %s \
-            LEFT JOIN addresses on usage_points.address_id=addresses.id;"
+            LEFT JOIN addresses on usage_points.address_id=addresses.id \
+            LEFT JOIN access_metadata on usage_points.id=access_metadata.meter_id;"
         metadata = msq.query(query, (self.meter_id,))
         return metadata
     
@@ -35,26 +36,24 @@ class metadataCaller:
             print(table, "could not be retrieved:", ex)
             return None
 
+    # Get the results from one specific table by column matching
+    def __get_table_subset(self, tablename):
+        subset_cols = list(self.__get_columns(tablename))
+        subset_cols.append(id)
+        subset_metadata = self.__metadata.copy()
+        subset_metadata = subset_metadata[subset_cols]
+        return subset_metadata
+
     # Get the current address of the meter
     def get_address(self):
-        address_cols = list(self.__get_columns("addresses"))
-        address_cols.append(id)
-        address_metadata = self.__metadata.copy()
-        address_metadata = address_metadata[address_cols]
+        address_metadata = self.__get_table_subset("addresses")
         return address_metadata
-
-    # Get information on unit of measure and scaling
-    def get_units(self):
-        pass
-
-    # Get measurement interval for the meter
-    def get_time_resolution(self):
-        pass
 
     # Get a given user's access permissions (with privacy level)
     # for the meter (check expiration date too)
     def get_permissions(self, customer_id):
-        pass
+        access_metadata = self.__get_table_subset("access_metadata")
+        return access_metadata
 
     # Check when a user's access to the meter expires
     def get_access_expiration(self, customer_id):
@@ -62,7 +61,8 @@ class metadataCaller:
 
     # Find out why a customer has access to a meter
     def get_share_purpose(self, customer_id):
-        pass
+        purpose = self.__metadata["share_purpose"]
+        return purpose
 
     # Determine if this meter is a virtual meter
     # TODO: check that it shows up in Pandas as "1" and not 1 or True
