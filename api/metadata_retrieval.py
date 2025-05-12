@@ -1,5 +1,9 @@
 from . import mysql_database as msq
 import pandas as pd
+from cachetools import ttlCache, cached
+
+cache_time = 600 # In seconds
+max_cache_size = 128 # Entries
 
 # Retrieve the metadata for a given meter
 class metadataCaller:
@@ -17,6 +21,7 @@ class metadataCaller:
     # Address: left join addresses table
     # Other metadata:
     # usage_points?
+    @cached(cache=ttlCache(maxsize=max_cache_size, ttl=cache_time))
     def __query_meter(self):
         query = "SELECT * FROM usage_points WHERE id = %s \
             LEFT JOIN addresses on usage_points.address_id=addresses.id \
@@ -26,6 +31,7 @@ class metadataCaller:
     
     # List the columns in a table so metadata can be filtered
     # to just that table
+    @cached(cache=ttlCache(maxsize=max_cache_size, ttl=cache_time))
     def __get_columns(self, table):
         try:
             query = 'SELECT column_name FROM INFORMATION_SCHEMA.COLUMNS WHERE table_name = %s;'
@@ -77,6 +83,7 @@ class metadataCaller:
 
     # If meter is virtual, determine which meters are
     # being aggregated to create it
+    @cached(cache=ttlCache(maxsize=max_cache_size, ttl=cache_time))
     def get_meters_in_virtual_meter(self):
         isVirtual = self.check_if_virtual_meter()
         if not isVirtual: # Not a virtual meter, no aggregation
