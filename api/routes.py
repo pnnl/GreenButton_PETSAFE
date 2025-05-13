@@ -168,8 +168,9 @@ def get_all_usage_points():
     # Should we also include serviceDeliveryPoints here, or only for specific meters?
     # Makes most sense as specific meters but wait to see use case to confirm
     results = msq.query("SELECT * FROM usage_points;")
+    print(results)
     # Format to JSON
-    if results == []:
+    if results.empty:
         abort(404) # Resource not found, does not exist
     return results.to_json(orient="records")       
             
