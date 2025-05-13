@@ -3,7 +3,7 @@ import pandas as pd
 from cachetools import ttlCache, cached
 
 cache_time = 600 # In seconds
-max_cache_size = 128 # Entries
+max_cache_size = 64 # Entries
 
 # Retrieve the metadata for a given meter
 class metadataCaller:
@@ -93,4 +93,14 @@ class metadataCaller:
             WHERE virtual_meter_id = %s;"
         component_meters = msq.query(query, (self.meter_id,))
         return component_meters["component_meter_id"].to_list()
+    
+    # Extract all usage points whose address matches a given address.
+    # This should effectively list all meters at that address.
+    @cached(cache=ttlCache(maxsize=max_cache_size, ttl=cache_time))
+    @staticmethod
+    def list_component_sites(address_id):
+        # Retrieve building from database
+        query = "SELECT id FROM usage_points WHERE address_id == %s;"
+        results = msq.query(query, (address_id,))
+        return results
 

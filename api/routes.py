@@ -94,23 +94,22 @@ def delete_address(address_id):
 @endpoints.route("/users", methods=['GET'])
 def get_all_users():
     # Get a list of all users: basic information, username and contact info, and mailing address
-    query = "SELECT logins.username, retail_customers.role, retail_customers.first_name,\
+    query = "SELECT retail_customers.username, retail_customers.role, retail_customers.first_name,\
         retail_customers.last_name, retail_customers.full_name, retail_customers.accountNumber,\
         retail_customers.email, retail_customers.phone_number, addresses.*  \
         FROM retail_customers \
         LEFT JOIN addresses ON retail_customers.address_id=addresses.id;"
     try:
         status, users = sqlTableWorker.run_query(query)
-        # If there is no full_name, build one from other columns if possible
+        # If there is no full_name, build one from other columns if possible; we need a full name
         name_mask = users.full_name.isin([None, ""])
         users.loc[name_mask, "full_name"] = users["first_name"] + " " + users["last_name"]
-        # Rename the column to match expected output
+        # Rename the column to match expected output; clean up column if needed for use
         users.rename(columns={"full_name": "legalName"}, inplace=True)
-        # Deal with null values
         users.fillna("", inplace=True)
         # Get addresses in their own frame for future use to convert to a dictionary
         user_addresses = pd.DataFrame()
-        # Find out which columns contain address fields
+        # Find out which columns contain address fields so we can format them
         query = "SELECT column_name FROM INFORMATION_SCHEMA.COLUMNS WHERE table_name=%s;"
         status, address_cols = sqlTableWorker.run_query(query, ("addresses",))
         # Format the address frame into ONLY address columns
@@ -121,6 +120,7 @@ def get_all_users():
             if col not in ignore_cols and col in users.columns:
                 user_addresses[col] = users[col]
         # Remove any unneeded columns after processing (particularly in addresses)
+        # so we don't return unnecessary data
         remove_cols = ["published", "self_link_href", "self_link_rel", "up_link_href", "up_link_rel", \
                        "updated", "uuid", "id", "description", "first_name", "last_name"]
         remove_cols = remove_cols + user_addresses.columns.to_list()
@@ -132,7 +132,7 @@ def get_all_users():
         # Format for return
         dict_users = users.to_dict(orient="records")
         users = {"Users": dict_users}
-        # Return the list of users
+        # Return the list of users in JSON for return
         users = dumps(users)
     except Exception as ex:
         print("Could not retrieve users:", ex)

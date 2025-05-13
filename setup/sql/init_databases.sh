@@ -31,19 +31,24 @@
 user="root"
 
 # Password needs to be in ~/.my.cnf
+echo "Creating databases."
 
 # drop/create databases 
-mysql --defaults-file=~/.my.cnf --user=${user} < cleandatabases_dc.sql
-mysql --defaults-file=~/.my.cnf --user=${user} < cleandatabases_tp.sql
+mysql --defaults-file=~/.my.cnf --user=${user} < cleandatabases_dc.sql > /dev/null
+mysql --defaults-file=~/.my.cnf --user=${user} < cleandatabases_tp.sql > /dev/null
 
 # create tables 
-mysql --defaults-file=~/.my.cnf --user=${user} < ./thirdparty.sql
-mysql --defaults-file=~/.my.cnf --user=${user} < ./datacustodian.sql
-mysql --defaults-file=~/.my.cnf --user=${user} < tokenstore.sql
+mysql --defaults-file=~/.my.cnf --user=${user} < ./thirdparty.sql > /dev/null
+mysql --defaults-file=~/.my.cnf --user=${user} < ./datacustodian.sql > /dev/null
+mysql --defaults-file=~/.my.cnf --user=${user} < tokenstore.sql > /dev/null
+
+echo "Populating tables with sample data."
 
 # prepopulate tables
 mysql --defaults-file=~/.my.cnf --user=${user} < ./populate_dc_sample_data.sql
 #mysql --user=${user} --defaults-file=~/.my.cnf < prepopulatesql_users_dc.sql
-mysql --defaults-file=~/.my.cnf --user=${user} < ./prepopulatesql_users_tp.sql
+#mysql --defaults-file=~/.my.cnf --user=${user} < ./prepopulatesql_users_tp.sql
 #mysql --user=${user} --defaults-file=~/.my.cnf < prepopulatesql_dc.sql
-mysql --defaults-file=~/.my.cnf --user=${user} < ./prepopulatesql_tp.sql
+#mysql --defaults-file=~/.my.cnf --user=${user} < ./prepopulatesql_tp.sql
+
+echo "Done."
