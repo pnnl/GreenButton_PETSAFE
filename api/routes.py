@@ -127,7 +127,14 @@ def get_all_users():
         for col in remove_cols:
             if col in users.columns:
                 del users[col]
+        # Convert latitude and longitude from decimal to float- the loss of precision
+        # is unfortunate, but dumps() doesn't accept Decimal objects and converting to a
+        # string results in scientific notation, which may be confusing to end users
+        user_addresses["latitude"] = user_addresses["latitude"].apply(float)
+        user_addresses["longitude"] = user_addresses["longitude"].apply(float)
         # Build the dictionaries for addresses to store as {"address": {user_addresses}}
+        # Address must be stored as a dictionary so that the response follows proper
+        # JSON formatting- address data needs to be grouped under "address": {}
         users["address"] = user_addresses.to_dict(orient="records")
         # Format for return
         dict_users = users.to_dict(orient="records")
