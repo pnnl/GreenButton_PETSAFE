@@ -572,13 +572,17 @@ class sqlTableWorker:
             case "retail_customers":
                 try:
                     # Handle customer name -> one field
-                    data["legalName"] = data["first_name"] + " " + data["last_name"]
+                    # If we have the full name, use it
+                    data["legalName"] = data["full_name"]
+                    del data["full_name"]
+                    # If we don't have the full name, build it
+                    # df.loc[(pd.isnull(df.C)), 'C'] = df.A * df.B
+                    data.loc[(pd.isnull(data.legalName)), "legalName"] = data["first_name"] + " " + data["last_name"]
+                    #data["legalName"] = data["first_name"] + " " + data["last_name"]
                     del data["first_name"]
                     del data["last_name"]
                 except Exception as ex:
                     print("Could not adjust name fields for retail_customers:", ex)
-            case "logins":
-                del data["password"] # Not returning this!
         return data
         
     # Ensure that a foreign key exists in the table that corresponds to an existing record
