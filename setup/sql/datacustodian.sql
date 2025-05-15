@@ -280,8 +280,8 @@ CREATE TABLE `addresses` (
   `city` varchar(255) DEFAULT NULL,
   `county` varchar(255) DEFAULT NULL,
   `state` varchar(2) DEFAULT NULL, /* 2 letter state abbreviation */
-  `zipcode` int(5) DEFAULT NULL, /* 5 digit zip code */
-  `zipFour` int(4) DEFAULT NULL, /* 4 digit extension to zip code */
+  `zipcode`varchar(5) DEFAULT NULL, /* 5 digit zip code */
+  `zipFour` varchar(4) DEFAULT NULL, /* 4 digit extension to zip code */
   `fullAddress` varchar(255) DEFAULT NULL, /* Full address, if provided as such */
   `latitude` decimal(10, 8) DEFAULT NULL,
   `longitude` decimal(11, 8) DEFAULT NULL,
