@@ -59,28 +59,39 @@ def build_address(address_record: pd.Series):
     # Ensure format is correct so the selection of different address parts works as intended
     if not isinstance(address_record, pd.Series) and not isinstance(address_record, pd.DataFrame):
         try:
+            print("Please pass address as a Pandas DataFrame or Series object.")
             address_record = pd.DataFrame(address_record)
         except:
             print("Please pass address as a Pandas DataFrame or Series object.")
     # If we already have a full address, use that instead of trying to build one from scratch
     # (though this assumes the format of the full address is fine already- is that a safe assumption?)
-    try:
+    if str(address_record["fullAddress"]).strip() != "":
         formatted_addr = address_record["fullAddress"]
-    except:
+    else:
         # We don't have a full address field. We need to build one- the API returns
         # that field as one line if this function is invoked, meaning that all of
         # these fields need to be coerced into a single string for return
         addr = {}
-        addr["address"] = str(address_record["building"]) + " " + \
-                          str(address_record["streetPrefix"]) + " " + \
-                          str(address_record["streetNumber"]) + " " + \
-                          str(address_record["streetName"]) + " " + \
-                          str(address_record["streetSuffix"]) #+ " " + \
-                          #str(customer_address["streetType"])+ " " + \
-        addr["addressNumber"] = str(address_record["houseFractionNumber"]) + " " + \
-                                str(address_record["unit"]) + " " + \
+        addr["address"] = format_address_component(address_record["building"]) + \
+                        format_address_component(address_record["streetPrefix"]) + \
+                        format_address_component(address_record["streetNumber"]) + \
+                        format_address_component(address_record["streetName"]) + \
+                        format_address_component(address_record["streetSuffix"]) + \
+                        str(address_record["streetType"])
+        addr["addressNumber"] = format_address_component(address_record["houseFractionNumber"]) + \
+                                format_address_component(address_record["unit"]) + \
                                 str(address_record["building"])
         addr["city"] = address_record["city"]
-        addr["state"] = {"code": address_record["state"], "name": ""} # TODO: handle name lookup or store name
-        addr["zip"] = str(address_record["zipCode"]) + "-" + str(address_record["zipFour"])
+        #addr["state"] = {"code": address_record["state"], "name": ""} # TODO: handle name lookup or store name
+        addr["zip"] = str(address_record["zipcode"]) + "-" + str(address_record["zipFour"])
+        for component in addr:
+            addr[component] = addr[component].strip()
+        formatted_addr = addr["addressNumber"] + " " + addr["address"] + ", " + addr["city"] + ", " \
+            + address_record["state"] + " " + addr["zip"]
     return formatted_addr
+
+def format_address_component(component):
+    component = str(component) # Ensure format matches
+    if component != "": # Add spaces only if the component has content
+        component = component + " "
+    return component
