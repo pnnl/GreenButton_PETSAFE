@@ -6,6 +6,7 @@ from validity_tests import *
 from sqlWorkerClass import sqlTableWorker
 from common_functions import *
 from json import dumps
+from datetime import date
 
 # OVERARCHING TODO:
 # Hook all actions into authentication/authorization.
@@ -167,8 +168,49 @@ def get_customer(cust_id):
 def get_all_usage_points():
     # Should we also include serviceDeliveryPoints here, or only for specific meters?
     # Makes most sense as specific meters but wait to see use case to confirm
-    results = msq.query("SELECT * FROM usage_points;")
-    print(results)
+    # Get all usage points
+    # TODO: only those associated with account requesting
+    query = "SELECT usage_points.id, usage_points.status, usage_points.roleFlags, addresses.* FROM usage_points \
+        LEFT JOIN addresses ON usage_points.address_id=addresses.id;"
+    results = msq.query(query)
+    address_cols = msq.query("SELECT column_name FROM INFORMATION_SCHEMA.COLUMNS WHERE table_name=%s;", ("addresses",))
+    # Get address data into its own frame so it can be formatted into a single string per record more easily
+    address_data = pd.DataFrame()
+    for col in address_cols["COLUMN_NAME"]:
+        address_data[col] = results[col]
+        del results[col]
+    # Format the addresses
+    addresses = []
+    for row_id in address_data.index:
+        addresses.append(build_address(address_data.iloc[row_id]))
+    results["address"] = addresses
+    # Rename columns to match expected output
+    results.rename(columns={"id": "meterId"}, inplace=True)
+    # Set up datetime metadata
+    todayDate = datetime.today().strftime('%Y-%m-%d')
+    results["requestDate"] = todayDate
+    # Get the point's address as a single string
+    # TODO: These are filler values that must be retrieved from the table; should be stored
+    # on data intake
+    results["startDate"] = "None"
+    results["terminationDate"] = "None"
+    # TODO: These are filler values right now. We need to be able to query or create the actual values
+    # based on who's making the query
+    results["requestor"] = "" # TODO: request this from end user at query time
+    results["account"] = "" # TODO: same as above, but query for it
+    results["accountNumber"] = "ACC1234" # TODO: this is probably what we need to request to get the above
+    # TODO: Also filler values depending on share information; these will need to be retrieved
+    # from the MySQL database for the requesting entity
+    results["sharedWith"] = "[None]"
+    results["entity"] = ""
+    results["entityAccessType"] = "Placeholder for Sample Data"
+    results["purpose"] = "Testing"
+    results["privacyProfile"] = "None"
+    results["action"] = "Test"
+    # Remove columns that don't need to be displayed
+    del results["roleFlags"]
+    del results["addresses.id"]
+    # Format columns
     # Format to JSON
     if results.empty:
         abort(404) # Resource not found, does not exist
