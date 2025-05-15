@@ -83,7 +83,9 @@ def build_address(address_record: pd.Series):
                                 str(address_record["building"])
         addr["city"] = address_record["city"]
         #addr["state"] = {"code": address_record["state"], "name": ""} # TODO: handle name lookup or store name
-        addr["zip"] = str(address_record["zipcode"]) + "-" + str(address_record["zipFour"])
+        addr["zip"] = str(address_record["zipcode"]) 
+        if address_record["zipFour"] != "":
+            addr["zip"] = addr["zip"] + "-" + str(address_record["zipFour"])
         for component in addr:
             addr[component] = addr[component].strip()
         formatted_addr = addr["addressNumber"] + " " + addr["address"] + ", " + addr["city"] + ", " \
