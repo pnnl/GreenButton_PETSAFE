@@ -174,6 +174,10 @@ def get_all_usage_points():
         LEFT JOIN addresses ON usage_points.address_id=addresses.id;"
     results = msq.query(query)
     address_cols = msq.query("SELECT column_name FROM INFORMATION_SCHEMA.COLUMNS WHERE table_name=%s;", ("addresses",))
+    # Rename columns to match expected output
+    # Done via copying so the for loop later that iterates over the original columns
+    # doesn't complain about id's absence (and since it deletes it, this does act as a rename)
+    results["meterId"] = results["id"]
     # Get address data into its own frame so it can be formatted into a single string per record more easily
     address_data = pd.DataFrame()
     for col in address_cols["COLUMN_NAME"]:
@@ -184,8 +188,6 @@ def get_all_usage_points():
     for row_id in address_data.index:
         addresses.append(build_address(address_data.iloc[row_id]))
     results["address"] = addresses
-    # Rename columns to match expected output
-    results.rename(columns={"id": "meterId"}, inplace=True)
     # Set up datetime metadata
     todayDate = datetime.today().strftime('%Y-%m-%d')
     results["requestDate"] = todayDate
