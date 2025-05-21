@@ -1,8 +1,6 @@
 from sys import argv
 from __init__ import init_app
 
-print(len(argv))
-
 flag = None
 if len(argv) > 1:
     flag = argv[1]
