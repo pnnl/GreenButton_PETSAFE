@@ -1,4 +1,4 @@
-from api import influx_database as idb
+from api.scripts import influx_database as idb
 from database_config import *
 import pandas as pd
 

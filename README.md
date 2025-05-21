@@ -14,11 +14,9 @@ The following directories are not guaranteed to be self-contained and may need r
 
 - DCT_testing holds files related to experimenting with DCT and privacy protection.
 - building_aggregation holds files that create or export virtual buildings composed of multiple meters.
-- building_analysis holds files that read from aggregated buildings (including, if necessary, decrypting them)
 
 The following directories should be self-contained.
 - api holds files related to running the API.
-- deprecated holds code that isn't currently in use, but reflects past work.
 
 
 # Further Documentation

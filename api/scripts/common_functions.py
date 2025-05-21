@@ -1,5 +1,5 @@
 import pandas as pd
-from sqlWorkerClass import sqlTableWorker
+from scripts.sqlWorkerClass import sqlTableWorker
 
 # <- d1: a dictionary. Any contents permitted.
 # <- d2: a dictionary. Any contents permitted.

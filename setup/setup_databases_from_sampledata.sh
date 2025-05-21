@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Influx
-python setup_influx_from_sampledata.py
-
 # MySQL
-bash ./api/setup_databases.sh
+bash api/setup_databases.sh
+
+# Influx
+python setup/setup_influx_from_sampledata.py

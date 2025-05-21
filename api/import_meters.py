@@ -1,4 +1,4 @@
-import api.influx_database as idb
+import api.scripts.influx_database as idb
 import pandas as pd
 from dct_backend.list_files import iterate
 from database_config import *

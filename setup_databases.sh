@@ -7,9 +7,8 @@ fi
 
 # Run from within the application directory or be corrected
 dir=$(basename pwd)
-if [ dir != "application" ]; then
-    echo "Please run script from within application directory."
-    cd application
+if [ dir != "setup" ]; then
+    cd setup
 fi
 
 # --------- Influx -------------

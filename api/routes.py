@@ -1,10 +1,10 @@
 from flask import jsonify, request, abort, Blueprint, Response
 from database_config import *
-import influx_database as idb
-import mysql_database as msq
-from validity_tests import *
-from sqlWorkerClass import sqlTableWorker
-from common_functions import *
+import scripts.influx_database as idb
+import scripts.mysql_database as msq
+from scripts.validity_tests import *
+from scripts.sqlWorkerClass import sqlTableWorker
+from scripts.common_functions import *
 from json import dumps
 from datetime import date
 
