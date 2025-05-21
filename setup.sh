@@ -11,7 +11,9 @@ bash install_influx.sh
 bash install-mysql.sh
 
 # Fill  databases
-cd ..
-python setup_databases_from_sampledata.py
+# MySQL
+bash ./populate_mysql.sh
+# Influx
+python ./setup_influx_from_sampledata.py
 
 # Direct user towards documentation
