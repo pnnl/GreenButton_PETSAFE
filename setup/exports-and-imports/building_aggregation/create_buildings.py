@@ -625,7 +625,7 @@ class Building:
         # TODO: Account for missing starts and ends; sites do not always have the same start/end dates
         # Find any remaining rows containing N/A that need more involved imputation
         #na_rows = target.loc[pd.isna(target["real_power"]), :].index
-        target = target.fillna(0) # Catch anything the fill methods missed. TODO: Make sure to log this!
+        #target = target.fillna(0) # Catch anything the fill methods missed. TODO: Make sure to log this!
         # Fix ID columns for added rows
         target["ee_site_id"] = ee_site_id
         target["point_id"] = point_id
@@ -650,6 +650,36 @@ class Building:
                 print("Building " + self.__bid + ": Could not resample: " + ex)
         return self.__data
 
+    # Thanks to Daylight Savings Time, we'll have one duplicate hour and one missing hour.
+    # Deal with the duplicate hour by removing the second copy of it.
+    # Deal with the missing hour by ensuring we've imputed NA back into it.
+    def fix_daylight_savings(self):
+        # Find rows with duplicate timestamps. Mark all except the first as duplicates.
+        # We want to keep the first one to avoid discontinuities.
+        # If we need to do this on an Index, the equivalent is .duplicated
+        # This handles the "fall back" DST transition where an hour happens twice.
+        self.__data = self.__data.drop_duplicates(subset="timestamp", keep="first")
+        # We still need to address the other transition where an hour has no data.
+        # Deal with the missing hour. It'll be all zeros due to previous fillna use-
+        # this solution is unfortunately specific to a DST changeover that happens
+        # at 2AM (AKA: 2:00-2:45 is missing, normal time resumes at 3:00) because
+        # detecting DST is otherwise a problem for this case.
+        # 2 AM, second Sunday of March is the working standard here.
+        # TODO This works for now but we can do better. Find a way less dependent on specific
+        # DST timing knowledge.
+        # Find DST day.
+        # Second Sundays...
+        second_sundays = pd.date_range(config.START_DATE, config.END_DATE, freq="WOM-2SUN").to_series()
+        # In March. Second Sundays where month == March.
+        dsts = []
+        for day in second_sundays:
+            if day.month == 3:
+                dsts.append(day)
+        # We now have the second Sunday of every March- the DST transition that skips an hour
+        # Get the actual data for those days
+        dst_day = self.__data.loc[dsts]
+        # Ensure it's set to NA from 2 AM to 3 AM (left-inclusive). No data here.
+
     # Aggregate sites into a building. For each timestamp, sum all values matching timestamp.
     # Place the results into their own row and adjust any fields accordingly.
     # Returns the resulting aggregated frame; see docs/documentation.md for columns and data types.
@@ -658,7 +688,11 @@ class Building:
         print("Aggregating.")
         # For each timestamp in the ids list, sum all values
         if self.__encryption_enabled == False:
+            # Necessary so we don't try to add NaN
+            self.__data = self.__data.fillna(0)
+            # Sum for each timestamp
             aggregated_data = self.__data.groupby(by="timestamp").sum()
+            # TODO Might be broken- check
             self.__data["duration"] = self.__data["duration"] / len(self.__ids)
         else:
             # Aggregating encrypted data requires the use of EvalAdd

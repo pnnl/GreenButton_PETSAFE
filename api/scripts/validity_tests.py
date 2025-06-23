@@ -126,6 +126,14 @@ def check_types(record, table):
             match.append(True) # Types match, good to go
     return match
 
+def check_oauth(
+        token: str # The user's provided OAuth 2.0 token
+        ):
+    pass
+    # Check if token exists in database
+    # If token exists, check access granted by it and return
+    # If token does not exist, access denied
+
 # Get variable number of arguments and format into a record
 # Some fields need to be auto-generated; others will need to be
 # provided by the user. This function handles both and returns
