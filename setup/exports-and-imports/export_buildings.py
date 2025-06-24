@@ -9,16 +9,16 @@ from shutil import make_archive, rmtree
 from building_aggregation.list_files import list_files_in_dir
 
 # Variables for controlling exports; change as needed
-buildings_to_export = range(0, 30)
+buildings_to_export = range(0, 5)
 start_date = "2023-01-01"
-end_date = "2023-01-28"
+end_date = "2023-12-31"
 privacy_tag = "raw"
 
 # Path variables
 # Ensure read_dir and export_dir end with slashes
 read_dir = "output/buildings/"
 export_dir = "output/building-month-slices/"
-filename_prefix = "jan"
+filename_prefix = "year"
 
 
 # subclass JSONEncoder
@@ -92,6 +92,7 @@ def export_simple_json(
     else:
         mode = "w"
     with open(export_path, mode) as outfile:
+            # Export as normal
             building_data = building_data.reset_index()
             building_data = building_data.rename(columns={"building_id": "meter_id"})
             building_data.to_json(outfile, indent=4, orient='records')

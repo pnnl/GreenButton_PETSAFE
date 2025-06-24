@@ -22,25 +22,12 @@ def read_json(directory):
             # Find duplicates and remove the second copy.
             readings = fix_duplicate_hours(readings)
             # Find the "missing hour" of March's DST and set to NA
-            #print(readings)
             readings.set_index("timestamp", inplace=True)
             readings = fix_missing_hour(readings)
             # Save fixed data to new file (just in case!)
-            with open(file[:-5] + "-fixed.json", "w") as outfile:
-                #print(file[:-5] + "-fixed.json")
+            with open(file[:-5] + "-fixedDST.json", "w") as outfile:
                 readings = readings.reset_index()
                 readings.to_json(outfile, indent=4, orient='records')
-
-# Was used to test these functions
-def make_fake_data():
-    index = [datetime.strptime('2023-03-12 02:00', '%Y-%m-%d %H:%M'), datetime.strptime('2023-03-12 18:00', '%Y-%m-%d %H:%M'), datetime.strptime('2023-03-14 02:00', '%Y-%m-%d %H:%M')]
-    readings = [3,4,5]
-    frame = pd.DataFrame()
-    frame["timestamp"] = index
-    frame["reading"] = readings
-    frame = frame.set_index("timestamp")
-    #print(frame)
-    return frame
 
 def fix_missing_hour(building):
     # Deal with the missing hour- find and set to NA.
@@ -64,6 +51,14 @@ def fix_missing_hour(building):
 # still searching for a better way to handle that
 # (Have seen storing UTC + timezone + DST status; would add 2 fields but might work)
 def fix_duplicate_hours(building):
+    # Find duplicates
+    # Sum them- we don't want to lose the extra hour's power usage
+    building = building.groupby("timestamp").sum()
+    # Fix power factor
+    building["pf"] = building ["real_power"] / building["apparent_power"]
+    # Send back the results
+    building = building.reset_index()
+    print(building)
     return building.drop_duplicates(subset="timestamp", keep="first")
 
 def find_second_sundays():
@@ -80,6 +75,6 @@ def find_second_sundays():
     #print(dsts)
     return dsts
 
-read_json("sample_energy_data")
+read_json("output/building-month-slices/year")
 #data = make_fake_data()
 #fix_duplicate_hours(data)
