@@ -1,4 +1,4 @@
-from openfhe import *
+#from openfhe import *
 
 #from lightphe import LightPHE
 import pandas as pd
@@ -7,8 +7,9 @@ from os import makedirs
 from numpy import random
 from typing import Optional
 from time import perf_counter, mktime
-from datetime import datetime
+from datetime import datetime, timedelta
 from math import floor
+from numpy import nan
 
 #import processor.pullMains as pulldb
 from processor.commonDB import DBConn
@@ -60,72 +61,76 @@ def choose_random_ids(rng: Optional[int] = None):
             count = int(dist.rvs(loc1=loc1, scale1=scale1, loc2=loc2, scale2=scale2, s=s, size=1)[0]) # Generate building size
     # Get possible IDs to choose from
     print("Selecting building IDs.")
-    with DBConn.create_connection(config.DATABASE) as conn:
-        # TODO: what if site has no Mains? Is this ever the case in the data?
-        query = "SELECT DISTINCT point_id FROM LABELS WHERE LABELS.circuit_label_type_id IN (15,16)" # Only mains
-        if config.LIMIT_DATE == True:
-            # Buildings don't always start on the first available day. Only include those that do start
-            # before or on the start date to avoid large missing chunks of data
-            # TODO: parameterized query, not fstring (fstring query is injection vuln)
-            query = query + f" AND day_zero_dt <= '{config.START_DATE}'"
-        results = conn.execute(query + ";")
-        ids = results.fetchall() # ID count is small enough for fetchall() to be non-issue
-        # Select a random set of IDs (set size = count) from the results
-        initial_building_ids = randomizer.choice(ids, count, replace=False)
-        print(initial_building_ids) # Debug for convenience
+    try:
+        with DBConn.create_connection(config.DATABASE) as conn:
+            # TODO: what if site has no Mains? Is this ever the case in the data?
+            query = "SELECT DISTINCT point_id FROM LABELS WHERE LABELS.circuit_label_type_id IN (15,16)" # Only mains
+            if config.LIMIT_DATE == True:
+                # Buildings don't always start on the first available day. Only include those that do start
+                # before or on the start date to avoid large missing chunks of data
+                # TODO: parameterized query, not fstring (fstring query is injection vuln)
+                query = query + f" AND day_zero_dt <= '{config.START_DATE}'"
+            results = conn.execute(query + ";")
+            ids = results.fetchall() # ID count is small enough for fetchall() to be non-issue
+            # Select a random set of IDs (set size = count) from the results
+            initial_building_ids = randomizer.choice(ids, count, replace=False)
+            print(initial_building_ids) # Debug for convenience
 
-        # Prep to verify that chosen IDs have results for given time period
-        id_test_queue = list([id[0] for id in initial_building_ids]) # Original format not malleable
-        valid_ids = []
-        # Used to validate that data exists within this period;
-        # dates are stored as Unix timestamps, so start/end datetimes need to match formats to compare
-        start = mktime(datetime.strptime(config.START_DATE, '%Y-%m-%d').timetuple())
-        end = mktime(datetime.strptime(config.END_DATE, '%Y-%m-%d').timetuple())
+            # Prep to verify that chosen IDs have results for given time period
+            id_test_queue = list([id[0] for id in initial_building_ids]) # Original format not malleable
+            valid_ids = []
+            # Used to validate that data exists within this period;
+            # dates are stored as Unix timestamps, so start/end datetimes need to match formats to compare
+            start = mktime(datetime.strptime(config.START_DATE, '%Y-%m-%d').timetuple())
+            end = mktime(datetime.strptime(config.END_DATE, '%Y-%m-%d').timetuple())
 
-        # Get COUNT() of readings for this time period
-        # Used to check that enough data exists to use the point_id in buildings
-        while len(valid_ids) < count:
-            for id in id_test_queue:
-                # TODO: parameterized query, not fstring; fstring is injection vuln
-                # Check if data exists for this site
-                query = f"SELECT COUNT(*) FROM POWER WHERE point_id={id}" 
-                if config.LIMIT_DATE == True:
-                    query = query + f" AND timestamp BETWEEN {start} AND {end}" # BETWEEN {START_DATE} AND {END_DATE}"
-                results = conn.execute(query + ";")
-                valid_results = results.fetchone()[0] # COUNT() of results
-                # Max possible expected number of results = readings_per_day * number of days in requested period
-                # Not worried about duplicate readings for now.
-                # TODO in long-term: validate that it's not just a long chain of the same reading repeated, just in case?
-                readings_per_day = 96
-                max_readings_in_period = readings_per_day * int((datetime.strptime(config.END_DATE, '%Y-%m-%d') \
+            # Get COUNT() of readings for this time period
+            # Used to check that enough data exists to use the point_id in buildings
+            while len(valid_ids) < count:
+                for id in id_test_queue:
+                    # TODO: parameterized query, not fstring; fstring is injection vuln
+                    # Check if data exists for this site
+                    query = f"SELECT COUNT(*) FROM POWER WHERE point_id={id}" 
+                    if config.LIMIT_DATE == True:
+                        query = query + f" AND timestamp BETWEEN {start} AND {end}" # BETWEEN {START_DATE} AND {END_DATE}"
+                    results = conn.execute(query + ";")
+                    valid_results = results.fetchone()[0] # COUNT() of results
+                    # Max possible expected number of results = readings_per_day * number of days in requested period
+                    # Not worried about duplicate readings for now.
+                    # TODO in long-term: validate that it's not just a long chain of the same reading repeated, just in case?
+                    readings_per_day = 96
+                    max_readings_in_period = readings_per_day * int((datetime.strptime(config.END_DATE, '%Y-%m-%d') \
                                                              - datetime.strptime(config.START_DATE, '%Y-%m-%d')).days)
-                min_valid_results = floor(max_readings_in_period * config.REQUIRED_PORTION) # Number required to accept the site
+                    min_valid_results = floor(max_readings_in_period * config.REQUIRED_PORTION) # Number required to accept the site
 
-                # Finally, validate that enough data exists in the site for usage
-                if valid_results < min_valid_results: # AKA: not enough data for that point in this time period
-                    # Get a new ID to replace the invalid one
-                    new_id = randomizer.choice(ids, 1, replace=False)[0][0] # [][] removes from default list nesting result (SQL(row()))
-                    del id_test_queue[id_test_queue.index(id)] # ID is invalid for period; drop it from options
-                    try:
-                        if id in ids:
-                            # Remove the invalid point_id for future selections
-                            del ids[ids.index(id)]
-                        id_test_queue.append(new_id) # Setup to check the new ID's validity
-                    except Exception as ex: # We usually hit this point when running out of IDs
-                        print("Could not select valid ids for time period:", ex)
-                        raise SystemExit # Quit. TODO: just quit this call, not the whole program?
-                else: # Site has enough data to be usable
-                    if len(valid_ids) < count and id not in valid_ids: # We still need more unique valid ids
-                        valid_ids.append(id)
-                        continue
-                    elif len(valid_ids) >= count: # We have enough valid ids, exit loop
-                        break
-        # "it is recommended that applications run "PRAGMA optimize" (with no arguments) 
-        # just before closing each database connection."
-        # https://www.sqlite.org/pragma.html#pragma_optimize
-        cursor_obj = conn.cursor()
-        cursor_obj.execute("PRAGMA optimize;")
-        cursor_obj.close()
+                    # Finally, validate that enough data exists in the site for usage
+                    if valid_results < min_valid_results: # AKA: not enough data for that point in this time period
+                        # Get a new ID to replace the invalid one
+                        new_id = randomizer.choice(ids, 1, replace=False)[0][0] # [][] removes from default list nesting result (SQL(row()))
+                        del id_test_queue[id_test_queue.index(id)] # ID is invalid for period; drop it from options
+                        try:
+                            if id in ids:
+                                # Remove the invalid point_id for future selections
+                                del ids[ids.index(id)]
+                            id_test_queue.append(new_id) # Setup to check the new ID's validity
+                        except Exception as ex: # We usually hit this point when running out of IDs
+                            print("Could not select valid ids for time period:", ex)
+                            raise SystemExit # Quit. TODO: just quit this call, not the whole program?
+                    else: # Site has enough data to be usable
+                        if len(valid_ids) < count and id not in valid_ids: # We still need more unique valid ids
+                            valid_ids.append(id)
+                            continue
+                        elif len(valid_ids) >= count: # We have enough valid ids, exit loop
+                            break
+            # "it is recommended that applications run "PRAGMA optimize" (with no arguments) 
+            # just before closing each database connection."
+            # https://www.sqlite.org/pragma.html#pragma_optimize
+            cursor_obj = conn.cursor()
+            cursor_obj.execute("PRAGMA optimize;")
+            cursor_obj.close()
+    except TypeError:
+        print("Database not found.")
+        return ()
     print("Valid IDs:", valid_ids)
     valid_ids = tuple(valid_ids) # Format the selections into a tuple of ids; makes queries easier
     return valid_ids
@@ -606,7 +611,29 @@ class Building:
         if target.empty:
             print("Cannot impute on an empty frame.")
             return target
-        # We need to zero any N/A PF values; many of these should be zero to begin with, but for those corresponding
+
+        # Quality encodings- giving names for easier understanding
+        valid = 0
+        estimated_reference_day = 8
+        estimated_interpolation = 9
+        questionable = 10
+        derived = 11
+        mixed = 13
+        raw = 14
+        other = 16
+        target["quality"] = other # Default
+        # Set up quality for existing rows not equalling NA
+        # Default for rows with data
+        good_data = target[target["real_power"].notna() == True]
+        # Set equal to valid
+        # Find places where data are absent
+        missing_data = target[target["real_power"].isna() == True]
+        # Set equal to questionable
+        #target.loc["real_power" != nan]["quality"] = valid
+        # Rows with NA values
+        #target.isna()["quality"] = questionable
+        #print(target)
+        # We need to impute or zero any N/A PF values; many of these should be zero to begin with, but for those corresponding
         # to outages, it'll be recalculated after real and apparent power are imputed. We don't want the
         # should-be-zero PF values to be included when finding N/A rows.
         # Used to replace 0 values later- target should always have the same point_id, which is always
@@ -615,6 +642,7 @@ class Building:
         point_id = target["point_id"].iloc[0]
         # Fill in missing timestamps
         # timestamp should be index
+        old_index = target["timestamp"].copy() # For comparison of imputation
         target = target.set_index("timestamp")
         start_datetime = target.index[0]
         end_datetime = target.index[-1] + pd.Timedelta(1, "d") # one day ahead for date_range to work properly
@@ -622,6 +650,14 @@ class Building:
         new_index = pd.Index(fifteen_min_increments, name="timestamp")
         target = target.reindex(index=new_index, method="nearest", limit=outage_threshold)
         # TODO: log that fills took place
+        target["raw_data_present"] = new_index.isin(old_index)
+        print(target.notna())
+        # Mark that data was missing...
+        target.loc[target["raw_data_present"] == False]["quality"] = questionable
+        # ...but that we filled it in where we could
+        target.loc[target["real_power"].notna() & target["raw_data_present"] == False]["quality"] = estimated_interpolation
+        print(target.notna())
+        raise SystemExit
         # TODO: Account for missing starts and ends; sites do not always have the same start/end dates
         # Find any remaining rows containing N/A that need more involved imputation
         #na_rows = target.loc[pd.isna(target["real_power"]), :].index
@@ -675,10 +711,29 @@ class Building:
         for day in second_sundays:
             if day.month == 3:
                 dsts.append(day)
-        # We now have the second Sunday of every March- the DST transition that skips an hour
-        # Get the actual data for those days
-        dst_day = self.__data.loc[dsts]
-        # Ensure it's set to NA from 2 AM to 3 AM (left-inclusive). No data here.
+        # Deal with the missing hour- find and set to NA.
+        starttime = "02:00"
+        starttime = datetime.strptime(starttime, "%H:%M")
+        endtime = "02:59"
+        endtime = datetime.strptime(endtime, "%H:%M")
+        for date in dsts:
+            # Find the hour range affected by the DST transition
+            start_dt = date + timedelta(hours=starttime.hour) # At starttime: add the time!
+            end_dt = date + timedelta(hours=endtime.hour, minutes=endtime.minute) # At endttime: add the time!
+            # Get the data affected by DST transition
+            # Set it to NA; the hour didn't exist that day
+            self.__data.loc[start_dt:end_dt] = nan
+            # Deal with the duplicated hour for 25 hour DST transition days
+            # Find duplicates
+            # Sum them- we don't want to lose the extra hour's power usage
+            self.__data = self.__data.reset_index()
+            self.__data = self.__data.groupby("timestamp").sum()
+            # Fix power factor
+            self.__data["pf"] = self.__data["real_power"] / self.__data["apparent_power"]
+            # Send back the results
+            self.__data = self.__data.drop_duplicates(subset="timestamp", keep="first")
+            self.__data.set_index("timestamp")
+            return self.__data
 
     # Aggregate sites into a building. For each timestamp, sum all values matching timestamp.
     # Place the results into their own row and adjust any fields accordingly.
@@ -689,6 +744,7 @@ class Building:
         # For each timestamp in the ids list, sum all values
         if self.__encryption_enabled == False:
             # Necessary so we don't try to add NaN
+            # TODO: ...but we need to be able to handle NaN for cases where it matters
             self.__data = self.__data.fillna(0)
             # Sum for each timestamp
             aggregated_data = self.__data.groupby(by="timestamp").sum()

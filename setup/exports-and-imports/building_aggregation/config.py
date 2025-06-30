@@ -7,7 +7,7 @@ READ_FILES = False
 # Create virtual buildings using database
 CREATE_BUILDINGS = False
 # Database file target
-DATABASE = "data/records.db"
+DATABASE = "/mnt/hgfs/records.db"
 # Set to true if you want to encrypt data before saving to file
 ENCRYPT = False
 # Sets number of expected readings per encryption vector
@@ -40,17 +40,17 @@ STAT_TEMPORAL_RESOLUTION = "f"
 # What date range to retrieve statistics for
 LIMIT_DATE = True
 START_DATE = "2023-01-01"
-END_DATE = "2023-12-31"
+END_DATE = "2023-04-30"
 
 
 # ----- PROCESSING -----
 # How many virtual buildings to make
 BUILDING_COUNT = 1
 # What building ID number to start at
-FIRST_BUILDING_ID = 1
+FIRST_BUILDING_ID = 100
 # Minimum and maximum count of units per building
 MIN_SIZE = 2
-MAX_SIZE = 5
+MAX_SIZE = 2
 # Percentage of existing records necessary to accept an id as valid
 REQUIRED_PORTION = 0.9
 

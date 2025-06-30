@@ -58,7 +58,6 @@ def fix_duplicate_hours(building):
     building["pf"] = building ["real_power"] / building["apparent_power"]
     # Send back the results
     building = building.reset_index()
-    print(building)
     return building.drop_duplicates(subset="timestamp", keep="first")
 
 def find_second_sundays():

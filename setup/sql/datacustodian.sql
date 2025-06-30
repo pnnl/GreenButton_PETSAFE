@@ -462,6 +462,21 @@ CREATE TABLE `authorizations` (
 --
 -- Table structure for table `reading_qualities`
 --
+-- Quality encodings:
+-- 0: valid
+-- 7: manually edited
+-- 8: estimated via reference day
+-- 9: estimated via interpolation
+-- 10: questionable
+-- 11: derived
+-- 12: projected (forecasted)
+-- 13: mixed
+-- 14: raw
+-- 15: normalized for weather
+-- 16: other
+-- 17: validated
+-- 18: verified
+-- 19: revenue-quality
 
 DROP TABLE IF EXISTS `reading_qualities`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
