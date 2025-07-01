@@ -52,8 +52,13 @@ def get_building_real_power(meter_id):
     # Get real power
     # TODO: different tag depending on permissions granted by OAuth status
     # For now, raw is what's in the database
-    power = idb.read_points_in_range(client=client, building_id=meter_id, privacy_tag="raw")
+    power = idb.read_points_in_range(client=client, meter_id=meter_id, privacy_tag="raw")
     idb.close_client(client)
+    # Convert to local time
+    # Get local time.
+    local_time = "America/Los_Angeles" # Test placeholder, TODO
+    # Convert to local time
+    power = convert_to_tz(power, local_time)
     # Mark which meter the data comes from
     power["meter_id"] = meter_id
     # TODO: make datetimes obviously datetimes (currently UNIX stamps, which may be confusing to humans)

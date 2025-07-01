@@ -10,6 +10,8 @@ from time import perf_counter, mktime
 from datetime import datetime, timedelta
 from math import floor
 from numpy import nan
+from zoneinfo import ZoneInfo
+from dateutil.relativedelta import relativedelta # DST calculations
 
 #import processor.pullMains as pulldb
 from processor.commonDB import DBConn
@@ -161,6 +163,42 @@ def make_buildings(
     print("Average time:", time_taken / config.BUILDING_COUNT)
     return buildings
 
+def is_dst(when):
+    #Given the name of Timezone will attempt determine if that timezone 
+    # is in Daylight Saving Time now (DST) - see
+    # https://gist.github.com/dpapathanasiou/09bd2885813038d7d3eb
+    return when.dst() != timedelta(0)
+
+# Find days where Daylight Savings kicks in for a time zone
+# Edited from https://zetcode.com/python/time-daylight/
+# Returns a list of datetimes where the date is a daylight savings
+# transition for tz
+def find_dst_transitions(
+        years: list, 
+        tz: str
+        ):
+    transitions = []
+    last_dst = None
+    # For each year tested...
+    for year in years:
+        # Check each day of the year
+        delta = relativedelta(years=1)
+        # Noon is to catch the DST transition! Midnight would give
+        # an off by one error
+        this_date = dt(year, 1, 1, 12, 0, 0, 0, tzinfo=tz)
+        end_date = this_date + delta
+        while this_date <= end_date:
+            local_time = this_date
+            current_dst = is_dst(local_time)
+            if last_dst is not None and current_dst != last_dst:
+                print("DST transition found by find_dst_transitions():", local_time)
+                # Timedelta is so it's returned at midnight, not noon
+                # to ensure time selection stays accurate
+                transitions.append(local_time - timedelta(hours=12))
+            last_dst = current_dst
+            this_date = this_date + timedelta(days=1)
+    return transitions
+
 # The building class
 class Building:
     def __init__(
@@ -177,6 +215,7 @@ class Building:
         self.__encryption_enabled = encrypt
         self.__pickle = pickle
         self.__OUTPUT_DIR = config.OUTPUT_DIR
+        self.UTC = ZoneInfo("UTC")
 
         # Check if we're limiting the date range for data retrieval;
         # if yes, prep for that and sanity check the date range provided
@@ -203,17 +242,16 @@ class Building:
             self.__data = self.query_for_sites(database, self.__ids, self.__start_date, self.__end_date)
 
             # Fill in missing data
-            imputed_data = pd.DataFrame()
             for meter in self.__ids:
                 meter_data = self.__data[self.__data["point_id"] == meter]
-                meter_data = self.impute(meter_data)
-                imputed_data = pd.concat([imputed_data, meter_data])
+                imputed_data = self.impute(meter_data)
             self.__data = imputed_data
 
             # If requested, encrypt the building.
             if self.__encryption_enabled == True:
-                self.__setup_encryption() # Make keys
-                self.__data = self.encrypt_building() # Perform encryption
+                self.__encryption_enabled = False # Currently disabled
+                #self.__setup_encryption() # Make keys
+                #self.__data = self.encrypt_building() # Perform encryption
             else: # Otherwise, set params as needed to indicate no encryption was performed
                 vector = self.__data[self.__data["point_id"] == self.__ids[0]]
                 first_day = vector.index[0].date()
@@ -518,6 +556,7 @@ class Building:
     # individual sites; no sense writing site querying twice when it's identical
     @staticmethod
     def query_for_sites(database_path, ids, start_date, end_date):
+        UTC = ZoneInfo("UTC")
         with DBConn.create_connection(database_path) as conn:
             print("Connected to database.")
             # We only need to query each id once. Convert to set to get unique.
@@ -588,7 +627,16 @@ class Building:
                     dupesite["point_id"] = id
                     bdata = pd.concat((bdata, dupesite))
         # Timestamps need to be datetime for resample to work for aggregation
+        UTC = ZoneInfo("UTC")
+        # Explicit cast to UTC
+        def replace_timezone(x, **kwargs):
+            for arg in kwargs:
+                x = x.replace(tzinfo=kwargs[arg])
+            return x
+        # Make the conversion
+        UTC = ZoneInfo("UTC")
         bdata['timestamp'] = pd.to_datetime(bdata['timestamp'],unit='s')
+        bdata["timestamp"] = bdata["timestamp"].apply(replace_timezone, tz=UTC)
         return bdata
 
     # Run after functions that change power factor (sum functions); recalculates it to be correct
@@ -611,7 +659,7 @@ class Building:
         if target.empty:
             print("Cannot impute on an empty frame.")
             return target
-
+        print("Pre-impute:", target)
         # Quality encodings- giving names for easier understanding
         valid = 0
         estimated_reference_day = 8
@@ -623,11 +671,12 @@ class Building:
         other = 16
         target["quality"] = other # Default
         # Set up quality for existing rows not equalling NA
-        # Default for rows with data
-        good_data = target[target["real_power"].notna() == True]
+        # Default for rows with data- set as valid if not NA
+        target["quality"] = target["quality"].where(target["real_power"].isna(), valid, axis=0)
+        #good_data = target[target["real_power"].notna() == True]
         # Set equal to valid
         # Find places where data are absent
-        missing_data = target[target["real_power"].isna() == True]
+        #missing_data = target[target["real_power"].isna() == True]
         # Set equal to questionable
         #target.loc["real_power" != nan]["quality"] = valid
         # Rows with NA values
@@ -640,6 +689,14 @@ class Building:
         # associated with the same ee_site_id
         ee_site_id = target["ee_site_id"].iloc[0]
         point_id = target["point_id"].iloc[0]
+        # Explicit cast to UTC
+        def replace_timezone(x, **kwargs):
+            for arg in kwargs:
+                x = x.replace(tzinfo=kwargs[arg])
+            return x
+        # Make the conversion
+        UTC = ZoneInfo("UTC")
+        target["timestamp"] = target["timestamp"].apply(replace_timezone, tz=UTC)
         # Fill in missing timestamps
         # timestamp should be index
         old_index = target["timestamp"].copy() # For comparison of imputation
@@ -651,13 +708,11 @@ class Building:
         target = target.reindex(index=new_index, method="nearest", limit=outage_threshold)
         # TODO: log that fills took place
         target["raw_data_present"] = new_index.isin(old_index)
-        print(target.notna())
         # Mark that data was missing...
-        target.loc[target["raw_data_present"] == False]["quality"] = questionable
+        target["quality"] = target["quality"].where(target["real_power"].notna(), questionable, axis=0)
+        #target.loc[target["raw_data_present"] == False]["quality"] = questionable
         # ...but that we filled it in where we could
-        target.loc[target["real_power"].notna() & target["raw_data_present"] == False]["quality"] = estimated_interpolation
-        print(target.notna())
-        raise SystemExit
+        #target.loc[target["real_power"].notna() & target["raw_data_present"] == False]["quality"] = estimated_interpolation
         # TODO: Account for missing starts and ends; sites do not always have the same start/end dates
         # Find any remaining rows containing N/A that need more involved imputation
         #na_rows = target.loc[pd.isna(target["real_power"]), :].index
@@ -685,55 +740,6 @@ class Building:
             except Exception as ex:
                 print("Building " + self.__bid + ": Could not resample: " + ex)
         return self.__data
-
-    # Thanks to Daylight Savings Time, we'll have one duplicate hour and one missing hour.
-    # Deal with the duplicate hour by removing the second copy of it.
-    # Deal with the missing hour by ensuring we've imputed NA back into it.
-    def fix_daylight_savings(self):
-        # Find rows with duplicate timestamps. Mark all except the first as duplicates.
-        # We want to keep the first one to avoid discontinuities.
-        # If we need to do this on an Index, the equivalent is .duplicated
-        # This handles the "fall back" DST transition where an hour happens twice.
-        self.__data = self.__data.drop_duplicates(subset="timestamp", keep="first")
-        # We still need to address the other transition where an hour has no data.
-        # Deal with the missing hour. It'll be all zeros due to previous fillna use-
-        # this solution is unfortunately specific to a DST changeover that happens
-        # at 2AM (AKA: 2:00-2:45 is missing, normal time resumes at 3:00) because
-        # detecting DST is otherwise a problem for this case.
-        # 2 AM, second Sunday of March is the working standard here.
-        # TODO This works for now but we can do better. Find a way less dependent on specific
-        # DST timing knowledge.
-        # Find DST day.
-        # Second Sundays...
-        second_sundays = pd.date_range(config.START_DATE, config.END_DATE, freq="WOM-2SUN").to_series()
-        # In March. Second Sundays where month == March.
-        dsts = []
-        for day in second_sundays:
-            if day.month == 3:
-                dsts.append(day)
-        # Deal with the missing hour- find and set to NA.
-        starttime = "02:00"
-        starttime = datetime.strptime(starttime, "%H:%M")
-        endtime = "02:59"
-        endtime = datetime.strptime(endtime, "%H:%M")
-        for date in dsts:
-            # Find the hour range affected by the DST transition
-            start_dt = date + timedelta(hours=starttime.hour) # At starttime: add the time!
-            end_dt = date + timedelta(hours=endtime.hour, minutes=endtime.minute) # At endttime: add the time!
-            # Get the data affected by DST transition
-            # Set it to NA; the hour didn't exist that day
-            self.__data.loc[start_dt:end_dt] = nan
-            # Deal with the duplicated hour for 25 hour DST transition days
-            # Find duplicates
-            # Sum them- we don't want to lose the extra hour's power usage
-            self.__data = self.__data.reset_index()
-            self.__data = self.__data.groupby("timestamp").sum()
-            # Fix power factor
-            self.__data["pf"] = self.__data["real_power"] / self.__data["apparent_power"]
-            # Send back the results
-            self.__data = self.__data.drop_duplicates(subset="timestamp", keep="first")
-            self.__data.set_index("timestamp")
-            return self.__data
 
     # Aggregate sites into a building. For each timestamp, sum all values matching timestamp.
     # Place the results into their own row and adjust any fields accordingly.
