@@ -781,7 +781,7 @@ class Building:
             # If they're the same value, keep that value
             # If they're different, set to self.quality["mixed"]
             # We'll overlay this composite quality value with the final frame
-            last_bquality = pd.DataFrame() # Defined this way to allow checking if exists
+            last_bquality = pd.Series() # Defined this way to allow checking if exists
             quality_col = pd.Series() # Same reason
             for bid in self.__ids:
                 bquality = self.__data[self.__data["point_id"] == bid]["quality"]
@@ -790,7 +790,6 @@ class Building:
                     #quality_col = last_bquality
                     # Where they differ, set as "mixed"
                     diff = bquality.compare(last_bquality)
-                    print(diff)
                     for timestamp in diff.index:
                         quality_col.loc[timestamp] = self.quality["mixed"]
                     # Where they are the same, keep the shared value
@@ -854,8 +853,7 @@ class Building:
         aggregated_data["building_id"] = self.__bid
         # Patch in the calculated quality value column
         aggregated_data["quality"] = quality_col
-
-        print(aggregated_data[aggregated_data["quality"] == 13])
+        #print(aggregated_data[aggregated_data["quality"] == 0])
         #print(aggregated_data[aggregated_data["real_power"].notna()])
         return aggregated_data
     
