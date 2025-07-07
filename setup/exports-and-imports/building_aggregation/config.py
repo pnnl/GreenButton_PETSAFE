@@ -40,22 +40,22 @@ STAT_TEMPORAL_RESOLUTION = "f"
 # What date range to retrieve statistics for
 LIMIT_DATE = True
 START_DATE = "2023-01-01"
-END_DATE = "2023-04-30"
+END_DATE = "2023-12-31"
 
 
 # ----- PROCESSING -----
 # How many virtual buildings to make
-BUILDING_COUNT = 1
+BUILDING_COUNT = 20
 # What building ID number to start at
-FIRST_BUILDING_ID = 100
+FIRST_BUILDING_ID = 0
 # Minimum and maximum count of units per building
-MIN_SIZE = 3
-MAX_SIZE = 3
+MIN_SIZE = 2
+MAX_SIZE = 5
 # Percentage of existing records necessary to accept an id as valid
 REQUIRED_PORTION = 0.9
 
 # Output directory for prepped data
-OUTPUT_DIR = "../../../output/"
+OUTPUT_DIR = "/home/petsafe/Desktop/PETSAFE/output/"
 
 # Where to log actions and issues
 LOG_FILE = OUTPUT_DIR + 'building_processing.log'

@@ -75,7 +75,7 @@ def choose_random_ids(rng: Optional[int] = None):
             ids = results.fetchall() # ID count is small enough for fetchall() to be non-issue
             # Select a random set of IDs (set size = count) from the results
             initial_building_ids = randomizer.choice(ids, count, replace=False)
-            print(initial_building_ids) # Debug for convenience
+            #print(initial_building_ids) # Debug for convenience
 
             # Prep to verify that chosen IDs have results for given time period
             id_test_queue = list([id[0] for id in initial_building_ids]) # Original format not malleable
@@ -917,6 +917,6 @@ class Building:
 
 if __name__ == "__main__":
     try:
-        make_buildings(config.BUILDING_COUNT, encrypt=False, pickle=False, seed=config.SEED)
+        make_buildings(config.BUILDING_COUNT, encrypt=False, pickle=True, seed=config.SEED)
     except KeyboardInterrupt:
         print("Stopping (please wait).")

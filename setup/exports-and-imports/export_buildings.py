@@ -9,16 +9,16 @@ from shutil import make_archive, rmtree
 from building_aggregation.list_files import list_files_in_dir
 
 # Variables for controlling exports; change as needed
-buildings_to_export = range(0, 5)
+buildings_to_export = range(0, 18)
 start_date = "2023-01-01"
 end_date = "2023-12-31"
 privacy_tag = "raw"
 
 # Path variables
 # Ensure read_dir and export_dir end with slashes
-read_dir = "output/buildings/"
-export_dir = "output/building-month-slices/"
-filename_prefix = "year"
+read_dir = "../../output/buildings/"
+export_dir = "output/"
+filename_prefix = "year-remade"
 
 
 # subclass JSONEncoder
@@ -56,7 +56,10 @@ export_dir = prep_filepath(export_dir)
     
 # Extract a specific building
 def select_building(frame, id):
-    return frame[frame["building_id"] == id]
+    try:
+        return frame[frame["building_id"] == id]
+    except KeyError:
+        print(f"Building {id} not found. Check input directory.")
     
 # Extract data between dates
 def select_dates(frame, start, end):

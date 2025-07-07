@@ -1,0 +1,9 @@
+{
+    "building_id": 1,
+    "component_sites": "25522, 26601",
+    "start_date": "2023-01-01T00:00:00",
+    "end_date": "2023-12-31T00:00:00",
+    "unit_of_measure": "kW",
+    "meter_type": "aggregate",
+    "privacy": "raw"
+}
