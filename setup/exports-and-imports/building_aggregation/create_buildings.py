@@ -662,6 +662,19 @@ class Building:
         building["pf"] = building["real_power"] / building["apparent_power"]
         return building
     
+    # Translate from a numeric quality value to a human-readable string
+    @staticmethod
+    def quality_to_text(quality_value: int):
+        reverse_quality = {0: "valid",
+        8: "estimated_reference_day",
+        9: "estimated_interpolation",
+        10: "questionable",
+        11: "derived",
+        13: "mixed",
+        14: "raw",
+        15: "other"}
+        return reverse_quality[int(quality_value)]
+    
     # Impute missing data at the meter level pre-aggregation
     # target: the meter's data
     # outage_threshold: minimum # of meter readings to tolerate before considering it an outage / imputing 0s
@@ -762,12 +775,31 @@ class Building:
         print("Aggregating.")
         # For each timestamp in the ids list, sum all values
         if self.__encryption_enabled == False:
-            # Summing will break the quality column
+            # Summing will break the quality column; we need to compute it separately
             # Save the columns for each building, then compare them-
             # Make a composite quality column.
             # If they're the same value, keep that value
             # If they're different, set to self.quality["mixed"]
             # We'll overlay this composite quality value with the final frame
+            last_bquality = pd.DataFrame() # Defined this way to allow checking if exists
+            quality_col = pd.Series() # Same reason
+            for bid in self.__ids:
+                bquality = self.__data[self.__data["point_id"] == bid]["quality"]
+                if not last_bquality.empty:
+                    # Compare:
+                    #quality_col = last_bquality
+                    # Where they differ, set as "mixed"
+                    diff = bquality.compare(last_bquality)
+                    print(diff)
+                    for timestamp in diff.index:
+                        quality_col.loc[timestamp] = self.quality["mixed"]
+                    # Where they are the same, keep the shared value
+                    # TODO: this may not be fine-grained enough for large buildings
+                else:
+                    # Set up the column
+                    quality_col = bquality
+                # Enable the next loop with a new building
+                last_bquality = bquality
 
             # Sum for each timestamp
             try:
@@ -776,8 +808,8 @@ class Building:
                 aggregated_data.reset_index(inplace=True)
                 # Do the sum
                 aggregated_data = aggregated_data.groupby(by="timestamp").sum(min_count=1)
-                # Fix values by quality- where quality = 10, it's NaN
-                #aggregated_data = aggregated_data.set_index("timestamp")
+                # Fix quality values using the column we computed earlier
+
                 # Fix duration column
                 aggregated_data["duration"] = 15
             except Exception as ex:
@@ -820,7 +852,11 @@ class Building:
         aggregated_data["point_id"] = str(self.__ids) # TODO: assign per row based on presence in aggregation?
         aggregated_data = aggregated_data.rename(columns={"ee_site_id": "building_id"}) 
         aggregated_data["building_id"] = self.__bid
-        print(aggregated_data[aggregated_data["real_power"].notna()])
+        # Patch in the calculated quality value column
+        aggregated_data["quality"] = quality_col
+
+        print(aggregated_data[aggregated_data["quality"] == 13])
+        #print(aggregated_data[aggregated_data["real_power"].notna()])
         return aggregated_data
     
     # Save building to a pickle file for later use

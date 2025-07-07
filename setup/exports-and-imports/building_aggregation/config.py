@@ -49,8 +49,8 @@ BUILDING_COUNT = 1
 # What building ID number to start at
 FIRST_BUILDING_ID = 100
 # Minimum and maximum count of units per building
-MIN_SIZE = 2
-MAX_SIZE = 2
+MIN_SIZE = 3
+MAX_SIZE = 3
 # Percentage of existing records necessary to accept an id as valid
 REQUIRED_PORTION = 0.9
 
