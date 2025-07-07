@@ -185,7 +185,7 @@ def find_dst_transitions(
         delta = relativedelta(years=1)
         # Noon is to catch the DST transition! Midnight would give
         # an off by one error
-        this_date = dt(year, 1, 1, 12, 0, 0, 0, tzinfo=tz)
+        this_date = datetime(year, 1, 1, 12, 0, 0, 0, tzinfo=tz)
         end_date = this_date + delta
         while this_date <= end_date:
             local_time = this_date
@@ -216,6 +216,18 @@ class Building:
         self.__pickle = pickle
         self.__OUTPUT_DIR = config.OUTPUT_DIR
         self.UTC = ZoneInfo("UTC")
+
+        # Data quality encodings- giving names for easier understanding
+        self.quality = {
+        "valid": 0,
+        "estimated_reference_day": 8,
+        "estimated_interpolation": 9,
+        "questionable": 10,
+        "derived": 11,
+        "mixed": 13,
+        "raw": 14,
+        "other": 16
+        }
 
         # Check if we're limiting the date range for data retrieval;
         # if yes, prep for that and sanity check the date range provided
@@ -253,11 +265,11 @@ class Building:
                 #self.__setup_encryption() # Make keys
                 #self.__data = self.encrypt_building() # Perform encryption
             else: # Otherwise, set params as needed to indicate no encryption was performed
-                vector = self.__data[self.__data["point_id"] == self.__ids[0]]
-                first_day = vector.index[0].date()
-                vector = vector.loc[first_day:(first_day + pd.Timedelta(1, "d"))]
-                vector = vector[0:-1] # loc is right-inclusive. We don't want that. Drop the rightmost.
-                self.vector_length = vector["real_power"].size
+                #vector = self.__data[self.__data["point_id"] == self.__ids[0]]
+                #first_day = vector.index[0].date()
+                #vector = vector.loc[first_day:(first_day + pd.Timedelta(1, "d"))]
+                #vector = vector[0:-1] # loc is right-inclusive. We don't want that. Drop the rightmost.
+                self.vector_length = self.__data["real_power"].size
                 print("Vector length:", self.vector_length)
                 self.__cc = None
             # Aggregate the building and prep for use
@@ -653,35 +665,25 @@ class Building:
     @staticmethod
     def impute(
             target, # The frame to impute on
-            outage_threshold: Optional[int] = 6 # Minimum # of missed consecutive readings to consider it an outage, not a meter failure
+            outage_threshold: Optional[int] = 2 # Minimum # of missed consecutive readings to consider it an outage, not a meter failure
             ):
-        print("Imputing missing data.") # TODO: only display after checking this is necessary
+        print("Imputing missing data.")
         if target.empty:
             print("Cannot impute on an empty frame.")
             return target
-        print("Pre-impute:", target)
         # Quality encodings- giving names for easier understanding
-        valid = 0
-        estimated_reference_day = 8
-        estimated_interpolation = 9
-        questionable = 10
-        derived = 11
-        mixed = 13
-        raw = 14
-        other = 16
-        target["quality"] = other # Default
+        quality = {"valid": 0,
+        "estimated_reference_day": 8,
+        "estimated_interpolation": 9,
+        "questionable": 10,
+        "derived": 11,
+        "mixed": 13,
+        "raw": 14,
+        "other": 16}
+        target["quality"] = quality["other"] # Default
         # Set up quality for existing rows not equalling NA
         # Default for rows with data- set as valid if not NA
-        target["quality"] = target["quality"].where(target["real_power"].isna(), valid, axis=0)
-        #good_data = target[target["real_power"].notna() == True]
-        # Set equal to valid
-        # Find places where data are absent
-        #missing_data = target[target["real_power"].isna() == True]
-        # Set equal to questionable
-        #target.loc["real_power" != nan]["quality"] = valid
-        # Rows with NA values
-        #target.isna()["quality"] = questionable
-        #print(target)
+        target["quality"] = target["quality"].where(target["real_power"].isna(), quality["valid"], axis=0)
         # We need to impute or zero any N/A PF values; many of these should be zero to begin with, but for those corresponding
         # to outages, it'll be recalculated after real and apparent power are imputed. We don't want the
         # should-be-zero PF values to be included when finding N/A rows.
@@ -698,7 +700,7 @@ class Building:
         UTC = ZoneInfo("UTC")
         target["timestamp"] = target["timestamp"].apply(replace_timezone, tz=UTC)
         # Fill in missing timestamps
-        # timestamp should be index
+        # timestamp should be index for this to work
         old_index = target["timestamp"].copy() # For comparison of imputation
         target = target.set_index("timestamp")
         start_datetime = target.index[0]
@@ -706,17 +708,23 @@ class Building:
         fifteen_min_increments = pd.date_range(start=start_datetime, end=end_datetime, freq="15min", normalize=True, inclusive="left")
         new_index = pd.Index(fifteen_min_increments, name="timestamp")
         target = target.reindex(index=new_index, method="nearest", limit=outage_threshold)
-        # TODO: log that fills took place
+        target["duration"] = 15 # Mark the time interval of the fills
         target["raw_data_present"] = new_index.isin(old_index)
-        # Mark that data was missing...
-        target["quality"] = target["quality"].where(target["real_power"].notna(), questionable, axis=0)
-        #target.loc[target["raw_data_present"] == False]["quality"] = questionable
-        # ...but that we filled it in where we could
-        #target.loc[target["real_power"].notna() & target["raw_data_present"] == False]["quality"] = estimated_interpolation
-        # TODO: Account for missing starts and ends; sites do not always have the same start/end dates
+        # Mark that data was missing
+        target["quality"] = target["quality"].where(target["real_power"].notna(), quality["questionable"], axis=0)
         # Find any remaining rows containing N/A that need more involved imputation
-        #na_rows = target.loc[pd.isna(target["real_power"]), :].index
-        #target = target.fillna(0) # Catch anything the fill methods missed. TODO: Make sure to log this!
+        # We can impute up to outage_threshold values forwards or backwards.
+        # We then mark these as estimated in the quality column.
+        # HOWEVER, caveat: if the gap happened because of daylight savings in the
+        # original locality, we should NOT impute over it if possible.
+        # Unfortunately, time was provided in UTC, meaning we don't know when DST
+        # happened. This will need to be handled at timezone conversion instead.
+        # Consider changing to limit_area="inside"?
+        target["real_power"] = target["real_power"].interpolate(method="nearest", limit_area=None, limit=outage_threshold)
+        target["apparent_power"] = target["apparent_power"].interpolate(method="nearest", limit_area=None, limit=outage_threshold)
+        # Mark that data was interpolated where:
+        # raw data present is false, and real_power has data (meaning we filled it in)
+        target["quality"] = target["quality"].where(target["real_power"].isna() | target["raw_data_present"] == True, quality["estimated_interpolation"], axis=0)
         # Fix ID columns for added rows
         target["ee_site_id"] = ee_site_id
         target["point_id"] = point_id
@@ -857,6 +865,6 @@ class Building:
 
 if __name__ == "__main__":
     try:
-        make_buildings(config.BUILDING_COUNT, pickle=False, seed=config.SEED)
+        make_buildings(config.BUILDING_COUNT, encrypt=False, pickle=False, seed=config.SEED)
     except KeyboardInterrupt:
         print("Stopping (please wait).")
