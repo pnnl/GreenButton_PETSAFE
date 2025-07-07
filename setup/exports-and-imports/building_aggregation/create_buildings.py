@@ -1,6 +1,5 @@
 #from openfhe import *
 
-#from lightphe import LightPHE
 import pandas as pd
 from os.path import exists
 from os import makedirs
@@ -254,16 +253,22 @@ class Building:
             self.__data = self.query_for_sites(database, self.__ids, self.__start_date, self.__end_date)
 
             # Fill in missing data
+            first_meter = True
             for meter in self.__ids:
                 meter_data = self.__data[self.__data["point_id"] == meter]
-                imputed_data = self.impute(meter_data)
-            self.__data = imputed_data
+                imputed_data = self.impute(meter_data) 
+                # Make sure it all ends up in a frame so it can be aggregated!
+                if first_meter == True:
+                    all_imputed_data = imputed_data
+                    first_meter = False
+                else:
+                    all_imputed_data = pd.concat([all_imputed_data, imputed_data])
+            self.__data = all_imputed_data
 
             # If requested, encrypt the building.
             if self.__encryption_enabled == True:
-                self.__encryption_enabled = False # Currently disabled
-                #self.__setup_encryption() # Make keys
-                #self.__data = self.encrypt_building() # Perform encryption
+                self.__setup_encryption() # Make keys
+                self.__data = self.encrypt_building() # Perform encryption
             else: # Otherwise, set params as needed to indicate no encryption was performed
                 #vector = self.__data[self.__data["point_id"] == self.__ids[0]]
                 #first_day = vector.index[0].date()
@@ -757,13 +762,26 @@ class Building:
         print("Aggregating.")
         # For each timestamp in the ids list, sum all values
         if self.__encryption_enabled == False:
-            # Necessary so we don't try to add NaN
-            # TODO: ...but we need to be able to handle NaN for cases where it matters
-            self.__data = self.__data.fillna(0)
+            # Summing will break the quality column
+            # Save the columns for each building, then compare them-
+            # Make a composite quality column.
+            # If they're the same value, keep that value
+            # If they're different, set to self.quality["mixed"]
+            # We'll overlay this composite quality value with the final frame
+
             # Sum for each timestamp
-            aggregated_data = self.__data.groupby(by="timestamp").sum()
-            # TODO Might be broken- check
-            self.__data["duration"] = self.__data["duration"] / len(self.__ids)
+            try:
+                # Allows grouping
+                aggregated_data = self.__data.copy()
+                aggregated_data.reset_index(inplace=True)
+                # Do the sum
+                aggregated_data = aggregated_data.groupby(by="timestamp").sum(min_count=1)
+                # Fix values by quality- where quality = 10, it's NaN
+                #aggregated_data = aggregated_data.set_index("timestamp")
+                # Fix duration column
+                aggregated_data["duration"] = 15
+            except Exception as ex:
+                print(f"Failed to aggregate: {ex}")
         else:
             # Aggregating encrypted data requires the use of EvalAdd
             aggregated_data = pd.DataFrame()
@@ -802,7 +820,7 @@ class Building:
         aggregated_data["point_id"] = str(self.__ids) # TODO: assign per row based on presence in aggregation?
         aggregated_data = aggregated_data.rename(columns={"ee_site_id": "building_id"}) 
         aggregated_data["building_id"] = self.__bid
-        #print(aggregated_data)
+        print(aggregated_data[aggregated_data["real_power"].notna()])
         return aggregated_data
     
     # Save building to a pickle file for later use
