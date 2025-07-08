@@ -13,6 +13,8 @@ buildings_to_export = range(0, 18)
 start_date = "2023-01-01"
 end_date = "2023-12-31"
 privacy_tag = "raw"
+# Either "iso" for ISO or "epoch" for Unix epoch
+timestamp_format = "iso"
 
 # Path variables
 # Ensure read_dir and export_dir end with slashes
@@ -22,12 +24,16 @@ filename_prefix = "year-remade"
 
 
 # subclass JSONEncoder
-# Overriding to enable datetime processing: datetime object -> UNIX timestamp
+# Overriding to enable datetime processing: datetime object -> JSON-friendly string
 class DateTimeEncoder(JSONEncoder):
     #Override the default method
     def default(self, obj):
         if isinstance(obj, (datetime.date, datetime.datetime)):
-            return obj.isoformat()
+            match timestamp_format:
+                case "iso":
+                    return obj.isoformat()
+                case "unix":
+                    return obj.timestamp()
 
 # Ensures path format is correct
 def prep_filepath(dir):
@@ -98,7 +104,8 @@ def export_simple_json(
             # Export as normal
             building_data = building_data.reset_index()
             building_data = building_data.rename(columns={"building_id": "meter_id"})
-            building_data.to_json(outfile, indent=4, orient='records')
+            building_data.to_json(outfile, indent=4, orient='records', date_format=timestamp_format)
+                
     print("Done.")
 
 # Export metadata of building to JSON file
@@ -163,7 +170,7 @@ def main():
     make_archive(export_dir + filename_prefix + "-" + today + "-" + privacy_tag, 'zip', export_dir + "/data")
 
     # Delete the WIP zipfile directory; no longer needed
-    rmtree(export_dir + "data")
+    #rmtree(export_dir + "data")
 
 if __name__ == '__main__':
     try:
