@@ -110,10 +110,12 @@ def read_points_in_range(
             # TODO: parameterized, not fstring
             query = query + f' and r.meter_id == "{meter_id}"'
         query = query + ")" # Close the open paren
-        #query = query + ' |> keep(columns: ["_time", "_field", "_value", "meter_id", "privacy"])'
+        query = query + ' |> keep(columns: ["_time", "_field", "_value", "meter_id"])' #, "privacy"])'
         query = query + ' |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")' # For performance
         results = query_api.query_data_frame(query=query)
         if not results.empty: # Clean up formatting before returning it
+            if "index" in results.columns:
+                del results["index"]
             if "result" in results.columns:
                 del results["result"] # It's just full of "_result", not needed data
             if "table" in results.columns:
