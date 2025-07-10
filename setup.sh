@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Ensure we can see Python files here
+PYTHONPATH="$PYTHONPATH:/home/petsafe/Desktop/PETSAFE"
+
 # Setup venv
 cd setup
 

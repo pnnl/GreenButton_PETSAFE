@@ -170,7 +170,7 @@ def main():
     make_archive(export_dir + filename_prefix + "-" + today + "-" + privacy_tag, 'zip', export_dir + "/data")
 
     # Delete the WIP zipfile directory; no longer needed
-    #rmtree(export_dir + "data")
+    rmtree(export_dir + "data")
 
 if __name__ == '__main__':
     try:

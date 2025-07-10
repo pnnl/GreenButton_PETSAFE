@@ -17,7 +17,7 @@ write_options = influx.WriteOptions(batch_size=500,
                             flush_interval=10_000,
                             jitter_interval=2_000,
                             retry_interval=5_000,
-                            max_retries=5,
+                            max_retries=10,
                             max_retry_delay=30_000,
                             exponential_base=2)
 
@@ -101,7 +101,7 @@ def read_points_in_range(
         # Paren will be closed in a few lines! Left open in case we need to add a building id
         query = f'from(bucket:"{influx_bucket}") \
 |> range(start: {data_startdate}, stop: {data_enddate}) \
-|> filter(fn:(r) => r._measurement == "power" and r._field == "real_power" and r.privacy == "{privacy_tag}"'
+|> filter(fn:(r) => r._measurement == "power" and r._field == "real_power"'# and r.privacy == "{privacy_tag}"'
         if meter_id != None:
             try:
                 meter_id = int(meter_id)
@@ -110,7 +110,7 @@ def read_points_in_range(
             # TODO: parameterized, not fstring
             query = query + f' and r.meter_id == "{meter_id}"'
         query = query + ")" # Close the open paren
-        query = query + ' |> keep(columns: ["_time", "_field", "_value", "meter_id", "privacy"])'
+        #query = query + ' |> keep(columns: ["_time", "_field", "_value", "meter_id", "privacy"])'
         query = query + ' |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")' # For performance
         results = query_api.query_data_frame(query=query)
         if not results.empty: # Clean up formatting before returning it
@@ -119,9 +119,8 @@ def read_points_in_range(
             if "table" in results.columns:
                 del results["table"] # Client doesn't need to know which table it came from
             results.rename(columns={"_time": "timestamp"}, inplace=True)
-            # Commented- setting as index means it doesn't show up in json returns
-            #results.set_index("timestamp", inplace=True)
-        # TODO: should meter_id, privacy_tag be included in output?
+        else:
+            print("No results found for configured date range.")
         return results
     # Return subset of data between two dates
     # Sanity checks on date range come first
@@ -168,8 +167,9 @@ def write_from_pandas(client2, data):
 def delete_building_data():
     client = init_client()
     delete_api = client.delete_api()
-    start = "1970-01-01T00:00:00Z"
+    start = "2010-01-01T00:00:00Z"
     stop = datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
+    print("Clearing old data...")
     delete_api.delete(start, stop, '_measurement="power"', bucket=influx_bucket, org=influx_org)
     print("Data successfully cleared.")
     close_client(client)

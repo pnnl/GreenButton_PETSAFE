@@ -70,18 +70,21 @@ def convert_to_tz(data, tz):
             for arg in kwargs:
                 x = x.replace(tzinfo=kwargs[arg])
             return x
+        
         # Make the conversion
         data["timestamp"] = data["timestamp"].apply(replace_timezone, tz=timezone)
         print("Successfully converted timestamps to provided timezone.")
     except Exception as ex:
         print(f"Unable to convert time zone: {ex}")
         print("Timestamps may be in UTC or improperly converted!")
+        return data
     # Make it easier to work with the timestamp index column
     # Fix duplicate and missing hours
-    # Duplicates first
+    # Duplicates first (e.g. DST "fall back")
     # Sum them- we don't want to lose the extra hour's power usage
-    data = data.groupby("timestamp").sum()
     data = data.reset_index()
+    print(data)
+    data = data.groupby("timestamp").sum()
     # Get rid of the unnecessary duplicates now that their data is saved
     data = data.drop_duplicates(subset="timestamp", keep="first")
 

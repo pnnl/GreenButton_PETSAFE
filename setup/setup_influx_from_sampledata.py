@@ -1,6 +1,6 @@
-from building_aggregation import list_files
 from api.database_config import *
 import api.scripts.influx_database as idb
+from setup.exports_imports.building_aggregation import list_files
 
 if __name__ == "__main__":
     # Remove old data
