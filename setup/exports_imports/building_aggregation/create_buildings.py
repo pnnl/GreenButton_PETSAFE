@@ -645,7 +645,7 @@ class Building:
                     bdata = pd.concat((bdata, dupesite))
         # Timestamps need to be datetime for resample to work for aggregation
         UTC = ZoneInfo("UTC")
-        # Explicit cast to UTC
+        # Explicit cast to UTC; it's already in UTC but this makes it aware
         def replace_timezone(x, **kwargs):
             for arg in kwargs:
                 x = x.replace(tzinfo=kwargs[arg])
@@ -723,7 +723,7 @@ class Building:
         target = target.set_index("timestamp")
         start_datetime = target.index[0]
         end_datetime = target.index[-1] + pd.Timedelta(1, "d") # one day ahead for date_range to work properly
-        fifteen_min_increments = pd.date_range(start=start_datetime, end=end_datetime, freq="15min", normalize=True, inclusive="left")
+        fifteen_min_increments = pd.date_range(start=start_datetime, end=end_datetime, freq="15min", tz=UTC, normalize=True, inclusive="left")
         new_index = pd.Index(fifteen_min_increments, name="timestamp")
         target = target.reindex(index=new_index, method="nearest", limit=outage_threshold)
         target["duration"] = 15 # Mark the time interval of the fills

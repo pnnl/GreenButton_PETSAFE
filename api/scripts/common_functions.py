@@ -59,12 +59,6 @@ def find_dst_transitions(
 # tz should be a timezone in standard, full name format:
 # e.g. 'America/Los_Angeles'
 def convert_to_tz(data, tz):
-    # Fix formatting if needed
-    if "timestamp" not in data.columns and "index" not in data.columns:
-        data = data.reset_index() # Maybe it's the index
-    elif "timestamp" not in data.columns:
-        print("Cannot convert timezone. Data must include timestamp column!")
-        return data
     try:
         timezone = ZoneInfo(tz)
     except Exception as ex:
@@ -72,14 +66,7 @@ def convert_to_tz(data, tz):
         print("Timestamps will be in UTC or Unix Time!")
     try:
         # Convert to time zone
-        # We have to define a function to take keyword arguments for .apply()
-        def replace_timezone(x, **kwargs):
-            for arg in kwargs:
-                x = x.replace(tzinfo=kwargs[arg])
-            return x
-        
-        # Make the conversion
-        data["timestamp"] = data["timestamp"].apply(replace_timezone, tz=timezone)
+        data.index = data.index.tz_convert(tz=ZoneInfo(tz))
         print("Successfully converted timestamps to provided timezone.")
     except Exception as ex:
         print(f"Unable to convert time zone: {ex}")
@@ -91,27 +78,19 @@ def convert_to_tz(data, tz):
     # Deal with the missing hour- "spring forwards"
     # AKA: make sure it's NA! There shouldn't be data here
     # If there is, either make it NA or flag as questionable
-    # Fill in missing readings with NA
-    # Dropping duplicates necessary to avoid error; sum to avoid data loss
-    debug_check_conversion(data, timezone, check_doubles=True)
-    data = data.groupby("timestamp").sum()
-    data = data.reset_index()
-    data = data.drop_duplicates(subset="timestamp", keep="first")
     # Build a new index with all timestamps
     data = data.set_index("timestamp")
     start_datetime = data.index[0]
     end_datetime = data.index[-1] + pd.Timedelta(1, "d") # one day ahead for date_range to work properly
-    fifteen_min_increments = pd.date_range(start=start_datetime, end=end_datetime, tz=timezone, freq="15min", normalize=True, inclusive="left")
-    new_index = pd.Index(fifteen_min_increments, name="timestamp")
-    data = data.reindex(index=new_index, method=None) # Do not impute over missing times!
-    data = data.reset_index()    
-    # Deal with any duplicate hours
-    # TODO: groupby DOES NOT WORK because the timezone is different!
-    # This results in a duplicate hour sticking around!
-    data = data.groupby("timestamp").sum()
-    data = data.reset_index() # Needed to find it as a column after groupby
-    # Get rid of the unnecessary duplicates now that their data is saved
-    data = data.drop_duplicates(subset="timestamp", keep="first")
+    # TODO: Fill missing intervals with NA
+    # Holding for reference:
+    # doubletime="2023-03-11 20:00:00-07:00"
+    # doubletime = dt.strptime(doubletime, "%Y-%m-%d %H:%M:%S%z")
+    #fifteen_min_increments = pd.date_range(start=start_datetime, end=end_datetime, tz=timezone, freq="15min", normalize=True, inclusive="left")
+    #new_index = pd.Index(fifteen_min_increments, name="timestamp")
+    #data = data.reindex(index=new_index, method=None) # Do not impute over missing times!
+    # TODO: Deal with any duplicate hours
+    # groupby DOES NOT WORK because the time offset is different!
 
     # Check our work
     #debug_check_conversion(data, timezone)
@@ -155,7 +134,7 @@ def debug_check_conversion(
         starttime="01:00"
         starttime = dt.strptime(starttime, "%H:%M").replace(tzinfo=timezone)
         endtime = "03:59" # Actual break point
-        endtime = "04:01" # For convenience to see surrounding times
+        endtime = "04:00" # For convenience to see surrounding times
         endtime = dt.strptime(endtime, "%H:%M").replace(tzinfo=timezone)
         # Get the data for those dates
         data = data.set_index("timestamp")
@@ -166,9 +145,14 @@ def debug_check_conversion(
             try:
                 affected = data.loc[start_dt:end_dt]
                 print(affected)
-            except:
-                print("Could not locate DST transition day in data;")
+                print(data.loc[dt.strptime("03:00", "%H:%M").replace(tzinfo=timezone)])
+            except KeyError:
+                print("Requested time period not found in data.")
                 print(f"From {start_dt} to {end_dt}")
+            except Exception as ex:
+                print("Could not locate DST transition day in data;")
+                #print(f"From {start_dt} to {end_dt}")
+                print(ex)
 
 # Extract all usage points whose address matches a given address.
 # This should effectively list all meters at that address.
