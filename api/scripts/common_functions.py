@@ -93,7 +93,7 @@ def convert_to_tz(data, tz):
     # groupby DOES NOT WORK because the time offset is different!
 
     # Check our work
-    #debug_check_conversion(data, timezone)
+    debug_check_conversion(data, timezone)
 
     if "index" not in data.columns: 
         data = data.reset_index() # Ensures JSON output includes timestamp

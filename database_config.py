@@ -1,5 +1,5 @@
 from os import environ
-METER_DATABASE_PATH = "data/records.db"
+METER_DATABASE_PATH = "/mnt/hgfs/records.db"
 
 # TODO: TEMP! Change once Influx is implemented
 # (and lock down path traversal)

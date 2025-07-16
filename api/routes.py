@@ -60,11 +60,6 @@ def get_building_real_power(meter_id):
     local_time = "America/Los_Angeles" # Test placeholder, TODO
     # Convert to local time
     power = convert_to_tz(power, local_time)
-
-    doubletime="2023-03-11 20:00:00-07:00"
-    doubletime = dt.strptime(doubletime, "%Y-%m-%d %H:%M:%S%z")
-    powerful = power.copy().set_index("timestamp")
-    print(powerful.loc[doubletime])
     # Mark which meter the data comes from
     power["meter_id"] = meter_id
     # TODO: make datetimes obviously datetimes (currently UNIX stamps, which may be confusing to humans)
