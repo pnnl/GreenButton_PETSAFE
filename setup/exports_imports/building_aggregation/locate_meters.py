@@ -150,6 +150,7 @@ def find_hotspot_for_solar_generation(grid_metadata, solar_data):
 
     # Find solar noon for longitude calculation (estimate- imperfect system mean this may be off by a few minutes)
     # More negative = better generation
+    # While we're at it, find out how long the day was for latitude calculation
     meter_noons = pd.DataFrame()
     meter_daylengths = pd.DataFrame()
     for date in solar_generation["date"].unique():
@@ -183,27 +184,45 @@ def find_hotspot_for_solar_generation(grid_metadata, solar_data):
     #print("At index:", min_pos)
     #grid_id = solar_data.iloc[min_pos]["grid_id"]
 
-    # If checking multiple days, 
-    # Build a frame of upper bounds for each location
-    pass
-    # Match closest bound to the ground truth's upper bound
 
     # If checking multiple days, match against the upper bound for latitude
-    # Build a frame of upper bounds for each location
+    # "SunSpot splits the difference between these two errors by computing latitude separately for each half of
+    # the year, and then averaging them" https://dl.acm.org/doi/pdf/10.1145/2993422.2993573
+    # We're going to mimic this approach
+    # Split into two segments; one for the first half of the year, one for the back half
+    halfway_point = datetime(2023, 7, 2)
+    first_half_daylength_data = meter_daylengths.loc[meter_daylengths["date"] < halfway_point]
+    second_half_daylength_data = meter_daylengths.loc[meter_daylengths["date"] > halfway_point]
+    # Build a frame of upper bounds for each grid location to compare against
     upper_bound_daylength = pd.DataFrame()
     for location in solar_data["grid_id"]:
         loc_data = solar_data.loc[solar_data["grid_id"] == location]
         loc_max = loc_data["daylength"].max()
         loc_max_record = loc_data.loc[loc_data["daylength"] == loc_max]
         upper_bound_daylength = pd.concat([upper_bound_daylength, loc_max_record])
-    print(upper_bound_daylength)
-    # Match closest bound to the ground truth's upper bound
+    # Match closest bound to the ground truth's upper bound-
+    # Find best fit for each half, then average the latitudes and find the closest grid id to that latitude
+    lat_halves = []
+    for frame in [first_half_daylength_data, second_half_daylength_data]:
+        # Find upper bound
+        upper_bound_meter = frame["daylength"].max()
+        # Find closest fit
+        min_pos, min_diff = min(enumerate(upper_bound_daylength["daylength"]), key=lambda t: abs(upper_bound_meter - t[1]))
+        closest_grid_id = upper_bound_daylength.iloc[min_pos]["grid_id"]
+        closest_lat = grid_metadata.loc[grid_metadata["grid_id"] == closest_grid_id].iloc[0]["lat"]
+        print("Closest latitude for year half is", closest_lat, "with a difference of", min_diff)
+        lat_halves.append(closest_lat)
+    # Average them
+    avg_lat = 0
+    for lat in lat_halves:
+        avg_lat += lat
+    avg_lat = avg_lat / len(lat_halves)
+    print("Average latitude:", avg_lat)
+    # Match the average to the closest grid latitude
+    min_pos, min_diff = min(enumerate(grid_metadata["lat"]), key=lambda t: abs(avg_lat - t[1]))
+    best_match_lat = grid_metadata.iloc[min_pos]
+    print("Closest match for average latitude is", best_match_lat["grid_id"], "with latitude", best_match_lat["lat"], "and difference of", min_diff)
 
-
-
-    #print("Best:", best)
-    #print("Best diff:", best_diff)
-    #print("Meter solar noon:", local_solar_noon)
     #grid_id = best["grid_id"]
     print("Visualizing...")
     raise SystemExit
