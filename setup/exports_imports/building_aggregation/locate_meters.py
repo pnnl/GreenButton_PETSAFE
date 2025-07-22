@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from shapely.geometry import box
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time
 import os
 from os.path import exists
 from zoneinfo import ZoneInfo
@@ -151,14 +151,31 @@ def find_hotspot_for_solar_generation(grid_metadata, solar_data):
     # Find solar noon for longitude calculation (estimate- imperfect system mean this may be off by a few minutes)
     # More negative = better generation
     meter_noons = pd.DataFrame()
+    meter_daylengths = pd.DataFrame()
     for date in solar_generation["date"].unique():
         solar_on_date = solar_generation.loc[solar_generation["date"] == date]
         solar_noon_val = solar_on_date["power"].min() # More generation = less consumption
         meter_solar_noon_time = solar_on_date.loc[solar_on_date["power"] == solar_noon_val]#["timestamp"].iloc[0]
         #print("Noon observed:", meter_solar_noon_time)
         meter_noons = pd.concat([meter_noons, meter_solar_noon_time])
-    print(meter_noons)
-    # Find day length for latitude calculation
+        # Find day length for latitude calculation
+        # First and last instance of maximum bookend the night length; (last - first) should give day length
+        # First and last instance
+        # TODO: some meters have a non-zero maximum (non-generation) threshold. Refine this.
+        no_gen_threshold = 0
+        zero_gen_times = solar_on_date.loc[solar_on_date["power"] > no_gen_threshold]
+        no_gen_start = zero_gen_times.iloc[0]["timestamp"]
+        no_gen_end = zero_gen_times.iloc[-1]["timestamp"]
+        # Difference
+        daylength = (no_gen_end - no_gen_start).total_seconds()
+        # Build the record for this date and add to frame for later use
+        record = pd.DataFrame()
+        record["date"] = date
+        record["daylength"] = daylength
+        if meter_daylengths.empty:
+            meter_daylengths = record
+        else:
+            meter_daylengths = pd.concat[meter_daylengths, record]
 
     # If checking a single day, find the closest location for longitude
     #min_pos, min_diff = min(enumerate(solar_data["noon"]), key=lambda t: abs(meter_solar_noon_time - t[1]))
