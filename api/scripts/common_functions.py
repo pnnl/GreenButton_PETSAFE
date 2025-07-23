@@ -6,6 +6,7 @@ from datetime import datetime as dt
 from datetime import timedelta
 from dateutil.relativedelta import relativedelta
 from typing import Optional
+from numpy import nan
 
 # <- d1: a dictionary. Any contents permitted.
 # <- d2: a dictionary. Any contents permitted.
@@ -64,6 +65,8 @@ def convert_to_tz(data, tz):
     except Exception as ex:
         print(f"Could not initialize time zone: {ex}")
         print("Timestamps will be in UTC or Unix Time!")
+    if "timestamp" in data.columns:
+        data = data.set_index("timestamp")
     try:
         # Convert to time zone
         data.index = data.index.tz_convert(tz=ZoneInfo(tz))
@@ -79,21 +82,65 @@ def convert_to_tz(data, tz):
     # AKA: make sure it's NA! There shouldn't be data here
     # If there is, either make it NA or flag as questionable
     # Build a new index with all timestamps
-    data = data.set_index("timestamp")
+    #data = data.set_index("timestamp")
     start_datetime = data.index[0]
     end_datetime = data.index[-1] + pd.Timedelta(1, "d") # one day ahead for date_range to work properly
-    # TODO: Fill missing intervals with NA
     # Holding for reference:
     # doubletime="2023-03-11 20:00:00-07:00"
     # doubletime = dt.strptime(doubletime, "%Y-%m-%d %H:%M:%S%z")
-    #fifteen_min_increments = pd.date_range(start=start_datetime, end=end_datetime, tz=timezone, freq="15min", normalize=True, inclusive="left")
-    #new_index = pd.Index(fifteen_min_increments, name="timestamp")
-    #data = data.reindex(index=new_index, method=None) # Do not impute over missing times!
-    # TODO: Deal with any duplicate hours
+    # Any intervals missing not accounted for by daylight savings will be caught by this
+    # and filled with numpy.NaN
+    fifteen_min_increments = pd.date_range(start=start_datetime, end=end_datetime, tz=timezone, freq="15min", inclusive="left")
+    new_index = pd.Index(fifteen_min_increments, name="timestamp")
+    data = data.reindex(index=new_index, method=None) # Do not impute over missing times!
+    # Filling daylight savings is a bit trickier, as pd.date_range will NOT fill it
+    # but we also can't rely on manually specifying the missing hour
+    # Instead, we create a copy of the timestamps without the timezone info
+    # to find the missing time, fill with date_range since it works on naive times, 
+    # then use replace() to re-add the pre-DST time zone and fill with NA.
+    # All to ensure continuity of the resulting graph.
+    times = data.index.copy()
+    #times = times.tz_localize(None) # Remove timezone, preserve times
+    times = times.to_pydatetime() # Get into regular timezone format to ease comparison
+    for value in range(0, len(times)):
+        times[value] = times[value].replace(tzinfo=None)
+    # Create a series of all times that SHOULD be present
+    all_times = pd.Series(pd.date_range(start=times[0], end=times[-1], freq="15min", inclusive="both"))
+    times = pd.Series(times)
+    # Visually confirm that a known missing time DOES exist in all_times, but not times
+    #testtime = dt.strptime("2023-03-12 02:00:00", "%Y-%m-%d %H:%M:%S")
+    #print(all_times.loc[all_times == testtime])
+    #print(times.loc[times == testtime])
+    # Find rows in complete time series that are not present in times
+    comparison = pd.Series(all_times.isin(times))
+    missing_rows = comparison[comparison == False].index
+    # Get the first time zone
+    #first_time = data.index[0]
+    # TODO extract the time zone
+    #first_timezone = first_time.utcoffset()
+    # Add to data, using pre-DST time zone
+    missing_rows_corrected = []
+    for time in missing_rows:
+        #missing_rows_corrected.append(all_times.iloc[time].replace(tzinfo=timezone))
+        missing_rows_corrected.append(all_times.iloc[time])
+    recreated_times = pd.DataFrame()
+    recreated_times["timestamp"] = missing_rows_corrected
+    recreated_times["meter_id"] = data["meter_id"].iloc[0]
+    recreated_times["real_power"] = nan # No readings here
+    recreated_times = recreated_times.set_index("timestamp")
+    print(recreated_times)
+    # Append to the data frame
+    data = pd.concat([data, recreated_times])
+    # TODO: we generated the timestamps correctly (minus the timezone, anyway)
+    # See the above print
+    # We appended them
+    # And yet they don't appear in the frame upon testing. Why?
+
+    # TODO: Deal with any duplicate hours from fall DST
     # groupby DOES NOT WORK because the time offset is different!
 
     # Check our work
-    debug_check_conversion(data, timezone)
+    debug_check_conversion(data, timezone, False)
 
     if "index" not in data.columns: 
         data = data.reset_index() # Ensures JSON output includes timestamp
@@ -106,6 +153,8 @@ def debug_check_conversion(
         ):
     # Check our work
     # Get list of years so we can find the transition days for those years
+    if "timestamp" not in data.columns:
+        data = data.reset_index()
     start_year = data["timestamp"].iloc[0]
     end_year = data["timestamp"].iloc[-1]
     years = []
@@ -130,11 +179,9 @@ def debug_check_conversion(
                 print(double_datetime, "not found")
     else:
         # Check regular DST transition times
-        #starttime = "03:00"
         starttime="01:00"
         starttime = dt.strptime(starttime, "%H:%M").replace(tzinfo=timezone)
-        endtime = "03:59" # Actual break point
-        endtime = "04:00" # For convenience to see surrounding times
+        endtime = "04:00"
         endtime = dt.strptime(endtime, "%H:%M").replace(tzinfo=timezone)
         # Get the data for those dates
         data = data.set_index("timestamp")
@@ -145,14 +192,11 @@ def debug_check_conversion(
             try:
                 affected = data.loc[start_dt:end_dt]
                 print(affected)
-                print(data.loc[dt.strptime("03:00", "%H:%M").replace(tzinfo=timezone)])
-            except KeyError:
-                print("Requested time period not found in data.")
+            except KeyError as ex:
+                print("Requested time period not found in data:", ex)
                 print(f"From {start_dt} to {end_dt}")
             except Exception as ex:
-                print("Could not locate DST transition day in data;")
-                #print(f"From {start_dt} to {end_dt}")
-                print(ex)
+                print("Could not locate DST transition day in data:", ex)
 
 # Extract all usage points whose address matches a given address.
 # This should effectively list all meters at that address.
