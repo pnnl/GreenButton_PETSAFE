@@ -90,6 +90,7 @@ def convert_to_tz(data, tz):
     # doubletime = dt.strptime(doubletime, "%Y-%m-%d %H:%M:%S%z")
     # Any intervals missing not accounted for by daylight savings will be caught by this
     # and filled with numpy.NaN
+    # Apologies for hardcoding the frequency
     fifteen_min_increments = pd.date_range(start=start_datetime, end=end_datetime, tz=timezone, freq="15min", inclusive="left")
     new_index = pd.Index(fifteen_min_increments, name="timestamp")
     data = data.reindex(index=new_index, method=None) # Do not impute over missing times!
@@ -123,18 +124,28 @@ def convert_to_tz(data, tz):
     for time in missing_rows:
         #missing_rows_corrected.append(all_times.iloc[time].replace(tzinfo=timezone))
         missing_rows_corrected.append(all_times.iloc[time])
+        print(time)
     recreated_times = pd.DataFrame()
     recreated_times["timestamp"] = missing_rows_corrected
     recreated_times["meter_id"] = data["meter_id"].iloc[0]
     recreated_times["real_power"] = nan # No readings here
     recreated_times = recreated_times.set_index("timestamp")
     print(recreated_times)
+    # We need to insert these records in the correct location for them to return-
+    # we can't use sort because pandas refuses to compare naive and aware datetimes.
+    # What we can do is slice the data before the time to add, add it in,
+    # and re-add the back half of the data.
+    # First, get the last time before the break point.
     # Append to the data frame
     data = pd.concat([data, recreated_times])
     # TODO: we generated the timestamps correctly (minus the timezone, anyway)
     # See the above print
     # We appended them
     # And yet they don't appear in the frame upon testing. Why?
+    # Because they're naive and we're grabbing times between aware datetimes
+    # replacing to make non-naive rolls it back because the hour shouldn't exist
+    # how to get it to return anyway? If we request naive, will it return
+    # only naive?
 
     # TODO: Deal with any duplicate hours from fall DST
     # groupby DOES NOT WORK because the time offset is different!
@@ -190,8 +201,10 @@ def debug_check_conversion(
             start_dt = date + timedelta(hours=starttime.hour) # At starttime: add the time!
             end_dt = date + timedelta(hours=endtime.hour, minutes=endtime.minute) # At endttime: add the time!
             try:
+                #nstart = dt.strptime("2023-03-12 00:00", "%Y-%m-%d %H:%M")
                 affected = data.loc[start_dt:end_dt]
                 print(affected)
+                #print(data.between_time("1:00", "4:00"))
             except KeyError as ex:
                 print("Requested time period not found in data:", ex)
                 print(f"From {start_dt} to {end_dt}")

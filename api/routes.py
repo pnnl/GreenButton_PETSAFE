@@ -64,7 +64,7 @@ def get_building_real_power(meter_id):
     power["meter_id"] = meter_id
     # TODO: make datetimes obviously datetimes (currently UNIX stamps, which may be confusing to humans)
     # Right now it's hard to understand and that will be a problem in the future. Make it easier to work with
-    return power.to_json(orient="records")
+    return power.to_json(orient="records", date_format="iso")
 
 # --------------- ADDRESSES --------------------
         
