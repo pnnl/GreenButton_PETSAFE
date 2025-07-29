@@ -32,12 +32,27 @@ endpoints = Blueprint('api_routing', __name__, template_folder='templates')
 
 @endpoints.route('/')
 def get_index():
-    return jsonify({'endpoint_refs': {
-                "building_energy_ref": f'{prefix}/energy',
-                "customers_ref": f'{prefix}/customers',
-                "users_ref": f'{prefix}/users',
-                "meters_ref": f'{prefix}/meters',
-                "addresses_ref": f'{prefix}/addresses'
+    return jsonify({'ref_links': {
+                "building_energy": {
+                    "ref": f'{prefix}/energy',
+                    "type": "GET",
+                    "description": "Time series energy usage data"},
+                "customers": {
+                    "ref": f'{prefix}/customers',
+                    "type": "GET",
+                    "description": "Retail customer information"},
+                "users": {
+                    "ref": f'{prefix}/users',
+                    "type": "GET",
+                    "description": "Application user information"},
+                "meters": {
+                    "ref": f'{prefix}/meters',
+                    "type": "GET",
+                    "description": "Metadata about meters"},
+                "addresses": {
+                    "ref": f'{prefix}/addresses',
+                    "type": "GET",
+                    "description": "Address information and operations"}
                 }
             })
         
@@ -74,7 +89,7 @@ def customers_instructions():
     return Response(message, status=200, mimetype='application/json')
 
 @endpoints.route("/users/")
-def customers_instructions():
+def users_instructions():
     message = {"ref_links": {
         "all": {
         "ref": f"{prefix}/users/all",
@@ -87,7 +102,7 @@ def customers_instructions():
     return Response(message, status=200, mimetype='application/json')
 
 @endpoints.route("/addresses/")
-def customers_instructions():
+def addresses_instructions():
     message = {"ref_links": {
         "add": {
         "ref": f"{prefix}/addresses/add",
