@@ -18,9 +18,11 @@ from datetime import date
 # Determine which add/update/delete endpoints are covered by GB
 # implementation and remove them if not needed in this API
 
-# Define column names to hide when retrieving data
+# Define column names to hide when retrieving data - never return these to the user
 sensitive_columns = ["first_name", "last_name", "password"]
 # Versioning information for the API
+# Appended to every endpoint; e.g. /energy becomes /speedes/1_0/energy
+# with prefix = '/speedes/1_0'
 prefix = '/speedes/1_0'
 
 # All routes in this blueprint
@@ -30,17 +32,94 @@ endpoints = Blueprint('api_routing', __name__, template_folder='templates')
 
 @endpoints.route('/')
 def get_index():
-    return jsonify({'available endpoints': {
-                "building energy data": f'{prefix}/energy',
-                "customer data": f'{prefix}/customers',
-                "premises": f'{prefix}/sites',
-                "time zones": f'{prefix}/timezones',
-                "meters / usage points": f'{prefix}/meters',
+    return jsonify({'endpoint_refs': {
+                "building_energy_ref": f'{prefix}/energy',
+                "customers_ref": f'{prefix}/customers',
+                "users_ref": f'{prefix}/users',
+                "meters_ref": f'{prefix}/meters',
+                "addresses_ref": f'{prefix}/addresses'
                 }
             })
         
-# --------------- RAW DATA -------------------
+# --------------- ROUTING DOCUMENTATION -------------------
         
+@endpoints.route("/energy/")
+def energy_instructions():
+    message = {"ref_links": {
+        "real_power": {
+        "ref": f"{prefix}/energy/realpower/<meter_id>",
+        "parameters": {"meter_id": "integer corresponding to the meter_id of a usage point"},
+        "description": "Real power time series data for the meter given by meter_id."
+        }
+    }}
+    return Response(message, status=200, mimetype='application/json')
+
+@endpoints.route("/customers/")
+def customers_instructions():
+    message = {"ref_links": {
+        "all": {
+        "ref": f"{prefix}/customers/all",
+        "type": "GET",
+        "parameters": {},
+        "description": "Information about all customers the requesting user is permitted to view."
+        # TODO: be more specific, what kind of information?
+        },
+        "by_id": {
+        "ref": f"{prefix}/customers/<customer_id>",
+        "type": "GET",
+        "parameters": {"meter_id": "integer corresponding to the meter_id of a usage point"},
+        "description": "Information about a specific customer corresponding to customer_id."
+        }
+    }}
+    return Response(message, status=200, mimetype='application/json')
+
+@endpoints.route("/users/")
+def customers_instructions():
+    message = {"ref_links": {
+        "all": {
+        "ref": f"{prefix}/users/all",
+        "type": "GET",
+        "parameters": {},
+        "description": "Information about all users permitted to be viewed. Will not return sensitive data."
+        # TODO: be more specific, what kind of information?
+        }
+    }}
+    return Response(message, status=200, mimetype='application/json')
+
+@endpoints.route("/addresses/")
+def customers_instructions():
+    message = {"ref_links": {
+        "add": {
+        "ref": f"{prefix}/addresses/add",
+        "type": "POST",
+        # TODO: allow the provision of individual paramaters while still abstracting away from database for this!
+        "parameters": {"description": "String describing the address. 255 characters or fewer.",
+                       "fullAddress": "String containing the full address in the format, all sections optional: (fraction number) (unit) (building) (street number) \
+                        (street prefix) (street name) (street suffix) (street type) (city) (country) (state) (zip code, with or without four digit addition) \
+                            (latitude) (longitude)"},
+        "description": "Request to add an address to application storage. Returns HTTP status code with address upon success/failure."
+        # TODO: be more specific, what kind of information?
+        },
+        "by_id": {
+            "view": {"ref": f"{prefix}/addresses/<address_id>",
+                     "type": "GET",
+                    "parameters": {"address_id": "integer corresponding to a specific address"},
+                    "description": "Information about a specific customer corresponding to customer_id."},
+            "update": {"ref": f"{prefix}/addresses/<address_id>",
+                    "type": "GET",
+                    "parameters": {"address_id": "integer corresponding to a specific address"},
+                    "description": "Information about a specific customer corresponding to customer_id."},
+            "delete": {"ref": f"{prefix}/addresses/<address_id>/delete",
+                    "type": "GET",
+                    "parameters": {"address_id": "integer corresponding to a specific address"},
+                    "description": "Information about a specific customer corresponding to customer_id."}
+        }
+    }}
+    return Response(message, status=200, mimetype='application/json')
+
+
+# --------------- RAW DATA -------------------
+
 # Display real power readings for a given meter
 # TODO: do we need apparent power equiv, or would it be better to include
 # both in the same endpoint?
@@ -52,18 +131,16 @@ def get_building_real_power(meter_id):
     # Get real power
     # TODO: different tag depending on permissions granted by OAuth status
     # For now, raw is what's in the database
-    # Make the conversion
     power = idb.read_points_in_range(client=client, meter_id=meter_id, privacy_tag="raw")
-    idb.close_client(client)
+    idb.close_client(client) # Done separately to run some extra code before closing
     # Convert to local time
     # Get local time.
-    local_time = "America/Los_Angeles" # Test placeholder, TODO
+    # TODO get from end user, not from server
+    local_time = "America/Los_Angeles"
     # Convert to local time
     power = convert_to_tz(power, local_time)
     # Mark which meter the data comes from
     power["meter_id"] = meter_id
-    # TODO: make datetimes obviously datetimes (currently UNIX stamps, which may be confusing to humans)
-    # Right now it's hard to understand and that will be a problem in the future. Make it easier to work with
     return power.to_json(orient="records", date_format="iso")
 
 # --------------- ADDRESSES --------------------
@@ -98,7 +175,7 @@ def delete_address(address_id):
             
 # --------------- RETAIL CUSTOMERS --------------------
 
-@endpoints.route("/users", methods=['GET'])
+@endpoints.route("/users/all", methods=['GET'])
 def get_all_users():
     # Get a list of all users: basic information, username and contact info, and mailing address
     query = "SELECT retail_customers.username, retail_customers.role, retail_customers.first_name,\
@@ -153,7 +230,7 @@ def get_all_users():
         users = None
     return Response(users, status=status, mimetype='application/json')
 
-@endpoints.route("/customers", methods=['GET'])
+@endpoints.route("/customers/all", methods=['GET'])
 # GET
 # Retrieve list of all customers
 def get_all_customers():
@@ -170,7 +247,7 @@ def get_customer(cust_id):
 # --------------- SERVICE DELIVERY AND USAGE POINTS -------------------
 # "Logical point on a network at which consumption or production is either 
 # physically measured (e.g., metered) or estimated (e.g., unmetered street lights)."
-@endpoints.route("/meters", methods=['GET'])
+@endpoints.route("/meters/all", methods=['GET'])
 def get_all_usage_points():
     # Should we also include serviceDeliveryPoints here, or only for specific meters?
     # Makes most sense as specific meters but wait to see use case to confirm
@@ -246,6 +323,8 @@ def get_point_data(address_id):
         return Response(sites.to_json(), status=status, mimetype='application/json')
     else:
         return Response("Address not found.", status=404, mimetype='application/json')
+
+
 
 
 # --------------- ADD, UPDATE, DELETE --------------------
@@ -331,24 +410,6 @@ def add_usage_point():
         return {'status':status}, 400, {'Content-Type': 'application/json'}
     # Format status and return
     return {'status':status}, 201, {'Content-Type': 'application/json'}
-
-# TODO: See if this can be removed; GB API handles this, right?
-@endpoints.route("/login", methods=["POST"])
-# POST
-# Validate whether a user's password is correct
-# Takes user_id (specified in URL) and entered password (POSTed)
-# password_correct == True means password matches
-# password_correct == False means incorrect password or other failure to match
-# TODO: tie this into JWT - return is a placeholder for the token integration 
-# (request a token, return to user?)
-def test_password(customer_id, password):
-    # Retrieve the login information for this user_id
-    worker = sqlTableWorker("logins", "customer_id", request, resource_id=customer_id)
-    # Returns True if successful match, False in any other case
-    # If False, see status code for reason matching failed (wrong password, user not found, etc.)
-    statuscode, password_correct = worker.check_password(customer_id, password)
-    # Will likely return the token instead of placeholder
-    return Response({"Password match": password_correct}, status=statuscode, mimetype='application/json')
 
 @endpoints.route("/timezones", methods=['GET'])
 # GET

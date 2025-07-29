@@ -5,7 +5,7 @@ test_endpoints = Blueprint('api_routing', __name__, template_folder='templates')
 
 # Mimics customerMockData.json
 # Probably shouldn't be shown directly to the user? TODO check again where this is used by frontend
-@test_endpoints.route("/customers", methods=['GET'])
+@test_endpoints.route("/customers/all", methods=['GET'])
 def get_all_customers():
     data = read_json("mockData/customerMockData.json")
     return data
@@ -13,7 +13,7 @@ def get_all_customers():
 # Mimics electricMeters.json
 # Note: format may change
 # Purpose: meters owned or accessible to the currently authenticated customer
-@test_endpoints.route("/meters", methods=['GET'])
+@test_endpoints.route("/meters/all", methods=['GET'])
 def get_all_meters():
     data = read_json("mockData/electricMeters.json")
     return data
@@ -22,7 +22,7 @@ def get_all_meters():
 # Should this be merged into customer return, or are users sufficiently distinct from customers
 # to need their own endpoint?
 # Probably shouldn't be shown directly to the user? TODO check again where this is used by frontend
-@test_endpoints.route("/users", methods=["GET"])
+@test_endpoints.route("/users/all", methods=["GET"])
 def get_all_users():
     data = read_json("mockData/users.json")
     return data
