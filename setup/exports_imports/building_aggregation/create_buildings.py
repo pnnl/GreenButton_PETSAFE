@@ -8,7 +8,6 @@ from typing import Optional
 from time import perf_counter, mktime
 from datetime import datetime, timedelta
 from math import floor
-from numpy import nan
 from zoneinfo import ZoneInfo
 from dateutil.relativedelta import relativedelta # DST calculations
 

@@ -1,17 +1,16 @@
 #!/bin/bash
 
+echo -e "Setup script assumes an Ubuntu environment; if installation of databases \nfails, check package names."
+
 # Ensure we can see Python files here
 PYTHONPATH="$PYTHONPATH:/home/petsafe/Desktop/PETSAFE"
 
-# Setup venv
-cd setup
-
 # Ensure necessary commands and libraries are installed
-bash install_requirements.sh
+bash setup/install_requirements.sh
 
 #Create databases
-bash install_influx.sh
-bash install-mysql.sh
+bash setup/install_influx.sh
+bash setup/install-mysql.sh
 
 # Fill  databases
 # MySQL
