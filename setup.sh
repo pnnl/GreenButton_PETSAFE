@@ -2,7 +2,7 @@
 
 echo -e "Setup script assumes an Ubuntu environment; if installation of databases \nfails, check package names."
 
-# Ensure we can see Python files here
+# Ensure we can see Python files here- corrects a bug where relative imports don't work
 PYTHONPATH="$PYTHONPATH:/home/petsafe/Desktop/PETSAFE"
 
 # Ensure necessary commands and libraries are installed

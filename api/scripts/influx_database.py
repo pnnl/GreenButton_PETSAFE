@@ -12,8 +12,7 @@ from database_config import *
 #token = environ.get("INFLUXDB_TOKEN")
 #org = "PNNL"
 
-# These are the suggested defaults in the documentation.
-# TODO: decide if these need to be tweaked for better performance/security
+# These are the suggested defaults in the documentation and should work well for our purposes.
 write_options = influx.WriteOptions(batch_size=500,
                             flush_interval=10_000,
                             jitter_interval=2_000,
@@ -25,7 +24,6 @@ write_options = influx.WriteOptions(batch_size=500,
 # Determine whether a provided date range:
 # 1. is formatted in ISO format: YYYY-mm-dd
 # 2. is correctly ordered (end is after start)
-# TODO: also validate that these dates do exist in the data?
 def validate_date_range(start_date, end_date):
     # TODO: do we need to check whether the dates are a certain distance apart, too?
     try: # Validity check: are these dates formatted in a valid way?
@@ -36,31 +34,30 @@ def validate_date_range(start_date, end_date):
         if dt_start and dt_end:
             assert dt_end > dt_start # Does end come AFTER start? If not, request is malformed
     except (ValueError, AssertionError): # Malformed date
-        # TODO: return something better
-        return "Invalid date range"
+        return False
     # TODO sanity check: do we HAVE these dates available? If not, 404
-    return "Valid date range"
+    return True
 
 
 # Create a client object for use in reading and writing data.
 # Returns the client object
-# NOTE: reading requires initializing a query API object from the client object
+# NOTE: reading data using this object requires initializing an additional query API object from the client object
+# see: https://docs.influxdata.com/influxdb/v2/api-guide/client-libraries/python/#query-data-from-influxdb-with-python
 # NOTE: client object should be closed with close_client() when finished using it
 def init_client():
     # Init the database
     try:
         client = influx.InfluxDBClient(url=influx_host, org=influx_org, token=influx_token)
-        # TODO: write and read options, config; batch write may be of interest
         return client
     except Exception as ex:
         print("Could not initialize connection:", ex)
 
-# Can only write, not read; may write more quickly, enables from_file writes
+# Can only write, not read; primarily here because it allows writing from file and may write more quickly
+# in that case, and being able to directly read JSON files into the database is definitely desirable
 def init_v3_client():
     # Init the database
     try:
         client = influx3.InfluxDBClient3(host=influx_host, database=influx_bucket, token=influx_token, org=influx_org)
-        # TODO: write and read options, config; batch write may be of interest
         return client
     except Exception as ex:
         print("Could not initialize connection:", ex)
@@ -69,17 +66,15 @@ def init_v3_client():
 def close_client(client):
     # Sanity check that client exists
     if client:
-        # TODO: is there anything else we should run first?
+        # If any extra operations ever need to be performed before closing clients, add them here.
         client.close()
         return "Success"
     else:
         return "Database client does not exist"
-    
-def query(query):
-    import warnings
-    from influxdb_client.client.warnings import MissingPivotFunction
-    warnings.simplefilter("ignore", MissingPivotFunction)
-    
+
+# Run a query and return the results. Handles client creation and closing to minimize potential error
+# with forgetting to close a client
+def query(query):    
     conn = init_client()
     query_api = conn.query_api()
     results = query_api.query_data_frame(query=query)
@@ -87,6 +82,7 @@ def query(query):
     return results
 
 # Return real_power data for a given meter between two dates, or all real_power data if dates not specified
+# TODO: take privacy tag into account once we have more than one version of data to work with
 def read_points_in_range(
         client: object, 
         meter_id: int,
@@ -127,10 +123,10 @@ def read_points_in_range(
         return results
     # Return subset of data between two dates
     # Sanity checks on date range come first
-    if validate_date_range(start_datetime, end_datetime) == "Valid date range":
+    if validate_date_range(start_datetime, end_datetime) == True:
         # Query for data between the points
         # TODO: parameterized, not fstring
-        # fstring is known injection vulnerability
+        # fstring is possibly an injection vulnerability
         #query = f"SELECT * FROM POWER WHERE timestamp BETWEEN '{start_datetime}' AND '{end_datetime};"
         query = f'from(bucket:"{influx_bucket}")\
         |> range(start: {start_datetime}, stop: {end_datetime})\
@@ -153,29 +149,41 @@ def import_from_json(filename):
         # Setup point config
         measurement = "power"
         # Retrieve the file data
-        # TODO error handling
-        client.write_file(file=filename, measurement_name=measurement, write_precision="s", \
+        try:
+            client.write_file(file=filename, measurement_name=measurement, write_precision="s", \
                           tag_columns=["meter_id", "privacy", "meter_type"], timestamp_column="timestamp")
-        return "Success"
+            return "Success"
+        except Exception as ex:
+            print("Error writing to database:", ex)
+            return "Write error"
     else:
         return "File not found"
 
+# Take a pandas DataFrame and write it to Influx
 def write_from_pandas(client2, data):
     with client2.write_api(write_options=write_options) as write_client:
         write_client.write(influx_bucket, influx_org, record=data, data_frame_measurement_name='power', \
                        data_frame_tag_columns=["meter_id", "privacy", "meter_type"], timestamp_column="timestamp")
-    #print("Done processing")
     return "Success"
 
+# Remove all data from Influx database for a fresh start
+# WARNING: irreversable!
 def delete_building_data():
-    client = init_client()
-    delete_api = client.delete_api()
-    start = "2010-01-01T00:00:00Z"
-    stop = datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
-    print("Clearing old data...")
-    delete_api.delete(start, stop, '_measurement="power"', bucket=influx_bucket, org=influx_org)
-    print("Data successfully cleared.")
-    close_client(client)
+    confirmation = input("Are you sure you want to delete all Influx data? This cannot be reversed. y/n: ")
+    if confirmation.lower() in ["y", "yes"]:
+        client = init_client()
+        delete_api = client.delete_api()
+        start = "1970-01-01T00:00:00Z" # Way before the data set actually starts
+        stop = datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
+        print("Clearing old data...")
+        try:
+            delete_api.delete(start, stop, '_measurement="power"', bucket=influx_bucket, org=influx_org)
+            print("Data successfully cleared.")
+            close_client(client)
+        except Exception as ex:
+            print("Deletion error:", ex)
+    else:
+        print("Deletion canceled.")
 
 # If this is run on its own, assume we're just importing data and act accordingly
 if __name__ == "__main__":

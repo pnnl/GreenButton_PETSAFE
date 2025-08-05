@@ -187,7 +187,35 @@ def delete_address(address_id):
     return worker.perform_request_operation(flask_response=True)
 
             
-# --------------- RETAIL CUSTOMERS --------------------
+# --------------- OTHER MAPPINGS --------------------
+            
+@endpoints.route("/meters/<usp_id>", methods=['GET'])
+def get_usage_point(usp_id):
+    worker = sqlTableWorker("usage_points", "id", request, resource_id=usp_id)
+    return worker.perform_request_operation(flask_response=True)
+
+# Return the list of meters at a given address
+# TODO JWT to secure this against unauthorized users who want to know what meters exist in a
+# building they don't own; check ownership/residency before returning for an address
+@endpoints.route("/addresses/<int:address_id>/meters")
+def get_point_data(address_id):
+    # Sanity check address_id exists (relies on querying non-Influx database)
+    worker = sqlTableWorker("addresses", "id", resource_id=address_id)
+    address_exists = worker.check_if_in_table(address_id)
+    if address_exists:
+        # Find out what meters list this address as their site
+        sanity_check_building_id(address_id)
+        status, sites = list_component_sites(address_id)
+        # TODO: also return links to view those sites' power IF user is authorized to see that
+        return Response(sites.to_json(), status=status, mimetype='application/json')
+    else:
+        return Response("Address not found.", status=404, mimetype='application/json')
+
+
+# --------------- POTENTIALLY REDUNDANT --------------------
+# TODO: These endpoints may need to be removed or altered if the GB implementation
+# is fully responsible for these operations; else, consider constraining use
+# or otherwise limiting these further
 
 @endpoints.route("/users/all", methods=['GET'])
 def get_all_users():
@@ -258,7 +286,6 @@ def get_customer(cust_id):
     worker = sqlTableWorker("retail_customers", "id", request, resource_id=cust_id)
     return worker.perform_request_operation(flask_response=True)
             
-# --------------- SERVICE DELIVERY AND USAGE POINTS -------------------
 # "Logical point on a network at which consumption or production is either 
 # physically measured (e.g., metered) or estimated (e.g., unmetered street lights)."
 @endpoints.route("/meters/all", methods=['GET'])
@@ -314,37 +341,7 @@ def get_all_usage_points():
     # Format to JSON
     if results.empty:
         abort(404) # Resource not found, does not exist
-    return results.to_json(orient="records")       
-            
-@endpoints.route("/meters/<usp_id>", methods=['GET'])
-def get_usage_point(usp_id):
-    worker = sqlTableWorker("usage_points", "id", request, resource_id=usp_id)
-    return worker.perform_request_operation(flask_response=True)
-
-# Return the list of meters at a given address
-# TODO JWT to secure this against unauthorized users who want to know what meters exist in a
-# building they don't own; check ownership/residency before returning for an address
-@endpoints.route("/addresses/<int:address_id>/meters")
-def get_point_data(address_id):
-    # Sanity check address_id exists (relies on querying non-Influx database)
-    worker = sqlTableWorker("addresses", "id", resource_id=address_id)
-    address_exists = worker.check_if_in_table(address_id)
-    if address_exists:
-        # Find out what meters list this address as their site
-        sanity_check_building_id(address_id)
-        status, sites = list_component_sites(address_id)
-        # TODO: also return links to view those sites' power IF user is authorized to see that
-        return Response(sites.to_json(), status=status, mimetype='application/json')
-    else:
-        return Response("Address not found.", status=404, mimetype='application/json')
-
-
-
-
-# --------------- ADD, UPDATE, DELETE --------------------
-# TODO: These endpoints may need to be removed if the GB implementation
-# is fully responsible for these operations; else, consider constraining use
-# or otherwise limiting these further
+    return results.to_json(orient="records")   
 
 # Add a new customer
 @endpoints.route("/customers/add", methods=['POST'])
