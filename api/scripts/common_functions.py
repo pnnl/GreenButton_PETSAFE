@@ -59,6 +59,13 @@ def find_dst_transitions(
 # Convert from UTC to local time
 # tz should be a timezone in standard, full name format:
 # e.g. 'America/Los_Angeles'
+# NOTE: An hour may be missing for "spring forward" daylight saving
+# transitions. This hour is filled in with NAIVE timestamps that are
+# implied to be in the same time zone as the aware timestamps.
+# Naive stamps are used because Python libraries (sensibly) refuse
+# to represent the nonexistent hour, but we still need to return it
+# with NA values for graphing purposes, hence the use of naive
+# timestamps to represent that time period
 def convert_to_tz(data, tz):
     try:
         timezone = ZoneInfo(tz)
@@ -118,19 +125,17 @@ def convert_to_tz(data, tz):
     # Get the first time zone
     #first_time = data.index[0]
     # TODO extract the time zone
-    #first_timezone = first_time.utcoffset()
+    #first_timezone = first_time.utcoffset()?
     # Add to data, using pre-DST time zone
     missing_rows_corrected = []
     for time in missing_rows:
         #missing_rows_corrected.append(all_times.iloc[time].replace(tzinfo=timezone))
         missing_rows_corrected.append(all_times.iloc[time])
-        print(time)
     recreated_times = pd.DataFrame()
     recreated_times["timestamp"] = missing_rows_corrected
     recreated_times["meter_id"] = data["meter_id"].iloc[0]
     recreated_times["real_power"] = nan # No readings here
     recreated_times = recreated_times.set_index("timestamp")
-    print(recreated_times)
     # We need to insert these records in the correct location for them to return-
     # we can't use sort because pandas refuses to compare naive and aware datetimes.
     # What we can do is slice the data before the time to add, add it in,
@@ -138,25 +143,16 @@ def convert_to_tz(data, tz):
     # First, get the last time before the break point.
     # Append to the data frame
     data = pd.concat([data, recreated_times])
-    # TODO: we generated the timestamps correctly (minus the timezone, anyway)
-    # See the above print
-    # We appended them
-    # And yet they don't appear in the frame upon testing. Why?
-    # Because they're naive and we're grabbing times between aware datetimes
-    # replacing to make non-naive rolls it back because the hour shouldn't exist
-    # how to get it to return anyway? If we request naive, will it return
-    # only naive?
-
-    # TODO: Deal with any duplicate hours from fall DST
-    # groupby DOES NOT WORK because the time offset is different!
 
     # Check our work
-    debug_check_conversion(data, timezone, False)
+    #debug_check_conversion(data, timezone, False)
 
     if "index" not in data.columns: 
         data = data.reset_index() # Ensures JSON output includes timestamp
     return data
 
+# Can be called to check that the time zone is correct by viewing
+# the times around daylight savings
 def debug_check_conversion(
         data: pd.DataFrame, 
         timezone: str, 

@@ -6,7 +6,6 @@ from scripts.validity_tests import *
 from scripts.sqlWorkerClass import sqlTableWorker
 from scripts.common_functions import *
 from json import dumps
-from datetime import date
 
 # OVERARCHING TODO:
 # Hook all actions into authentication/authorization.
@@ -36,23 +35,23 @@ def get_index():
                 "building_energy": {
                     "ref": f'{prefix}/energy',
                     "type": "GET",
-                    "description": "Time series energy usage data"},
+                    "description": "Time series energy usage data. A GET request may be issued to this endpoint for further information."},
                 "customers": {
                     "ref": f'{prefix}/customers',
                     "type": "GET",
-                    "description": "Retail customer information"},
+                    "description": "Retail customer metadata. A GET request may be issued to this endpoint for further information."},
                 "users": {
                     "ref": f'{prefix}/users',
                     "type": "GET",
-                    "description": "Application user information"},
+                    "description": "Application user metadata. A GET request may be issued to this endpoint for further information."},
                 "meters": {
                     "ref": f'{prefix}/meters',
                     "type": "GET",
-                    "description": "Metadata about meters"},
+                    "description": "Metadata about meters. A GET request may be issued to this endpoint for further information."},
                 "addresses": {
                     "ref": f'{prefix}/addresses',
                     "type": "GET",
-                    "description": "Address information and operations"}
+                    "description": "Address information and operations. A GET request may be issued to this endpoint for further information."}
                 }
             })
         
@@ -64,7 +63,7 @@ def energy_instructions():
         "real_power": {
         "ref": f"{prefix}/energy/realpower/<meter_id>",
         "parameters": {"meter_id": "integer corresponding to the meter_id of a usage point"},
-        "description": "Real power time series data for the meter given by meter_id."
+        "description": "Real power time series data for the meter given by meter_id. Returns time-series data."
         }
     }}
     return Response(message, status=200, mimetype='application/json')
@@ -76,8 +75,7 @@ def customers_instructions():
         "ref": f"{prefix}/customers/all",
         "type": "GET",
         "parameters": {},
-        "description": "Information about all customers the requesting user is permitted to view."
-        # TODO: be more specific, what kind of information?
+        "description": "Metadata about all customers the requesting user is permitted to view. Returns a set of customers."
         },
         "by_id": {
         "ref": f"{prefix}/customers/<customer_id>",
@@ -95,8 +93,7 @@ def users_instructions():
         "ref": f"{prefix}/users/all",
         "type": "GET",
         "parameters": {},
-        "description": "Information about all users permitted to be viewed. Will not return sensitive data."
-        # TODO: be more specific, what kind of information?
+        "description": "Metadata about all users permitted to be viewed. Will not return sensitive data. Returns a set of users."
         }
     }}
     return Response(message, status=200, mimetype='application/json')
@@ -107,27 +104,29 @@ def addresses_instructions():
         "add": {
         "ref": f"{prefix}/addresses/add",
         "type": "POST",
-        # TODO: allow the provision of individual paramaters while still abstracting away from database for this!
+        # TODO: currently accepts individual address parts instead of one fullAddress string (see addresses table in datacustodian.sql); 
+        # rework into one string as described here to allow separation of DB structure and user interface structure
         "parameters": {"description": "String describing the address. 255 characters or fewer.",
                        "fullAddress": "String containing the full address in the format, all sections optional: (fraction number) (unit) (building) (street number) \
                         (street prefix) (street name) (street suffix) (street type) (city) (country) (state) (zip code, with or without four digit addition) \
                             (latitude) (longitude)"},
         "description": "Request to add an address to application storage. Returns HTTP status code with address upon success/failure."
-        # TODO: be more specific, what kind of information?
         },
         "by_id": {
             "view": {"ref": f"{prefix}/addresses/<address_id>",
                      "type": "GET",
                     "parameters": {"address_id": "integer corresponding to a specific address"},
-                    "description": "Information about a specific customer corresponding to customer_id."},
+                    "description": "View an address corresponding to an address_id. Returns the address upon success."},
             "update": {"ref": f"{prefix}/addresses/<address_id>",
-                    "type": "GET",
-                    "parameters": {"address_id": "integer corresponding to a specific address"},
-                    "description": "Information about a specific customer corresponding to customer_id."},
+                    "type": "POST",
+                    # TODO: Can this be abstracted further from the underlying data structure?
+                    "parameters": {"address_id": "integer corresponding to a specific address",
+                                   "other": "optional: address components that must be changed. e.g. passing 'city' with a value of 'Richland' will update the city field of that address_id to Richland."},
+                    "description": "Change details of an address. Returns the altered address upon success."},
             "delete": {"ref": f"{prefix}/addresses/<address_id>/delete",
-                    "type": "GET",
+                    "type": "DELETE",
                     "parameters": {"address_id": "integer corresponding to a specific address"},
-                    "description": "Information about a specific customer corresponding to customer_id."}
+                    "description": "Delete an address corresponding to an address_id. Returns HTTP status code."}
         }
     }}
     return Response(message, status=200, mimetype='application/json')
@@ -267,7 +266,8 @@ def get_all_usage_points():
     # Should we also include serviceDeliveryPoints here, or only for specific meters?
     # Makes most sense as specific meters but wait to see use case to confirm
     # Get all usage points
-    # TODO: only those associated with account requesting
+    # TODO: only allow those associated with the account doing the requesting; AKA, no asking for meters you have no right to view
+    # Tying in authorizations is likely the way to go here
     query = "SELECT usage_points.id, usage_points.status, usage_points.roleFlags, addresses.* FROM usage_points \
         LEFT JOIN addresses ON usage_points.address_id=addresses.id;"
     results = msq.query(query)
@@ -295,10 +295,10 @@ def get_all_usage_points():
     results["startDate"] = "None"
     results["terminationDate"] = "None"
     # TODO: These are filler values right now. We need to be able to query or create the actual values
-    # based on who's making the query
-    results["requestor"] = "" # TODO: request this from end user at query time
-    results["account"] = "" # TODO: same as above, but query for it
-    results["accountNumber"] = "ACC1234" # TODO: this is probably what we need to request to get the above
+    # based on who's making the query or else remove these fields from output
+    results["requestor"] = ""
+    results["account"] = ""
+    results["accountNumber"] = "FAKEACC" # TODO: this is probably what we need to request to get the above
     # TODO: Also filler values depending on share information; these will need to be retrieved
     # from the MySQL database for the requesting entity
     results["sharedWith"] = "[None]"
@@ -322,9 +322,8 @@ def get_usage_point(usp_id):
     return worker.perform_request_operation(flask_response=True)
 
 # Return the list of meters at a given address
-# TODO Would it be useful (and safe) to also return links to what buildings the site is in?
 # TODO JWT to secure this against unauthorized users who want to know what meters exist in a
-# building they don't own
+# building they don't own; check ownership/residency before returning for an address
 @endpoints.route("/addresses/<int:address_id>/meters")
 def get_point_data(address_id):
     # Sanity check address_id exists (relies on querying non-Influx database)

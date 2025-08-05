@@ -141,3 +141,6 @@ def populateAll():
             cursor_obj.execute("PRAGMA optimize;")
             cursor_obj.close()
             print ("Done with", aFile)
+
+if __name__ == "__main__":
+    populateAll()

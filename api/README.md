@@ -30,15 +30,10 @@ JSON is expected in the following format:
     "meter_type": str, e.g. "aggregate"; whether the meter is raw data, aggregated/virtual, etc.
 }
 
-Consider using the sample data provided in /api/import-to-database/raw for minimal effort in importing sample buildings.
+Consider using the sample data provided in /api/mockData for minimal effort in importing sample buildings.
 
-To get JSON building data from scratch, see the files in building-aggregation; these files were made to work with the EULR HEMS dataset, which can be found here:
-https://neea.org/resources/the-northwest-end-use-load-research-eulr-project
-
-Please unpack and place this data in the /data directory. It can be read into a SQLLite database for further processing by /building_aggregation/create_buildings.py (if creating randomized aggregates) or /main.py (populate_database(), processing raw data).
+To get JSON building data from scratch, see the main README.
 
 ## MySQL DB
 
-Documentation for setting up MySQL and filling it with sample data is currently being worked on; this README will reference it as soon as it's in place.
-
-If running on Ubuntu, you may run /setup/install-mysql.sh to do most of the setup for the MySQL database for you. (No guarantees it works yet- still testing)
+Documentation for setting up MySQL and filling it with sample data can be found in the main README.

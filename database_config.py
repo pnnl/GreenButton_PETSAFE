@@ -1,8 +1,9 @@
 from os import environ
+# Used pretty much exclusively by influx_to_mysql.py
+
 METER_DATABASE_PATH = "/mnt/hgfs/records.db"
 
-# TODO: TEMP! Change once Influx is implemented
-# (and lock down path traversal)
+# TODO: TEMP! Change once Influx is fully implemented
 BUILDING_DATABASE_PATH = "../data/buildings/"
 
 # Influx information
@@ -21,5 +22,6 @@ mysql_db = 'datacustodian'
 domain = "speedes.pnnl.gov"
 url = "https://" + domain
 
+# Date range to work with
 data_startdate = "2023-01-01T00:00:00Z"
 data_enddate = "2024-01-01T00:00:00Z"

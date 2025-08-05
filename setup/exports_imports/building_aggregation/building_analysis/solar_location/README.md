@@ -1,0 +1,1 @@
+This directory contains files used in a brief foray into testing latitude/longitude location detection from solar generation data. It is not required for API setup or usage.
