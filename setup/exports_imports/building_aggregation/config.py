@@ -29,6 +29,12 @@ MAX_SIZE = 5
 # for building creation; e.g. 0.9 means the meter must have values for
 # a minimum of 90% of its records within the specified time period
 REQUIRED_PORTION = 0.9
+# The number of sequential records permitted to be missing without
+# considering the gap as part of validity testing; e.g. a permitted gap
+# of 2 means that periods where 2 or fewer records are missing will not
+# be counted as invalid records when testing whether REQUIRED_PORTION
+# is satisfied
+PERMITTED_GAP_RECORDS = 2
 
 # ----- ENCRYPT DURING AGGREGATION -----
 # Set to true if you want to encrypt data before saving to file

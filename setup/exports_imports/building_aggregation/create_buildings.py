@@ -1,5 +1,4 @@
 #from openfhe import *
-
 import pandas as pd
 from os.path import exists
 from os import makedirs
@@ -708,7 +707,7 @@ class Building:
         # associated with the same ee_site_id
         ee_site_id = target["ee_site_id"].iloc[0]
         point_id = target["point_id"].iloc[0]
-        # Explicit cast to UTC
+        # Explicit cast to UTC; it's already UTC, so converting isn't needed
         def replace_timezone(x, **kwargs):
             for arg in kwargs:
                 x = x.replace(tzinfo=kwargs[arg])

@@ -3,7 +3,6 @@ import influxdb_client_3 as influx3
 from typing import Optional
 from os.path import exists, splitext
 from datetime import datetime
-from zoneinfo import ZoneInfo
 
 from database_config import *
 #host = "http://127.0.0.1:8086"
