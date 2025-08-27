@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 from math import floor
 from zoneinfo import ZoneInfo
 from dateutil.relativedelta import relativedelta # DST calculations
+import pickle
 
 #import processor.pullMains as pulldb
 from processor.commonDB import DBConn
@@ -37,6 +38,60 @@ class building_dist(rv_discrete):
         return halfcauchy.pdf(x, scale=scale1, loc=loc1) + lognorm.pdf(x, s, scale=scale2, loc=loc2)
     def get_equation(x, s, loc1, scale1, loc2, scale2):
         return halfcauchy.pdf(x, scale=scale1, loc=loc1) + lognorm.pdf(x, s, scale=scale2, loc=loc2)
+
+def test_id(id):
+    try:
+        with open(f"./pickled-meters/{id}-data.pkl", "rb") as infile:
+            id_records = pickle.load(infile)
+        if id_records.empty:
+            return None
+        else:
+            id_records = id_records.rename({0: "ee_site_id", 1: "point_id", 2: "timestamp", 3: "n", 4: "real_power", 5: "apparent_power", 6: "pf"}, axis=1)
+    except Exception as ex:
+        print("Error getting this ID's records:", ex)
+    try:
+        # Filter down to the specified time range's records
+        start_datetime = datetime.strptime(config.START_DATE, '%Y-%m-%d')
+        end_datetime = datetime.strptime(config.END_DATE, '%Y-%m-%d') + pd.Timedelta(1, "d") - pd.Timedelta(15, "min")
+        # timestamp should be index for this to work
+        old_index = id_records["timestamp"].copy() # For comparison of imputation
+        id_records = id_records.set_index("timestamp")
+        # Do the actual filtering
+        id_records = id_records[start_datetime:end_datetime].drop_duplicates()
+        #naframe = id_records["real_power"].notna()
+        #print("Pre-impute:", naframe[naframe == True].count())
+
+    except Exception as ex:
+        print("Failed to filter date range:", ex)
+    try:
+        # Easiest way to test without small gaps being included: impute it
+        # Fill in missing timestamps
+        if config.PERMITTED_GAP_RECORDS != 0:
+            fifteen_min_increments = pd.date_range(start=start_datetime, end=end_datetime, freq="15min", tz=UTC, normalize=True, inclusive="left")
+            new_index = pd.Index(fifteen_min_increments, name="timestamp")
+            id_records = id_records.reindex(index=new_index, method="nearest", limit=config.PERMITTED_GAP_RECORDS)
+            id_records["duration"] = 15 # Mark the time interval of the fills
+            id_records["raw_data_present"] = new_index.isin(old_index)
+    except Exception as ex:
+        print(f"Error mock-imputing for id {id}:", ex)
+    try:
+        naframe = id_records["real_power"].notna()
+        existing_records = naframe[naframe == True].count() # Supposedly excludes NA rows
+        readings_per_day = 24 * 4 # 96 intervals in a day- 24 hours, 4 intervals per hour
+        max_readings_in_period = readings_per_day * int((datetime.strptime(config.END_DATE, '%Y-%m-%d') \
+                                                             - datetime.strptime(config.START_DATE, '%Y-%m-%d')).days) + 1
+        min_valid_results = floor(max_readings_in_period * config.REQUIRED_PORTION) # Number required to accept the site
+
+        # Finally, validate that enough data exists in the site for usage
+        if existing_records < min_valid_results: # AKA: not enough data for that point in this time period
+            #print(id, f"is invalid: {existing_records} records, which is less than {min_valid_results} required.")
+            return None
+        else:
+            #print(id, f"is valid: {existing_records} records, which is greater than or equal to {min_valid_results} required.")
+            return id # ID is valid
+    except Exception as ex:
+        print(f"Error testing validity for id {id}:", ex)
+        return None
 
 # Gets a set of random building ids; used to create buildings
 # rng: randomizer object used to select ids 

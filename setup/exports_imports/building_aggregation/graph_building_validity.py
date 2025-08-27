@@ -1,4 +1,3 @@
-#from openfhe import *
 import pandas as pd
 from numpy import random
 from typing import Optional
@@ -9,10 +8,9 @@ import multiprocessing
 import pickle
 from os.path import exists
 from zoneinfo import ZoneInfo
-
-#import processor.pullMains as pulldb
 from processor.commonDB import DBConn
 import config
+import plotly.express as px
 
 # Setting copy on write for PANDAS as recommended here:
 # https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
@@ -44,36 +42,62 @@ def test_id(id):
     try:
         with open(f"./pickled-meters/{id}-data.pkl", "rb") as infile:
             id_records = pickle.load(infile)
-        id_records = id_records.rename({0: "ee_site_id", 1: "point_id", 2: "timestamp", 3: "n", 4: "real_power", 5: "apparent_power", 6: "pf"}, axis=1)
+        if id_records.empty:
+            return None
+        else:
+            id_records = id_records.rename({0: "ee_site_id", 1: "point_id", 2: "timestamp", 3: "n", 4: "real_power", 5: "apparent_power", 6: "pf"}, axis=1)
     except Exception as ex:
         print("Error getting this ID's records:", ex)
-    # Easiest way to test without small gaps being included: impute it
-    # Fill in missing timestamps
-    # timestamp should be index for this to work
-    id_records['timestamp'] = pd.to_datetime(id_records['timestamp'],unit='s').apply(replace_timezone)
-    old_index = id_records["timestamp"].copy() # For comparison of imputation
-    id_records = id_records.set_index("timestamp")
-    start_datetime = datetime.strptime(config.START_DATE, '%Y-%m-%d').replace(tzinfo=ZoneInfo("UTC"))
-    end_datetime = id_records.index[-1] + pd.Timedelta(1, "d") # one day ahead for date_range to work properly
-    fifteen_min_increments = pd.date_range(start=start_datetime, end=end_datetime, freq="15min", tz=UTC, normalize=True, inclusive="left")
-    new_index = pd.Index(fifteen_min_increments, name="timestamp")
-    print("Pre impute:", id_records["real_power"].count())
-    id_records = id_records.reindex(index=new_index, method="nearest", limit=config.PERMITTED_GAP_RECORDS)
-    id_records["duration"] = 15 # Mark the time interval of the fills
-    id_records["raw_data_present"] = new_index.isin(old_index)
-    #id_records["real_power"] = id_records["real_power"].interpolate(method="nearest", limit=config.PERMITTED_GAP_RECORDS)
-    existing_records = id_records["real_power"].count() # TODO: pick out rows where original data existed OR a not none value exists
-    readings_per_day = 96
-    max_readings_in_period = readings_per_day * int((datetime.strptime(config.END_DATE, '%Y-%m-%d') \
-                                                             - datetime.strptime(config.START_DATE, '%Y-%m-%d')).days)
-    min_valid_results = floor(max_readings_in_period * config.REQUIRED_PORTION) # Number required to accept the site
-    # Finally, validate that enough data exists in the site for usage
-    if existing_records < min_valid_results: # AKA: not enough data for that point in this time period
-        print(id, f"is invalid: {existing_records} records, which is less than {min_valid_results} required.")
+    try:
+        # Filter down to the specified time range's records
+        start_datetime = datetime.strptime(config.START_DATE, '%Y-%m-%d').replace(tzinfo=ZoneInfo("UTC"))
+        end_datetime = datetime.strptime(config.END_DATE, '%Y-%m-%d').replace(tzinfo=ZoneInfo("UTC")) + pd.Timedelta(1, "d") - pd.Timedelta(15, "min")
+        # timestamp should be index for this to work
+        id_records['timestamp'] = pd.to_datetime(id_records['timestamp'],unit='s').apply(replace_timezone)
+        old_index = id_records["timestamp"].copy() # For comparison of imputation
+        id_records = id_records.set_index("timestamp")
+        # Do the actual filtering
+        id_records = id_records[start_datetime:end_datetime].drop_duplicates()
+
+        naframe = id_records["real_power"].notna()
+        #print("Pre-impute:", naframe[naframe == True].count())
+        #print(id_records["real_power"].index[-1]) # Check if we spilled over the end date limit
+
+    except Exception as ex:
+        print("Failed to filter date range:", ex)
+    try:
+        # Easiest way to test without small gaps being included: impute it
+        # Fill in missing timestamps
+        if config.PERMITTED_GAP_RECORDS != 0:
+            fifteen_min_increments = pd.date_range(start=start_datetime, end=end_datetime, freq="15min", tz=UTC, normalize=True, inclusive="left")
+            new_index = pd.Index(fifteen_min_increments, name="timestamp")
+            id_records = id_records.reindex(index=new_index, method="nearest", limit=config.PERMITTED_GAP_RECORDS)
+            id_records["duration"] = 15 # Mark the time interval of the fills
+            id_records["raw_data_present"] = new_index.isin(old_index)
+    except Exception as ex:
+        print(f"Error mock-imputing for id {id}:", ex)
+    try:
+        naframe = id_records["real_power"].notna()
+        existing_records = naframe[naframe == True].count() # Supposedly excludes NA rows
+        readings_per_day = 24 * 4 # 96 intervals in a day- 24 hours, 4 intervals per hour
+        max_readings_in_period = readings_per_day * int((datetime.strptime(config.END_DATE, '%Y-%m-%d') \
+                                                             - datetime.strptime(config.START_DATE, '%Y-%m-%d')).days) + 1
+        min_valid_results = floor(max_readings_in_period * config.REQUIRED_PORTION) # Number required to accept the site
+
+        #print("Missing rows:", naframe[naframe == False].count())
+        #print("Post-impute:", existing_records)
+        #print("Maximum possible readings:", max_readings_in_period)
+
+        # Finally, validate that enough data exists in the site for usage
+        if existing_records < min_valid_results: # AKA: not enough data for that point in this time period
+            #print(id, f"is invalid: {existing_records} records, which is less than {min_valid_results} required.")
+            return None
+        else:
+            #print(id, f"is valid: {existing_records} records, which is greater than or equal to {min_valid_results} required.")
+            return id # ID is valid
+    except Exception as ex:
+        print(f"Error testing validity for id {id}:", ex)
         return None
-    else:
-        print(id, f"is valid: {existing_records} records, which is greater than or equal to {min_valid_results} required.")
-        return id # ID is valid
 
 
 # Get records for those IDs so we can test them
@@ -135,25 +159,34 @@ def get_valid_id_counts():
     else:
         with open("ids.pkl", "rb") as infile:
             ids = pickle.load(infile)
+            # 390 mains IDs total
     try:
         # Prep to verify that chosen IDs have results for given time period
         id_test_queue = ids
+
+        #print("Testing.")
+        #for id in range(0,5):
+        #    print("ID:", id)
+        #    test_id(ids[id])
+        #    print("-----")
+    
         # Test validity of IDs
         print("Testing IDs.")
         valid_ids_per_threshold = {}
-        threshold_range = range(1, 100, 1)
-        threshold_range = range(99, 100)
-        for threshold in threshold_range:
+        for threshold in [95, 95.5, 96, 96.5, 97, 97.5, 98, 98.5, 99, 99.5, 100]:
+        #for threshold in range(0,50,10):
+        #for threshold in range(50, 90, 5):
+        #for threshold in [90, 90.5, 91, 91.5, 92, 92.5, 93, 93.5, 94, 94.5]:
+            print(f"Threshold: {threshold}%")
             threshold = threshold / 100
             config.REQUIRED_PORTION = threshold
             try:
-                print(test_id(59885))
-                raise SystemExit
-                with multiprocessing.Pool(3) as pool:
+                with multiprocessing.Pool() as pool:
                     valid_ids = pool.map(test_id, id_test_queue)
+            except KeyboardInterrupt:
+                print("Stopping.")
             except Exception as ex:
                 print("Error initializing pool:", ex)
-            raise SystemExit
             valid_ids = [x for x in valid_ids if x is not None] # Removing failed ids
             valid_ids_per_threshold[threshold] = len(valid_ids)
     except Exception as ex:
@@ -162,8 +195,11 @@ def get_valid_id_counts():
     return valid_ids_per_threshold
 
 def graph_valid_id_counts(valid_id_counts):
-    count_frame = pd.DataFrame(valid_id_counts)
+    count_frame = pd.Series(valid_id_counts)
     print(count_frame)
+    title = f"Number of Valid Meters by Percent Data Existing (Maximum Ignored Missing Consecutive Records = {config.PERMITTED_GAP_RECORDS}), 2023"
+    fig = px.bar(count_frame, title=title)
+    fig.show()
 
 def main():
     valid_id_counts = get_valid_id_counts()
