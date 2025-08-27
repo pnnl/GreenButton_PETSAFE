@@ -700,7 +700,7 @@ class Building:
         # Make the conversion
         UTC = ZoneInfo("UTC")
         bdata['timestamp'] = pd.to_datetime(bdata['timestamp'],unit='s')
-        bdata["timestamp"] = bdata["timestamp"].apply(replace_timezone, tz=UTC)
+        bdata["timestamp"] = bdata["timestamp"].apply(replace_timezone, tz=UTC) # It should be UTC already; don't convert
         return bdata
 
     # Run after functions that change power factor (sum functions); recalculates it to be correct

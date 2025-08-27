@@ -11,6 +11,8 @@ from zoneinfo import ZoneInfo
 from processor.commonDB import DBConn
 import config
 import plotly.express as px
+from create_buildings import Building
+from random import sample
 
 # Setting copy on write for PANDAS as recommended here:
 # https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
@@ -116,9 +118,23 @@ def pickle_data(id):
     except Exception as ex:
         print(f"Could not read or pickle meter {id}: {ex}")
 
+def get_valid_ids(threshold, id_list):
+    print(f"Threshold: {threshold}%")
+    threshold = threshold / 100
+    config.REQUIRED_PORTION = threshold
+    try:
+        with multiprocessing.Pool() as pool:
+            valid_ids = pool.map(test_id, id_list)
+    except KeyboardInterrupt:
+        print("Stopping.")
+    except Exception as ex:
+        print("Error initializing pool:", ex)
+    valid_ids = [x for x in valid_ids if x is not None] # Removing failed ids
+    return valid_ids
+
 # Gets a set of random building ids; used to create buildings
 # rng: randomizer object used to select ids 
-def get_valid_id_counts():
+def get_valid_id_counts(mode):
     # Get possible IDs to choose from
     print("Selecting mains building IDs.")
     if not exists("ids.pkl"):
@@ -152,38 +168,28 @@ def get_valid_id_counts():
             ids = pickle.load(infile)
             # 390 mains IDs total
     try:
-        # Prep to verify that chosen IDs have results for given time period
-        id_test_queue = ids
-
-        #print("Testing.")
-        #for id in range(0,5):
-        #    print("ID:", id)
-        #    test_id(ids[id])
-        #    print("-----")
-    
-        # Test validity of IDs
-        print("Testing IDs.")
-        valid_ids_per_threshold = {}
-        for threshold in [95, 95.5, 96, 96.5, 97, 97.5, 98, 98.5, 99, 99.5, 100]:
-        #for threshold in range(0,50,10):
-        #for threshold in range(50, 90, 5):
-        #for threshold in [90, 90.5, 91, 91.5, 92, 92.5, 93, 93.5, 94, 94.5]:
-            print(f"Threshold: {threshold}%")
-            threshold = threshold / 100
-            config.REQUIRED_PORTION = threshold
-            try:
-                with multiprocessing.Pool() as pool:
-                    valid_ids = pool.map(test_id, id_test_queue)
-            except KeyboardInterrupt:
-                print("Stopping.")
-            except Exception as ex:
-                print("Error initializing pool:", ex)
-            valid_ids = [x for x in valid_ids if x is not None] # Removing failed ids
-            valid_ids_per_threshold[threshold] = len(valid_ids)
+        if mode == "count":
+            # Test validity of IDs
+            print("Testing IDs.")
+            valid_ids_per_threshold = {}
+            # Alas, range does not allow 0.5 steps
+            for threshold in [950, 1000, 5]:
+                threshold = threshold / 10
+            #for threshold in range(0,50,10):
+            #for threshold in range(50, 90, 5):
+                valid_ids = list(get_valid_ids(threshold, ids))
+                valid_ids_per_threshold[threshold] = len(valid_ids)
+            return valid_ids_per_threshold
+        elif mode == "sample":
+            sample_size = 3
+            threshold = 0.99
+            valid_ids = get_valid_ids(threshold, ids)
+            chosen_ids = sample(valid_ids, k=sample_size)
+            print(f"Selected IDs: {chosen_ids}")
+            return chosen_ids
     except Exception as ex:
         print("Error:", ex)
         return {}
-    return valid_ids_per_threshold
 
 def graph_valid_id_counts(valid_id_counts):
     count_frame = pd.Series(valid_id_counts)
@@ -192,9 +198,26 @@ def graph_valid_id_counts(valid_id_counts):
     fig = px.bar(count_frame, title=title)
     fig.show()
 
+def graph_random_sample_valid_ids(sample):
+    # Retrieve ID energy usage for sampled ids
+    data = Building.query_for_sites(config.DATABASE, sample, config.START_DATE, config.END_DATE)
+    print(data)
+    graphdata = data["real_power"]
+    graphdata["timestamp"] = data["timestamp"]
+    for id in sample:
+        pass # Get data, make graph in Plotly, compile it all
+
 def main():
-    valid_id_counts = get_valid_id_counts()
-    graph_valid_id_counts(valid_id_counts)
+    print("This script can either graph the number of valid IDs per threshold or graph a random sample of valid ids.")
+    print("To view the count of valid IDs per threshold, enter 1.")
+    print("To view a random sample of valid ids, enter 2.")
+    mode = input("Enter selection: ")
+    if str(mode) == "1":
+        valid_id_counts = get_valid_id_counts(mode="count")
+        graph_valid_id_counts(valid_id_counts)
+    elif str(mode) == "2":
+        valid_id_sample = get_valid_id_counts(mode="sample")
+        graph_random_sample_valid_ids(valid_id_sample)
 
 if __name__ == "__main__":
     main()
