@@ -11,17 +11,20 @@ from zoneinfo import ZoneInfo
 from processor.commonDB import DBConn
 import config
 import plotly.express as px
-from create_buildings import Building
 from random import sample
 
 # Setting copy on write for PANDAS as recommended here:
 # https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
 pd.options.mode.copy_on_write = True
 
+# Explicit cast to UTC; it's already in UTC but this makes it aware
+def replace_timezone(x):
+    return x.replace(tzinfo=ZoneInfo("UTC"))
+
 # Used to validate that data exists within this period;
 # dates are stored as Unix timestamps, so start/end datetimes need to match formats to compare
-start = mktime(datetime.strptime(config.START_DATE, '%Y-%m-%d').timetuple())
-end = mktime(datetime.strptime(config.END_DATE, '%Y-%m-%d').timetuple())
+start = replace_timezone(datetime.strptime(config.START_DATE, '%Y-%m-%d'))
+end = replace_timezone(datetime.strptime(config.END_DATE, '%Y-%m-%d'))
 
 # Initialize with seed for deterministic rng
 def set_seed(seed: Optional[str] = None):
@@ -35,11 +38,7 @@ def set_seed(seed: Optional[str] = None):
 if config.OUTPUT_DIR[-1] != "/":
     config.OUTPUT_DIR += "/"
 
-# Explicit cast to UTC; it's already in UTC but this makes it aware
-def replace_timezone(x):
-    return x.replace(tzinfo=ZoneInfo("UTC"))
-        
-def test_id(id):
+def get_records(id):
     UTC = ZoneInfo("UTC")
     try:
         with open(f"./pickled-meters/{id}-data.pkl", "rb") as infile:
@@ -51,15 +50,22 @@ def test_id(id):
     except Exception as ex:
         print("Error getting this ID's records:", ex)
     try:
-        # Filter down to the specified time range's records
-        start_datetime = datetime.strptime(config.START_DATE, '%Y-%m-%d').replace(tzinfo=ZoneInfo("UTC"))
-        end_datetime = datetime.strptime(config.END_DATE, '%Y-%m-%d').replace(tzinfo=ZoneInfo("UTC")) + pd.Timedelta(1, "d") - pd.Timedelta(15, "min")
         # timestamp should be index for this to work
         id_records['timestamp'] = pd.to_datetime(id_records['timestamp'],unit='s').apply(replace_timezone)
+        #id_records = id_records.set_index("timestamp")
+    except:
+        print("Could not prepare records.")
+    return id_records
+        
+def test_id(id):
+    UTC = ZoneInfo("UTC")
+    id_records = get_records(id)
+    try:
         old_index = id_records["timestamp"].copy() # For comparison of imputation
+        id_records['timestamp'] = pd.to_datetime(id_records['timestamp'],unit='s').apply(replace_timezone)
         id_records = id_records.set_index("timestamp")
         # Do the actual filtering
-        id_records = id_records[start_datetime:end_datetime].drop_duplicates()
+        id_records = id_records[start:end].drop_duplicates()
         naframe = id_records["real_power"].notna()
     except Exception as ex:
         print("Failed to filter date range:", ex)
@@ -67,7 +73,7 @@ def test_id(id):
         # Easiest way to test without small gaps being included: impute it
         # Fill in missing timestamps
         if config.PERMITTED_GAP_RECORDS != 0:
-            fifteen_min_increments = pd.date_range(start=start_datetime, end=end_datetime, freq="15min", tz=UTC, normalize=True, inclusive="left")
+            fifteen_min_increments = pd.date_range(start=start, end=end, freq="15min", tz=UTC, normalize=True, inclusive="left")
             new_index = pd.Index(fifteen_min_increments, name="timestamp")
             id_records = id_records.reindex(index=new_index, method="nearest", limit=config.PERMITTED_GAP_RECORDS)
             id_records["duration"] = 15 # Mark the time interval of the fills
@@ -200,12 +206,21 @@ def graph_valid_id_counts(valid_id_counts):
 
 def graph_random_sample_valid_ids(sample):
     # Retrieve ID energy usage for sampled ids
-    data = Building.query_for_sites(config.DATABASE, sample, config.START_DATE, config.END_DATE)
-    print(data)
-    graphdata = data["real_power"]
-    graphdata["timestamp"] = data["timestamp"]
+    start = datetime.strptime(config.START_DATE, '%Y-%m-%d').replace(tzinfo=ZoneInfo("UTC"))
+    end = datetime.strptime(config.END_DATE, '%Y-%m-%d').replace(tzinfo=ZoneInfo("UTC")) + pd.Timedelta(1, "d") - pd.Timedelta(15, "min")
+    # Fill in any missing times
+    fifteen_min_increments = pd.date_range(start=start, end=end, freq="15min", tz=ZoneInfo("UTC"), normalize=True, inclusive="left")
+    new_index = pd.Index(fifteen_min_increments, name="timestamp")
+    # For each record, impute and save as a column to graph
     for id in sample:
-        pass # Get data, make graph in Plotly, compile it all
+        this_id = get_records(id)
+        this_id = this_id.reindex(index=new_index, method="nearest", limit=config.PERMITTED_GAP_RECORDS)
+        if "graphdata" not in locals():
+            graphdata = pd.DataFrame()
+            graphdata["timestamp"] = this_id["timestamp"]
+        graphdata[id] = this_id["real_power"]
+        # Get data, make graph in Plotly, compile it all
+    print(graphdata)
 
 def main():
     print("This script can either graph the number of valid IDs per threshold or graph a random sample of valid ids.")
