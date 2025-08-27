@@ -58,11 +58,7 @@ def test_id(id):
         id_records = id_records.set_index("timestamp")
         # Do the actual filtering
         id_records = id_records[start_datetime:end_datetime].drop_duplicates()
-
         naframe = id_records["real_power"].notna()
-        #print("Pre-impute:", naframe[naframe == True].count())
-        #print(id_records["real_power"].index[-1]) # Check if we spilled over the end date limit
-
     except Exception as ex:
         print("Failed to filter date range:", ex)
     try:
@@ -83,11 +79,6 @@ def test_id(id):
         max_readings_in_period = readings_per_day * int((datetime.strptime(config.END_DATE, '%Y-%m-%d') \
                                                              - datetime.strptime(config.START_DATE, '%Y-%m-%d')).days) + 1
         min_valid_results = floor(max_readings_in_period * config.REQUIRED_PORTION) # Number required to accept the site
-
-        #print("Missing rows:", naframe[naframe == False].count())
-        #print("Post-impute:", existing_records)
-        #print("Maximum possible readings:", max_readings_in_period)
-
         # Finally, validate that enough data exists in the site for usage
         if existing_records < min_valid_results: # AKA: not enough data for that point in this time period
             #print(id, f"is invalid: {existing_records} records, which is less than {min_valid_results} required.")

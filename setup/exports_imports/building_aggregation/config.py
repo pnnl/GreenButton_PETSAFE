@@ -28,7 +28,7 @@ MAX_SIZE = 5
 # Percentage of existing records necessary to accept an id as valid
 # for building creation; e.g. 0.9 means the meter must have values for
 # a minimum of 90% of its records within the specified time period
-REQUIRED_PORTION = 0.9
+REQUIRED_PORTION = 0.95
 # The number of sequential records permitted to be missing without
 # considering the gap as part of validity testing; e.g. a permitted gap
 # of 2 means that periods where 2 or fewer records are missing will not
@@ -66,5 +66,5 @@ STAT_TEMPORAL_RESOLUTION = "f"
 LIMIT_DATE = True
 # What date range to retrieve statistics for
 # Inclusive values
-START_DATE = "2023-01-01"
-END_DATE = "2023-12-31"
+START_DATE = "2021-01-01"
+END_DATE = "2021-12-31"

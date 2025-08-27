@@ -4,12 +4,13 @@ from os.path import exists
 from os import makedirs
 from numpy import random
 from typing import Optional
-from time import perf_counter, mktime
+from time import perf_counter
 from datetime import datetime, timedelta
 from math import floor
 from zoneinfo import ZoneInfo
 from dateutil.relativedelta import relativedelta # DST calculations
 import pickle
+from sys import argv
 
 #import processor.pullMains as pulldb
 from processor.commonDB import DBConn
@@ -39,7 +40,13 @@ class building_dist(rv_discrete):
     def get_equation(x, s, loc1, scale1, loc2, scale2):
         return halfcauchy.pdf(x, scale=scale1, loc=loc1) + lognorm.pdf(x, s, scale=scale2, loc=loc2)
 
+# Explicit cast to UTC; data are already in UTC (hence us not actually converting it) but this makes it timezone aware
+def replace_timezone(x):
+    return x.replace(tzinfo=ZoneInfo("UTC"))
+
+# Determine whether a meter has enough data to be accepted for aggregation
 def test_id(id):
+    UTC = ZoneInfo("UTC")
     try:
         with open(f"./pickled-meters/{id}-data.pkl", "rb") as infile:
             id_records = pickle.load(infile)
@@ -51,16 +58,15 @@ def test_id(id):
         print("Error getting this ID's records:", ex)
     try:
         # Filter down to the specified time range's records
-        start_datetime = datetime.strptime(config.START_DATE, '%Y-%m-%d')
-        end_datetime = datetime.strptime(config.END_DATE, '%Y-%m-%d') + pd.Timedelta(1, "d") - pd.Timedelta(15, "min")
+        start_datetime = datetime.strptime(config.START_DATE, '%Y-%m-%d').replace(tzinfo=ZoneInfo("UTC"))
+        end_datetime = datetime.strptime(config.END_DATE, '%Y-%m-%d').replace(tzinfo=ZoneInfo("UTC")) + pd.Timedelta(1, "d") - pd.Timedelta(15, "min")
         # timestamp should be index for this to work
+        id_records['timestamp'] = pd.to_datetime(id_records['timestamp'],unit='s').apply(replace_timezone)
         old_index = id_records["timestamp"].copy() # For comparison of imputation
         id_records = id_records.set_index("timestamp")
         # Do the actual filtering
         id_records = id_records[start_datetime:end_datetime].drop_duplicates()
-        #naframe = id_records["real_power"].notna()
-        #print("Pre-impute:", naframe[naframe == True].count())
-
+        naframe = id_records["real_power"].notna()
     except Exception as ex:
         print("Failed to filter date range:", ex)
     try:
@@ -81,7 +87,6 @@ def test_id(id):
         max_readings_in_period = readings_per_day * int((datetime.strptime(config.END_DATE, '%Y-%m-%d') \
                                                              - datetime.strptime(config.START_DATE, '%Y-%m-%d')).days) + 1
         min_valid_results = floor(max_readings_in_period * config.REQUIRED_PORTION) # Number required to accept the site
-
         # Finally, validate that enough data exists in the site for usage
         if existing_records < min_valid_results: # AKA: not enough data for that point in this time period
             #print(id, f"is invalid: {existing_records} records, which is less than {min_valid_results} required.")
@@ -95,24 +100,27 @@ def test_id(id):
 
 # Gets a set of random building ids; used to create buildings
 # rng: randomizer object used to select ids 
-def choose_random_ids(rng: Optional[int] = None):
+def choose_random_ids(rng: Optional[int] = None, size: Optional[int] = None):
     randomizer = rng
-    print("Generating building size.")
-    # Get the building size
-    # Numbers generated using tools/fit-curve.py to fit distribution
-    # to range of actual building sizes
-    loc1 = 1.83202980
-    scale1 = 7.28441947e-03
-    loc2 = 2.99999936
-    scale2 = 2.72075073e+01
-    s = 3.28533426
-    dist = building_dist(name="building_dist")
-    if config.MIN_SIZE == config.MAX_SIZE: # If we want a building of a specific size
-        count = config.MIN_SIZE
-    else: # If we need to generate the building's unit count within a provided range
-        count = -1
-        while count < config.MIN_SIZE or count > config.MAX_SIZE or not count:
-            count = int(dist.rvs(loc1=loc1, scale1=scale1, loc2=loc2, scale2=scale2, s=s, size=1)[0]) # Generate building size
+    if size == None:
+        print("Generating building size.")
+        # Get the building size
+        # Numbers generated using tools/fit-curve.py to fit distribution
+        # to range of actual building sizes
+        loc1 = 1.83202980
+        scale1 = 7.28441947e-03
+        loc2 = 2.99999936
+        scale2 = 2.72075073e+01
+        s = 3.28533426
+        dist = building_dist(name="building_dist")
+        if config.MIN_SIZE == config.MAX_SIZE: # If we want a building of a specific size
+            count = config.MIN_SIZE
+        else: # If we need to generate the building's unit count within a provided range
+            count = -1
+            while count < config.MIN_SIZE or count > config.MAX_SIZE or not count:
+                count = int(dist.rvs(loc1=loc1, scale1=scale1, loc2=loc2, scale2=scale2, s=s, size=1)[0]) # Generate building size
+    else:
+        count = size
     # Get possible IDs to choose from
     print("Selecting building IDs.")
     try:
@@ -133,32 +141,16 @@ def choose_random_ids(rng: Optional[int] = None):
             # Prep to verify that chosen IDs have results for given time period
             id_test_queue = list([id[0] for id in initial_building_ids]) # Original format not malleable
             valid_ids = []
-            # Used to validate that data exists within this period;
-            # dates are stored as Unix timestamps, so start/end datetimes need to match formats to compare
-            start = mktime(datetime.strptime(config.START_DATE, '%Y-%m-%d').timetuple())
-            end = mktime(datetime.strptime(config.END_DATE, '%Y-%m-%d').timetuple())
-
-            # Get COUNT() of readings for this time period
-            # Used to check that enough data exists to use the point_id in buildings
             while len(valid_ids) < count:
                 for id in id_test_queue:
-                    # TODO: parameterized query, not fstring; fstring is injection vuln
-                    # Check if data exists for this site
-                    query = f"SELECT COUNT(*) FROM POWER WHERE point_id={id}" 
-                    if config.LIMIT_DATE == True:
-                        query = query + f" AND timestamp BETWEEN {start} AND {end}" # BETWEEN {START_DATE} AND {END_DATE}"
-                    results = conn.execute(query + ";")
-                    valid_results = results.fetchone()[0] # COUNT() of results
-                    # Max possible expected number of results = readings_per_day * number of days in requested period
-                    # Not worried about duplicate readings for now.
-                    # TODO in long-term: validate that it's not just a long chain of the same reading repeated, just in case?
-                    readings_per_day = 96
-                    max_readings_in_period = readings_per_day * int((datetime.strptime(config.END_DATE, '%Y-%m-%d') \
-                                                             - datetime.strptime(config.START_DATE, '%Y-%m-%d')).days)
-                    min_valid_results = floor(max_readings_in_period * config.REQUIRED_PORTION) # Number required to accept the site
-
-                    # Finally, validate that enough data exists in the site for usage
-                    if valid_results < min_valid_results: # AKA: not enough data for that point in this time period
+                    result = test_id(id)
+                    if result is not None:
+                        if len(valid_ids) < count and id not in valid_ids: # We still need more unique valid ids
+                            valid_ids.append(id)
+                            continue
+                        elif len(valid_ids) >= count: # We have enough valid ids, exit loop
+                            break
+                    else:
                         # Get a new ID to replace the invalid one
                         new_id = randomizer.choice(ids, 1, replace=False)[0][0] # [][] removes from default list nesting result (SQL(row()))
                         del id_test_queue[id_test_queue.index(id)] # ID is invalid for period; drop it from options
@@ -170,12 +162,6 @@ def choose_random_ids(rng: Optional[int] = None):
                         except Exception as ex: # We usually hit this point when running out of IDs
                             print("Could not select valid ids for time period:", ex)
                             raise SystemExit # Quit. TODO: just quit this call, not the whole program?
-                    else: # Site has enough data to be usable
-                        if len(valid_ids) < count and id not in valid_ids: # We still need more unique valid ids
-                            valid_ids.append(id)
-                            continue
-                        elif len(valid_ids) >= count: # We have enough valid ids, exit loop
-                            break
             # "it is recommended that applications run "PRAGMA optimize" (with no arguments) 
             # just before closing each database connection."
             # https://www.sqlite.org/pragma.html#pragma_optimize
@@ -200,15 +186,23 @@ def make_buildings(
         count: int, 
         pickle: bool,
         seed: Optional[int] = None,
-        encrypt: Optional[bool] = True):
+        encrypt: Optional[bool] = True,
+        sizes: Optional[list] = None):
     buildings = []
     timer_start = perf_counter()
     randomizer = set_seed(seed)
-    for i in range(config.FIRST_BUILDING_ID, config.FIRST_BUILDING_ID + count):
-        ids = choose_random_ids(randomizer)
-        print("Creating building", i)
-        buildings.append(Building(ids, encrypt=encrypt, building_id=i, pickle=pickle))
-        print("Building", i, "created.")
+    if sizes == None:
+        for i in range(config.FIRST_BUILDING_ID, config.FIRST_BUILDING_ID + count):
+            print("Creating building", i)
+            ids = choose_random_ids(rng=randomizer)
+            buildings.append(Building(ids, encrypt=encrypt, building_id=i, pickle=pickle))
+            print("Building", i, "created.")
+    else:
+        for i in sizes:
+            print("Creating building", i)
+            ids = choose_random_ids(size=i, rng=randomizer)
+            buildings.append(Building(ids, encrypt=encrypt, building_id=i, pickle=pickle))
+            print("Building", i, "created.")
     timer_end = perf_counter()
     time_taken = timer_end - timer_start
     print("Time taken to create", count, "buildings with encryption setting", encrypt, ": ", time_taken, "seconds")
@@ -969,7 +963,19 @@ class Building:
 
 
 if __name__ == "__main__":
+    # Find out what "mode" to run in
     try:
-        make_buildings(config.BUILDING_COUNT, encrypt=False, pickle=True, seed=config.SEED)
-    except KeyboardInterrupt:
-        print("Stopping (please wait).")
+        mode = argv[1]
+    except:
+        mode = "none"
+    print(f"Mode: {mode}")
+    # 20 buildings of sizes range(2, 20, 1)
+    if mode == "sizerange":
+        sizes = list(range(2,20,1))
+        make_buildings(20, encrypt=False, pickle=True, sizes=sizes)
+    # Random building sizes from real world distribution
+    else:
+        try:
+            make_buildings(config.BUILDING_COUNT, encrypt=False, pickle=True, seed=config.SEED)
+        except KeyboardInterrupt:
+            print("Stopping (please wait).")
