@@ -60,7 +60,7 @@ def test_id(id):
     UTC = ZoneInfo("UTC")
     id_records = get_records(id)
     try:
-        if type(id_records) == "NoneType":
+        if type(id_records) == "NoneType" or id_records.empty:
             return None
         old_index = id_records["timestamp"].copy() # For comparison of imputation
         id_records['timestamp'] = pd.to_datetime(id_records['timestamp'],unit='s').apply(replace_timezone)
@@ -139,7 +139,6 @@ def get_valid_ids(threshold, id_list):
         print("Stopping.")
     except Exception as ex:
         print("Error initializing pool:", ex)
-    print(valid_ids) # Debug
     valid_ids = [x for x in valid_ids if x is not None] # Removing failed ids
     return valid_ids
 
@@ -192,8 +191,8 @@ def get_valid_id_counts(mode):
                 valid_ids_per_threshold[threshold] = len(valid_ids)
             return valid_ids_per_threshold
         elif mode == "sample":
-            sample_size = 5
-            threshold = 0.99
+            sample_size = 5 # Must be <= total number of meters in valid meter set
+            threshold = 0.99 # Must be between 0 and 1
             if exists(f"valid-ids-{threshold}.pkl"): # Save some processing time
                 with open(f"valid-ids-{threshold}.pkl", "rb") as infile:
                     valid_ids = pickle.load(infile)
@@ -239,9 +238,9 @@ def graph_random_sample_valid_ids(sample):
     for col in graphdata.columns:
         naframe = graphdata[col].notna()
         print("ID:", col)
-        #print("No values at:")
-        #gaps = naframe[naframe == False].index.to_list()
-        #print(gaps)
+        print("No values at:")
+        gaps = naframe[naframe == False].index.to_list()
+        print(gaps)
         print("Test value:", naframe[naframe == True].count())
         print("---------")
 
