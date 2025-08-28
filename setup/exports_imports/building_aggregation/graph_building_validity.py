@@ -41,28 +41,32 @@ def get_records(id):
     try:
         with open(f"./pickled-meters/{id}-data.pkl", "rb") as infile:
             id_records = pickle.load(infile)
+        if id_records.empty:
+            return None
         id_records = id_records.rename({0: "ee_site_id", 1: "point_id", 2: "timestamp", 3: "n", 4: "real_power", 5: "apparent_power", 6: "pf"}, axis=1)
     except Exception as ex:
         print("Error getting this ID's records:", ex)
     try:
         # timestamp should be index for this to work
-        id_records['timestamp'] = pd.to_datetime(id_records['timestamp'],unit='s').apply(replace_timezone)
+        if "timestamp" in id_records.columns:
+            id_records['timestamp'] = pd.to_datetime(id_records['timestamp'],unit='s').apply(replace_timezone)
         #id_records = id_records.set_index("timestamp")
     except:
         print("Could not prepare records.")
+        return None
     return id_records
         
 def test_id(id):
     UTC = ZoneInfo("UTC")
     id_records = get_records(id)
     try:
+        if type(id_records) == "NoneType":
+            return None
         old_index = id_records["timestamp"].copy() # For comparison of imputation
         id_records['timestamp'] = pd.to_datetime(id_records['timestamp'],unit='s').apply(replace_timezone)
         id_records = id_records.set_index("timestamp")
         # Do the actual filtering
-        if type(id_records) == "NoneType":
-            return None
-        elif not id_records.empty:
+        if not id_records.empty:
             id_records = id_records[start:end].drop_duplicates()
         else:
             return None
@@ -188,13 +192,13 @@ def get_valid_id_counts(mode):
                 valid_ids_per_threshold[threshold] = len(valid_ids)
             return valid_ids_per_threshold
         elif mode == "sample":
-            sample_size = 2
+            sample_size = 5
             threshold = 0.99
             if exists(f"valid-ids-{threshold}.pkl"): # Save some processing time
                 with open(f"valid-ids-{threshold}.pkl", "rb") as infile:
                     valid_ids = pickle.load(infile)
             else:
-                valid_ids = get_valid_ids(threshold, ids)
+                valid_ids = get_valid_ids(threshold * 100, ids)
                 with open(f"valid-ids-{threshold}.pkl", "wb") as file:
                     pickle.dump(valid_ids, file)
             chosen_ids = sample(valid_ids, k=sample_size)
@@ -235,9 +239,9 @@ def graph_random_sample_valid_ids(sample):
     for col in graphdata.columns:
         naframe = graphdata[col].notna()
         print("ID:", col)
-        print("No values at:")
-        gaps = naframe[naframe == False].index.to_list()
-        print(gaps)
+        #print("No values at:")
+        #gaps = naframe[naframe == False].index.to_list()
+        #print(gaps)
         print("Test value:", naframe[naframe == True].count())
         print("---------")
 
