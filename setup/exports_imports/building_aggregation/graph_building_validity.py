@@ -60,7 +60,7 @@ def test_id(id):
     UTC = ZoneInfo("UTC")
     id_records = get_records(id)
     try:
-        if type(id_records) == "NoneType" or id_records.empty:
+        if type(id_records) == "NoneType" or id_records is None:
             return None
         old_index = id_records["timestamp"].copy() # For comparison of imputation
         id_records['timestamp'] = pd.to_datetime(id_records['timestamp'],unit='s').apply(replace_timezone)
@@ -191,8 +191,8 @@ def get_valid_id_counts(mode):
                 valid_ids_per_threshold[threshold] = len(valid_ids)
             return valid_ids_per_threshold
         elif mode == "sample":
-            sample_size = 5 # Must be <= total number of meters in valid meter set
-            threshold = 0.99 # Must be between 0 and 1
+            sample_size = 10 # Must be <= total number of meters in valid meter set
+            threshold = 0.995 # Must be between 0 and 1
             if exists(f"valid-ids-{threshold}.pkl"): # Save some processing time
                 with open(f"valid-ids-{threshold}.pkl", "rb") as infile:
                     valid_ids = pickle.load(infile)
@@ -233,15 +233,17 @@ def graph_random_sample_valid_ids(sample):
         # Get data, make graph in Plotly, compile it all
     title = "Random sample of valid meters"
     fig = px.line(graphdata, title=title)
-    #fig.show()
-    #fig.write_html("random_valid_ids.html")
+    fig.show()
+    fig.write_html("random_valid_ids.html")
     for col in graphdata.columns:
         naframe = graphdata[col].notna()
         print("ID:", col)
+        print("Number of non-NA records:", naframe[naframe == True].count())
         print("No values at:")
         gaps = naframe[naframe == False].index.to_list()
-        print(gaps)
-        print("Test value:", naframe[naframe == True].count())
+        for x in gaps:
+            print("-", x)
+        #print(gaps)
         print("---------")
 
 def main():
