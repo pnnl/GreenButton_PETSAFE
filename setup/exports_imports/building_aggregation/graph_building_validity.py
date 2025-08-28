@@ -1,7 +1,6 @@
 import pandas as pd
 from numpy import random
 from typing import Optional
-from time import mktime
 from datetime import datetime
 from math import floor
 import multiprocessing
@@ -39,14 +38,10 @@ if config.OUTPUT_DIR[-1] != "/":
     config.OUTPUT_DIR += "/"
 
 def get_records(id):
-    UTC = ZoneInfo("UTC")
     try:
         with open(f"./pickled-meters/{id}-data.pkl", "rb") as infile:
             id_records = pickle.load(infile)
-        if id_records.empty:
-            return None
-        else:
-            id_records = id_records.rename({0: "ee_site_id", 1: "point_id", 2: "timestamp", 3: "n", 4: "real_power", 5: "apparent_power", 6: "pf"}, axis=1)
+        id_records = id_records.rename({0: "ee_site_id", 1: "point_id", 2: "timestamp", 3: "n", 4: "real_power", 5: "apparent_power", 6: "pf"}, axis=1)
     except Exception as ex:
         print("Error getting this ID's records:", ex)
     try:
@@ -65,10 +60,16 @@ def test_id(id):
         id_records['timestamp'] = pd.to_datetime(id_records['timestamp'],unit='s').apply(replace_timezone)
         id_records = id_records.set_index("timestamp")
         # Do the actual filtering
-        id_records = id_records[start:end].drop_duplicates()
-        naframe = id_records["real_power"].notna()
+        if type(id_records) == "NoneType":
+            return None
+        elif not id_records.empty:
+            id_records = id_records[start:end].drop_duplicates()
+        else:
+            return None
+        #naframe = id_records["real_power"].notna()
     except Exception as ex:
         print("Failed to filter date range:", ex)
+        return None
     try:
         # Easiest way to test without small gaps being included: impute it
         # Fill in missing timestamps
@@ -80,6 +81,7 @@ def test_id(id):
             id_records["raw_data_present"] = new_index.isin(old_index)
     except Exception as ex:
         print(f"Error mock-imputing for id {id}:", ex)
+        return None
     try:
         naframe = id_records["real_power"].notna()
         existing_records = naframe[naframe == True].count() # Supposedly excludes NA rows
@@ -88,12 +90,10 @@ def test_id(id):
                                                              - datetime.strptime(config.START_DATE, '%Y-%m-%d')).days) + 1
         min_valid_results = floor(max_readings_in_period * config.REQUIRED_PORTION) # Number required to accept the site
         # Finally, validate that enough data exists in the site for usage
-        if existing_records < min_valid_results: # AKA: not enough data for that point in this time period
-            #print(id, f"is invalid: {existing_records} records, which is less than {min_valid_results} required.")
-            return None
+        if existing_records >= min_valid_results: # ID is valid
+            return id
         else:
-            #print(id, f"is valid: {existing_records} records, which is greater than or equal to {min_valid_results} required.")
-            return id # ID is valid
+            return None  # AKA: not enough data for that point in this time period
     except Exception as ex:
         print(f"Error testing validity for id {id}:", ex)
         return None
@@ -135,6 +135,7 @@ def get_valid_ids(threshold, id_list):
         print("Stopping.")
     except Exception as ex:
         print("Error initializing pool:", ex)
+    print(valid_ids) # Debug
     valid_ids = [x for x in valid_ids if x is not None] # Removing failed ids
     return valid_ids
 
@@ -187,9 +188,15 @@ def get_valid_id_counts(mode):
                 valid_ids_per_threshold[threshold] = len(valid_ids)
             return valid_ids_per_threshold
         elif mode == "sample":
-            sample_size = 3
+            sample_size = 2
             threshold = 0.99
-            valid_ids = get_valid_ids(threshold, ids)
+            if exists(f"valid-ids-{threshold}.pkl"): # Save some processing time
+                with open(f"valid-ids-{threshold}.pkl", "rb") as infile:
+                    valid_ids = pickle.load(infile)
+            else:
+                valid_ids = get_valid_ids(threshold, ids)
+                with open(f"valid-ids-{threshold}.pkl", "wb") as file:
+                    pickle.dump(valid_ids, file)
             chosen_ids = sample(valid_ids, k=sample_size)
             print(f"Selected IDs: {chosen_ids}")
             return chosen_ids
@@ -214,13 +221,25 @@ def graph_random_sample_valid_ids(sample):
     # For each record, impute and save as a column to graph
     for id in sample:
         this_id = get_records(id)
+        this_id = this_id.set_index("timestamp")
+        this_id = this_id[start:end].drop_duplicates()
         this_id = this_id.reindex(index=new_index, method="nearest", limit=config.PERMITTED_GAP_RECORDS)
         if "graphdata" not in locals():
             graphdata = pd.DataFrame()
-            graphdata["timestamp"] = this_id["timestamp"]
         graphdata[id] = this_id["real_power"]
         # Get data, make graph in Plotly, compile it all
-    print(graphdata)
+    title = "Random sample of valid meters"
+    fig = px.line(graphdata, title=title)
+    #fig.show()
+    #fig.write_html("random_valid_ids.html")
+    for col in graphdata.columns:
+        naframe = graphdata[col].notna()
+        print("ID:", col)
+        print("No values at:")
+        gaps = naframe[naframe == False].index.to_list()
+        print(gaps)
+        print("Test value:", naframe[naframe == True].count())
+        print("---------")
 
 def main():
     print("This script can either graph the number of valid IDs per threshold or graph a random sample of valid ids.")
