@@ -5,7 +5,7 @@ An Ubuntu environment is generally expected by setup scripts. In particular, the
 Virtual building creation scripts were made to work with the EULR HEMS dataset, which can be found here:
 https://neea.org/resources/the-northwest-end-use-load-research-eulr-project
 
-Virtual buildings can be created and exported to JSON via ``create_buildings.sh``. It's recommended that you review ``setup/exports_imports/building_aggregation`` before running this script to ensure that any building aggregation settings are appropriate for your goals.
+Virtual buildings can be created and exported to JSON via ``create_buildings.sh``. It's recommended that you review ``setup/exports_imports/building_aggregation/config.py`` before running this script to ensure that any building aggregation settings are appropriate for your goals. (This script depends on several other scripts in ``setup/exports_imports/building_aggregation``, so ensure that directory is present before running the script.)
 
 ``setup.sh`` can be run to set up the backend. This script installs dependencies (Python and assorted libraries, Influx and MySQL databases) if necessary, then fills the databases with sample data. The scripts run by this file can also be run individually if a specific part of setup is desired:
 
