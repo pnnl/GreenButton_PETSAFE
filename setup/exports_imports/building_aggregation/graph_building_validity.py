@@ -11,6 +11,7 @@ from processor.commonDB import DBConn
 import config
 import plotly.express as px
 from random import sample
+from json import dump
 
 # Setting copy on write for PANDAS as recommended here:
 # https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
@@ -203,6 +204,16 @@ def get_valid_id_counts(mode):
             chosen_ids = sample(valid_ids, k=sample_size)
             print(f"Selected IDs: {chosen_ids}")
             return chosen_ids
+        else:
+            threshold = 0.995 # Must be between 0 and 1
+            if exists(f"valid-ids-{threshold}.pkl"): # Save some processing time
+                with open(f"valid-ids-{threshold}.pkl", "rb") as infile:
+                    valid_ids = pickle.load(infile)
+            else:
+                valid_ids = get_valid_ids(threshold * 100, ids)
+                with open(f"valid-ids-{threshold}.pkl", "wb") as file:
+                    pickle.dump(valid_ids, file)
+            return valid_ids
     except Exception as ex:
         print("Error:", ex)
         return {}
@@ -214,7 +225,7 @@ def graph_valid_id_counts(valid_id_counts):
     fig = px.bar(count_frame, title=title)
     fig.show()
 
-def graph_random_sample_valid_ids(sample):
+def graph_random_sample_valid_ids(sample, graph: Optional[bool] = True):
     # Retrieve ID energy usage for sampled ids
     start = datetime.strptime(config.START_DATE, '%Y-%m-%d').replace(tzinfo=ZoneInfo("UTC"))
     end = datetime.strptime(config.END_DATE, '%Y-%m-%d').replace(tzinfo=ZoneInfo("UTC")) + pd.Timedelta(1, "d") - pd.Timedelta(15, "min")
@@ -222,6 +233,7 @@ def graph_random_sample_valid_ids(sample):
     fifteen_min_increments = pd.date_range(start=start, end=end, freq="15min", tz=ZoneInfo("UTC"), normalize=True, inclusive="left")
     new_index = pd.Index(fifteen_min_increments, name="timestamp")
     # For each record, impute and save as a column to graph
+    counter = 0
     for id in sample:
         this_id = get_records(id)
         this_id = this_id.set_index("timestamp")
@@ -230,28 +242,40 @@ def graph_random_sample_valid_ids(sample):
         if "graphdata" not in locals():
             graphdata = pd.DataFrame()
         graphdata[id] = this_id["real_power"]
-        # Get data, make graph in Plotly, compile it all
-    title = "Random sample of valid meters"
-    fig = px.line(graphdata, title=title)
-    fig.update_traces(opacity=.4)
-    fig.show()
-    fig.write_html("random_valid_ids.html")
-    with open("sampled-gaps.txt", "a") as outfile:
-        for col in graphdata.columns:
-            naframe = graphdata[col].notna()
-            # TODO: it may be good to output these in a more easily machine-read format
-            outfile.write(f"ID: {col}\n")
-            outfile.write(f"Number of non-NA records: {naframe[naframe == True].count()}\n")
-            outfile.write("No values at:\n")
-            gaps = naframe[naframe == False].index.to_list()
-            for x in gaps:
-                outfile.write(f"{x}\n")
-            outfile.write("---------\n")
+        counter += 1
+        # PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, 
+        # which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. 
+        # To get a de-fragmented frame, use `newframe = frame.copy()`
+        if counter > 50:
+            graphdata = graphdata.copy()
+    # Get data, make graph in Plotly, compile it all
+    if graph:
+        title = "Random sample of valid meters"
+        fig = px.line(graphdata, title=title)
+        fig.update_traces(opacity=.4)
+        fig.show()
+        fig.write_html("random_valid_ids.html")
+    else:
+        # Save missing times to a JSON file
+        with open("sampled-gaps.json", "a") as outfile:
+            output = {}
+            for col in graphdata.columns:
+                id = str(col)
+                output[id] = {}
+                output[id]["maxGapSizeImputed"] = str(config.PERMITTED_GAP_RECORDS)
+                naframe = graphdata[col].notna()
+                output[id]["recordCount"] = str(naframe[naframe == True].count())
+                output[id]["gapTimes"] = []
+                gaps = naframe[naframe == False].index.to_list()
+                for x in gaps:
+                    output[id]["gapTimes"].append(x.isoformat())
+            dump(output, outfile)
 
 def main():
     print("This script can either graph the number of valid IDs per threshold or graph a random sample of valid ids.")
     print("To view the count of valid IDs per threshold, enter 1.")
     print("To view a random sample of valid ids, enter 2.")
+    print("To output text files describing gap characteristics of all meters, enter 3.")
     mode = input("Enter selection: ")
     if str(mode) == "1":
         valid_id_counts = get_valid_id_counts(mode="count")
@@ -259,6 +283,9 @@ def main():
     elif str(mode) == "2":
         valid_id_sample = get_valid_id_counts(mode="sample")
         graph_random_sample_valid_ids(valid_id_sample)
+    elif str(mode) == "3":
+        valid_ids = get_valid_id_counts(mode="all")
+        graph_random_sample_valid_ids(valid_ids, graph=False)
 
 if __name__ == "__main__":
     main()
