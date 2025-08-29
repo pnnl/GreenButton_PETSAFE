@@ -191,7 +191,7 @@ def get_valid_id_counts(mode):
                 valid_ids_per_threshold[threshold] = len(valid_ids)
             return valid_ids_per_threshold
         elif mode == "sample":
-            sample_size = 10 # Must be <= total number of meters in valid meter set
+            sample_size = 50 # Must be <= total number of meters in valid meter set
             threshold = 0.995 # Must be between 0 and 1
             if exists(f"valid-ids-{threshold}.pkl"): # Save some processing time
                 with open(f"valid-ids-{threshold}.pkl", "rb") as infile:
@@ -233,18 +233,20 @@ def graph_random_sample_valid_ids(sample):
         # Get data, make graph in Plotly, compile it all
     title = "Random sample of valid meters"
     fig = px.line(graphdata, title=title)
+    fig.update_traces(opacity=.4)
     fig.show()
     fig.write_html("random_valid_ids.html")
-    for col in graphdata.columns:
-        naframe = graphdata[col].notna()
-        print("ID:", col)
-        print("Number of non-NA records:", naframe[naframe == True].count())
-        print("No values at:")
-        gaps = naframe[naframe == False].index.to_list()
-        for x in gaps:
-            print("-", x)
-        #print(gaps)
-        print("---------")
+    with open("sampled-gaps.txt", "a") as outfile:
+        for col in graphdata.columns:
+            naframe = graphdata[col].notna()
+            # TODO: it may be good to output these in a more easily machine-read format
+            outfile.write(f"ID: {col}\n")
+            outfile.write(f"Number of non-NA records: {naframe[naframe == True].count()}\n")
+            outfile.write("No values at:\n")
+            gaps = naframe[naframe == False].index.to_list()
+            for x in gaps:
+                outfile.write(f"{x}\n")
+            outfile.write("---------\n")
 
 def main():
     print("This script can either graph the number of valid IDs per threshold or graph a random sample of valid ids.")
