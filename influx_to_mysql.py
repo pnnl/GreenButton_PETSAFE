@@ -2,6 +2,9 @@ from api.scripts import influx_database as idb
 from database_config import *
 import pandas as pd
 
+# Port data from Influx to MySQL for use in testing with Green Button application
+# Outputs a SQL query file that can be run to import metering data
+
 def build_sql():
     # query holds the final contents of our output file; i.e. a SQL file that
     # will populate the MySQL database with metering data

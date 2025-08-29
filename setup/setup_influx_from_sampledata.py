@@ -2,6 +2,9 @@ from api.database_config import *
 import api.scripts.influx_database as idb
 from setup.exports_imports.building_aggregation import list_files
 
+# This script cleans out existing Influx data, then repopulates it with
+# data in sample_energy_data. It should be run from the root of this repository.
+
 if __name__ == "__main__":
     # Remove old data
     idb.delete_building_data()

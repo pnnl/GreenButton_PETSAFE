@@ -1,6 +1,9 @@
 from flask import Blueprint
 from scripts.return_sample_json import read_json
 
+# Routes with no database requirements for use in testing
+# Output format should mirror actual output in routes.py
+
 test_endpoints = Blueprint('api_routing', __name__, template_folder='templates')
 
 # Mimics customerMockData.json
