@@ -8,6 +8,9 @@ from shutil import make_archive, rmtree
 
 from building_aggregation.list_files import list_files_in_dir
 
+# This script takes created buildings (pickled) and exports them to JSON.
+# The resulting JSON can be used by import-buildings.py to populate an Influx database.
+
 # Variables for controlling exports; change as needed
 buildings_to_export = range(0, 18)
 start_date = "2023-01-01"

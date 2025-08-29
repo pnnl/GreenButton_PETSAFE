@@ -13,6 +13,10 @@ import plotly.express as px
 from random import sample
 from json import dump
 
+# Script written to determine where/when gaps occur in data after imputation.
+# Allows the creation of graphs and JSON to record gap locations.
+# Intended to be run directly.
+
 # Setting copy on write for PANDAS as recommended here:
 # https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
 pd.options.mode.copy_on_write = True
@@ -57,6 +61,8 @@ def get_records(id):
         return None
     return id_records
         
+# IF THE TEST_ID IN CREATE_BUILDINGS FAILS:
+# try porting this one over. Confirmed it works 2025-08-29
 def test_id(id):
     UTC = ZoneInfo("UTC")
     id_records = get_records(id)
@@ -71,7 +77,6 @@ def test_id(id):
             id_records = id_records[start:end].drop_duplicates()
         else:
             return None
-        #naframe = id_records["real_power"].notna()
     except Exception as ex:
         print("Failed to filter date range:", ex)
         return None
@@ -102,7 +107,6 @@ def test_id(id):
     except Exception as ex:
         print(f"Error testing validity for id {id}:", ex)
         return None
-
 
 # Get records for those IDs so we can test them
 def pickle_data(id):
@@ -218,13 +222,17 @@ def get_valid_id_counts(mode):
         print("Error:", ex)
         return {}
 
+# Used to chart how many IDs are valid at different threshold values
 def graph_valid_id_counts(valid_id_counts):
     count_frame = pd.Series(valid_id_counts)
     print(count_frame)
+    # I'm so sorry, but you need to change the title's year manually right now
+    # Easy tweak, just didn't have time
     title = f"Number of Valid Meters by Percent Data Existing (Maximum Ignored Missing Consecutive Records = {config.PERMITTED_GAP_RECORDS}), 2023"
     fig = px.bar(count_frame, title=title)
     fig.show()
 
+# Graphs and exports to JSON information about gaps post-imputation
 def graph_random_sample_valid_ids(sample, graph: Optional[bool] = True):
     # Retrieve ID energy usage for sampled ids
     start = datetime.strptime(config.START_DATE, '%Y-%m-%d').replace(tzinfo=ZoneInfo("UTC"))

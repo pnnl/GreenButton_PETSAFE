@@ -1,4 +1,4 @@
-#from openfhe import *
+#from openfhe import * # If using encryption, please install and import OpenFHE
 import pandas as pd
 from os.path import exists
 from os import makedirs
@@ -12,9 +12,20 @@ from dateutil.relativedelta import relativedelta # DST calculations
 import pickle
 from sys import argv
 
-#import processor.pullMains as pulldb
 from processor.commonDB import DBConn
 import config
+
+# This script is responsible for selecting meters, then aggregating meters into buildings
+# It may be run directly or called from elsewhere
+# If running directly, an optional "sizerange" argument may be passed to generate a set of
+# buildings with ascending sizes; i.e. building 1 has 2 meters, building 2 has 3 meters...
+# The size range can be defined below if desired
+min_size_range = 2
+max_size_range = 20
+step_size = 1
+# Without the sizerange arguments, a random sample will be taken from a distribution of
+# real-world building unit counts. That number of meters will be used to create a building.
+# A new sample is taken for each building.
 
 # Setting copy on write for PANDAS as recommended here:
 # https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
@@ -24,7 +35,7 @@ pd.options.mode.copy_on_write = True
 def set_seed(seed: Optional[str] = None):
     if seed == None:
         seed = random.randint(100000000, 999999999)
-        #print("Random seed generated. Seed:", seed)
+        #print("Random seed generated. Seed:", seed) # Debug
     randomizer = random.default_rng(seed)
     return randomizer
 
@@ -88,12 +99,10 @@ def test_id(id):
                                                              - datetime.strptime(config.START_DATE, '%Y-%m-%d')).days) + 1
         min_valid_results = floor(max_readings_in_period * config.REQUIRED_PORTION) # Number required to accept the site
         # Finally, validate that enough data exists in the site for usage
-        if existing_records < min_valid_results: # AKA: not enough data for that point in this time period
-            #print(id, f"is invalid: {existing_records} records, which is less than {min_valid_results} required.")
-            return None
+        if existing_records >= min_valid_results: # ID is valid
+            return id
         else:
-            #print(id, f"is valid: {existing_records} records, which is greater than or equal to {min_valid_results} required.")
-            return id # ID is valid
+            return None  # AKA: not enough data for that point in this time period
     except Exception as ex:
         print(f"Error testing validity for id {id}:", ex)
         return None
@@ -969,9 +978,9 @@ if __name__ == "__main__":
     except:
         mode = "none"
     print(f"Mode: {mode}")
-    # 20 buildings of sizes range(2, 20, 1)
+    # Buildings with ascending meter counts
     if mode == "sizerange":
-        sizes = list(range(2,20,1))
+        sizes = list(range(min_size_range, max_size_range + 1, step_size))
         make_buildings(20, encrypt=False, pickle=True, sizes=sizes)
     # Random building sizes from real world distribution
     else:

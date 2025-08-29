@@ -13,11 +13,11 @@ If using DCT, edit dct/dct_config.py for DCT-specific settings.
 
 See pullMains.py in the processor module.
 
-## Process SQLite metering data into buildings
+# Process SQLite metering data into buildings
 
 The simplest way to create virtual buildings is to run create_buildings.py directly. Settings for building creation can be found in setup/exports_imports/building_aggregation/config.py; these settings should be checked before creating buildings.
 
-To enable the use of homomorphic encryption, set `ENCRYPT` to `True` in config.py.
+To enable the use of homomorphic encryption, set `ENCRYPT` to `True` in config.py (see warning in "Decrypt files" section below first).
 
 To set the number of buildings generated, set `BUILDING_COUNT` in config.py.
 
@@ -30,10 +30,14 @@ At present, only a setting of "f" functions for unencrypted data. Other resoluti
 
 To set the number of sites per building, set `MIN_SIZE` and `MAX_SIZE` in config.py. The number of units aggregated into the building will be selected within this range according to a model of real-world building sizes. To select a specific size, set `MIN_SIZE` and `MAX_SIZE` to the same value.
 Larger building sizes will require more processing time and memory.
+If using the building creation script in the root directory, additional options for selecting building sizes will be presented.
 
 To set the date range of the data used for aggregation, change `START_DATE` and `END_DATE` in config.py. Their values should be strings in the format `"YYYY-MM-DD"`, eg. `"2020-12-01"`. Smaller ranges will process more quickly; for testing purposes, a range of one month, one season, or one year may be more desirable than a wider range.
 
 ## Decrypt files
+
+Warning: this code has not been used since the end of 2024 and thus may not behave as expected due to changes in the codebase since that time. Use with caution and test the success of encryption and decryption before relying on it.
+
     # Assuming that enc_building is a Building object with encryption True:
     # Get necessary components for decrypting a building
     cc = enc_building.get_cc()
@@ -52,8 +56,30 @@ To set the date range of the data used for aggregation, change `START_DATE` and 
 
 As buildings can be exported as Pandas DataFrame objects, the use of .sum() and similar methods allows calculation of these statistics if performed on the real_power column.
 
-# List files
-    from list_files.py import *
-    files = list_files_in_dir([directory path: str], [whether to append path to resulting files: bool])
 
-Used in a few modules when working with source CSV files.
+# Aggregated Building Frame Output
+
+| num | Column name               | Datatype            |
+|-----|---------------------------|---------------------|
+| 0   | building_id               | Int                 |
+| 1   | point_id (list of sites)  | Str "(tuple of int)"|
+| 2   | timestamp (index)         | Datetime            |
+| 3   | duration                  | Int                 |
+| 4   | real_power                | float               |
+| 5   | apparent_power            | float               |
+| 6   | PF                        | float               |
+| 7   | quality                   | Int                 |
+| 8   | raw_data_present          | Bool                |
+
+``raw_data_present`` denotes whether the row's readings existed in the original data set. A value of False on a row where real_power has a value communicates that the row's value was imputed.
+
+## Quality Encodings
+
+0: "valid" (data is present and usable without notable issues),
+8: "estimated_reference_day" (imputed using reference day from prior data),
+9: "estimated_interpolation" (imputed using interpolation),
+10: "questionable" (problems with original data mean this reading may not be 100% reliable or valid),
+11: "derived",
+13: "mixed",
+14: "raw",
+15: "other" (does not fit prior categories; may denote data that was not properly processed, as it was used as a default for all rows before assigning more relevant categories)

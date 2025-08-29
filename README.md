@@ -7,6 +7,8 @@ https://neea.org/resources/the-northwest-end-use-load-research-eulr-project
 
 Virtual buildings can be created and exported to JSON via ``create_buildings.sh``. It's recommended that you review ``setup/exports_imports/building_aggregation/config.py`` before running this script to ensure that any building aggregation settings are appropriate for your goals. (This script depends on several other scripts in ``setup/exports_imports/building_aggregation``, so ensure that directory is present before running the script.)
 
+There is one prerequisite for the building aggregation script to run as intended. A SQLite database containing the EULR HEMS dataset must be prepared. Scripts for doing so can be found in ``setup/exports_imports/building_aggregation/processor/`` (see ``setup/exports_imports/building_aggregation/processor/documentation.md`` for details on expected table formats)
+
 ``setup.sh`` can be run to set up the backend. This script installs dependencies (Python and assorted libraries, Influx and MySQL databases) if necessary, then fills the databases with sample data. The scripts run by this file can also be run individually if a specific part of setup is desired:
 
 - If running on Ubuntu, you may run /setup/install-mysql.sh to do most of the setup for the MySQL database for you. (No guarantees it works yet- still testing)

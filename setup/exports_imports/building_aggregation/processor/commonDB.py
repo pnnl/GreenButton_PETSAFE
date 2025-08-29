@@ -1,6 +1,8 @@
 import datetime
 import sqlite3
 
+# Apologies for the sparse comments- I got this code uncommented and did my best to
+# document what's going on. It's my best guess, so take it all with a grain of salt.
 
 class DBConn:
 

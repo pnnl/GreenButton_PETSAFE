@@ -7,10 +7,10 @@ ROOT_DATA_DIR = "./data"
 POWER_DIR = ROOT_DATA_DIR + "power/"
 
 # ----- AGGREGATE BUILDINGS -----
+# Mostly corresponds to settings needed by create_buildings.py
 # Create virtual buildings using database
 CREATE_BUILDINGS = False
-# Location of database to read records from when creating buildings
-# Expects a SQLite database
+# Location of SQLite database to read records from when creating buildings
 DATABASE = "/mnt/hgfs/records.db"
 # Output directory for aggregated buildings
 OUTPUT_DIR = "/home/petsafe/Desktop/PETSAFE/output/"
@@ -35,8 +35,6 @@ REQUIRED_PORTION = 0.99
 # be counted as invalid records when testing whether REQUIRED_PORTION
 # is satisfied
 PERMITTED_GAP_RECORDS = 2
-
-# ----- ENCRYPT DURING AGGREGATION -----
 # Set to true if you want to encrypt data before saving to file
 ENCRYPT = False
 # Sets number of expected readings per encryption vector
@@ -46,8 +44,6 @@ BATCH_SIZE = 96
 ENCRYPT_COLS = ["real_power", "apparent_power", "pf"]
 # Seed to use for building site randomization
 SEED = 1765757348
-
-# ----- TEMPORAL RESOLUTION AND SCOPE -----
 
 # What resolution to retrieve data at
 # "f": 15 minutes
@@ -66,5 +62,6 @@ STAT_TEMPORAL_RESOLUTION = "f"
 LIMIT_DATE = True
 # What date range to retrieve statistics for
 # Inclusive values
+# Used in a LOT of places- TODO you may want to break this up more
 START_DATE = "2021-01-01"
 END_DATE = "2021-12-31"

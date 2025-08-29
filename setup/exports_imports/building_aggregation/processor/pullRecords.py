@@ -5,6 +5,9 @@ from commonDB import DBConn
 #from commonDB import helpers as h
 import pickle
 
+# Apologies for the sparse comments- I got this code uncommented and did my best to
+# document what's going on. It's my best guess, so take it all with a grain of salt.
+
 # Retrieves entries where the circuit_label_type_id is in [ids]
 def getEntriesOfType(
         conn, # Database connection

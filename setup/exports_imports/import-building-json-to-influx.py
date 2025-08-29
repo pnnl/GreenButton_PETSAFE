@@ -8,6 +8,8 @@ from os import makedirs
 from os.path import exists
 from building_aggregation.list_files import list_files_in_dir
 
+# This script is used to import virtual buildings from JSON files to the Influx database.
+
 host = "http://127.0.0.1:8086"
 bucket = "Buildings"
 #database = "Buildings"

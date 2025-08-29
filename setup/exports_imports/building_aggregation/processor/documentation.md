@@ -1,6 +1,8 @@
-# Database Structure
+# Expected SQLite Database Structure
 
-## Label
+To build database, see pullMains.py.
+
+## Label Table
 
 | num | Column name               | Datatype            |
 |-----|---------------------------|---------------------|
@@ -13,7 +15,7 @@
 | 6   | equipment_type_desc       | Char(32)            |
 | 7   | day_zero_dt               | Int                 |
 
-## Power
+## Power Table
 
 | num | Column name               | Datatype            |
 |-----|---------------------------|---------------------|
@@ -34,14 +36,3 @@
 - **threads = 3:** enables threads to assist with queries, letting them run much faster. 3 was chosen as a relatively safe number for portability; adjust if needed for your device.
 - **analysis_limit = 400:** limits duration of pragma optimize, which is run when closing as per [SQLite documentation's suggested best practice](https://www.sqlite.org/pragma.html#pragma_optimize).
 
-# Building Frame Output
-
-| num | Column name               | Datatype            |
-|-----|---------------------------|---------------------|
-| 0   | building_id               | Int                 |
-| 1   | point_id (list of sites)  | Str "(tuple of int)"|
-| 2   | timestamp (index)         | Datetime            |
-| 3   | duration                  | Int                 |
-| 4   | real_power                | float               |
-| 5   | apparent_power            | float               |
-| 6   | PF                        | float               |

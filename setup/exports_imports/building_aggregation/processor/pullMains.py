@@ -7,6 +7,10 @@ import pickle
 import time
 import pandas as pd
 import numpy as np
+
+# Apologies for the sparse comments- I got this code uncommented and did my best to
+# document what's going on. It's my best guess, so take it all with a grain of salt.
+
 def convertTime(date_str):
     date_format = "%Y-%m-%d"
     # Convert string to datetime object

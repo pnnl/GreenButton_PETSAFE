@@ -10,12 +10,15 @@ else:
     from processor.commonDB import helpers as h
     from config import DATABASE, ROOT_DATA_DIR
 
-# folder path
+# folder paths
 #dir_path = r'C:\\GitHub\\n95111-data\\NEEA\\2018'
 #dir_path = r'C:\\GitHub\\n95111-data\\NEEA\\2019'
 #dir_path = r'C:\\GitHub\\n95111-data\\NEEA\\2020'
 #dir_path = r'C:\\GitHub\\n95111-data\\NEEA\\2021'
 #dir_path = r'C:\\GitHub\\n95111-data\\NEEA\\2022'
+
+# Apologies for the sparse comments- I got this code uncommented and did my best to
+# document what's going on. It's my best guess, so take it all with a grain of salt.
 
 dir_path = DATABASE
 
