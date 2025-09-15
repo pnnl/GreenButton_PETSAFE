@@ -1,11 +1,15 @@
+import sys
+sys.path.append('/home/ubuntu/PETSAFE/api')
+sys.path.append('/home/ubuntu/PETSAFE/api/scripts')
 import api.scripts.influx_database as idb
 import pandas as pd
 from dct_backend.list_files import iterate
 from database_config import *
 from datetime import datetime as dt
 from time import mktime
-
 from multiprocessing import Pool
+
+
 
 # Read from a SQLite database or CSV files into Influx
 # THIS WILL TAKE A WHILE. Set aside some time to wait.
@@ -47,7 +51,7 @@ def prepare_data_from_csv():
 # Faster, but still relatively slow; give it a few minutes to run
 def prepare_data_from_sql():
     from sql import commonDB as db
-    database = "../data/records.db"
+    database = "/home/ubuntu/database/records.db"
     with db.DBConn.create_connection(database) as conn:
         # Get list of MAINS meters
         query = "SELECT DISTINCT point_id FROM LABELS WHERE LABELS.circuit_label_type_id IN (15,16);"
@@ -66,11 +70,15 @@ def prepare_data_from_sql():
             try:
                 # Check if meter already exists in receiving Influx database; do not query if it does
                 # (Influx can handle it, but the input query itself takes a lot of time; best not to repeat it)
-                query = f'from(bucket:"{bucket}")\
-                    |> range(start: {data_startdate}, stop: {data_enddate})\
-                    |> filter(fn: (r) => r.meter_id == {meter_id})'
-                tag_exists = idb.query(query)
-                if tag_exists.empty:
+
+                # Max commenting out 
+                # query = f'from(bucket:"{bucket}")\
+                #     |> range(start: {data_startdate}, stop: {data_enddate})\
+                #     |> filter(fn: (r) => r.meter_id == {meter_id})'
+                # tag_exists = idb.query(query)
+                # if tag_exists.empty:
+                tag_exists = True
+                if tag_exists:
                     # Query the meter
                     query = f"SELECT * FROM POWER WHERE point_id = {meter_id} AND timestamp BETWEEN '{start}' AND '{end}';"
                     print("Querying", meter_id)

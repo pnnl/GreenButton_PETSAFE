@@ -167,6 +167,10 @@ class helpers:
     def getValue(aStr):
         if aStr=="NA":
             return None
+        #if aStr==None:
+        #    return None
+        #if aStr=='':
+        #    return None
         else:
             return float(aStr)
     

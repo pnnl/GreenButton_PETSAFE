@@ -15,4 +15,10 @@ output/backup-encrypted/*
 output/paper/*
 tools/datasets/*
 */.vscode
+setup/exports_imports/building_aggregation/processor/powerfolders/*
+setup/exports_imports/building_aggregation/processor/new-powerfolders/*
+errors.csv
+POWER15_wide.csv
+POWER15_wide_filtered.csv
+POWER15_wide_new.csv
 .venv/*

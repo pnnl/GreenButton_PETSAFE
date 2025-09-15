@@ -2,7 +2,8 @@
 # Read from CSV files into SQLite database
 READ_FILES = False
 # Root directory for input data- where to find the dataset
-ROOT_DATA_DIR = "./data"
+# ROOT_DATA_DIR = "./data"
+ROOT_DATA_DIR = "/home/ubuntu/PETSAFE/setup/exports_imports/building_aggregation/processor"
 # Name of target directory in root dir
 POWER_DIR = ROOT_DATA_DIR + "power/"
 
@@ -11,9 +12,11 @@ POWER_DIR = ROOT_DATA_DIR + "power/"
 # Create virtual buildings using database
 CREATE_BUILDINGS = False
 # Location of SQLite database to read records from when creating buildings
-DATABASE = "/mnt/hgfs/records.db"
+# DATABASE = "/mnt/hgfs/records.db"
+DATABASE = "/home/ubuntu/database/records.db"
 # Output directory for aggregated buildings
-OUTPUT_DIR = "/home/petsafe/Desktop/PETSAFE/output/"
+# OUTPUT_DIR = "/home/petsafe/Desktop/PETSAFE/output/"
+OUTPUT_DIR = '~/PETSAFE/output'
 # Set to True if you'd prefer to save as pickle files
 # (False defaults to CSV format on export)
 SAVE_AS_PICKLE = True
@@ -59,9 +62,14 @@ STAT_TEMPORAL_RESOLUTION = "f"
 
 # Whether to select data between set dates
 # If false, retrieve all data- may take a long time!
-LIMIT_DATE = True
+LIMIT_DATE = False
 # What date range to retrieve statistics for
 # Inclusive values
 # Used in a LOT of places- TODO you may want to break this up more
 START_DATE = "2021-01-01"
-END_DATE = "2021-12-31"
+
+# Not inclusive of end date 
+END_DATE = "2022-01-01"
+
+# Control allowed number of gaps, any number of gaps greater than this, will be recorded for each site id.
+GAP_PARAMETER = 2
