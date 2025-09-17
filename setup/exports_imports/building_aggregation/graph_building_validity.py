@@ -28,6 +28,33 @@ from json import dump
 # https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
 pd.options.mode.copy_on_write = True
 
+# Help filter real power column for zeros and determine if they are valid or not 
+def majority_true(window):
+    return window.sum() > (len(window) // 2)
+
+def filter_zeros(df):
+    df['is_zero'] = df['real_power'] < .1
+    df['true_zero'] = df['is_zero'].rolling(window = 5, center = True).apply(majority_true, raw = False).astype(bool)
+    true_zero_list = df['true_zero'].to_list()  
+    index = 0 
+    zero_gaps = []
+    total_zero_gaps = 0
+
+    while index < len(true_zero_list): 
+        if true_zero_list[index] == True:
+            start = index 
+
+            while index < len(true_zero_list) and true_zero_list[index] == True: 
+                index += 1 
+            
+            end = index - 1 
+            length = end - start + 1 
+            zero_gaps.append(length) 
+            total_zero_gaps += length
+
+    return max(zero_gaps, total_zero_gaps)
+
+
 # Help process site ids for gaps, allowed gaps are configured in config.py file. 
 def process_id_gaps(real_power_list): 
     gap_map = defaultdict(list)
@@ -84,6 +111,7 @@ def get_records(id):
     except Exception as ex:
         print("Error getting this ID's records:", ex)
     try:
+        id_records['placeholder-timestamp'] = id_records['timestamp']
         # timestamp should be index for this to work
         if "timestamp" in id_records.columns:
             id_records['timestamp'] = pd.to_datetime(id_records['timestamp'],unit='s').apply(replace_timezone)
@@ -98,14 +126,13 @@ def get_records(id):
 def test_id(id):
     UTC = ZoneInfo("UTC")
     id_records = get_records(id)
-    if id == 25665:
-        print(1)
     try:
         if type(id_records) == "NoneType" or id_records is None:
             return None
         old_index = id_records["timestamp"].copy() # For comparison of imputation
+        # id_records['placeholder-timestamp'] = id_records['timestamp']
         id_records['timestamp'] = pd.to_datetime(id_records['timestamp'],unit='s').apply(replace_timezone)
-        id_records['placeholder-timestamp'] = id_records['timestamp']
+        
         
 
         id_records = id_records.set_index("timestamp")
@@ -113,7 +140,8 @@ def test_id(id):
         # Important, setting index first and then dropping duplicates leads to relying on column p
         # Drop before setting index 
         if not id_records.empty:
-            id_records = id_records[start:end].drop_duplicates()
+            if id == 25291:
+                id_records = id_records[start:end].drop_duplicates()
         else:
             return None
 
@@ -192,6 +220,7 @@ def test_id(id):
             print(pointid_gap_map)
             if len(available_entries) + available_slots_na != len(available_slots):
                 pointid_gap_map = process_id_gaps(available_slots_copy['real_power'].to_list())
+                zero_gap_list, total_zero_gaps = filter_zeros(available_slots_copy)
 
                 available_entries.to_csv('available_entries.csv')
                 available_slots.to_csv('available_slots.csv')
@@ -329,7 +358,7 @@ def get_valid_id_counts(mode):
                 for key in top_100_map.keys():
                     keep_flag = True
                     gap_list = total_gap_map[key]
-                    
+
                     for gap in gap_list.keys():
                         if gap != 4:
                             keep_flag = False 
@@ -342,6 +371,11 @@ def get_valid_id_counts(mode):
                 print(len(result))
                 for key,value in result.items():
                     print(key,value)
+
+                # gap_key_list = list(result.keys())
+
+                # with open('valid-keys.pkl', 'wb') as file:
+                #     pickle.dump(gap_key_list, file)
 
                 # print(top_100_map)
                 filename = f'/home/ubuntu/PETSAFE/setup/exports_imports/building_aggregation/valid-outputs/{config.START_DATE}-{config.END_DATE}.json'

@@ -66,10 +66,14 @@ LIMIT_DATE = False
 # What date range to retrieve statistics for
 # Inclusive values
 # Used in a LOT of places- TODO you may want to break this up more
-START_DATE = "2021-01-01"
 
+START_DATE = "2021-09-21"
 # Not inclusive of end date 
-END_DATE = "2022-01-01"
+END_DATE = "2021-09-22"
+
+# Copy
+# START_DATE = "2021-01-01"
+# END_DATE = "2022-01-01"
 
 # Control allowed number of gaps, any number of gaps greater than this, will be recorded for each site id.
 GAP_PARAMETER = 2

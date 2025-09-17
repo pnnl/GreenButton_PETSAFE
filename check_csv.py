@@ -2,6 +2,7 @@ import pandas as pd
 import pickle
 from collections import defaultdict
 import datetime as dt 
+from pathlib import Path
 import math
 import setup.exports_imports.building_aggregation.graph_building_validity as gbv
 import setup.exports_imports.building_aggregation.processor.commonDB as db
@@ -48,6 +49,30 @@ def validate_csv_files():
     print(f'Valid ids: {valid_id}\n')
     print(f'Invalid ids: {invalid_id}')
 
+def majority_true(window):
+    return window.sum() > (len(window) // 2)
+
+def filter_zeros(df):
+    df['is_zero'] = df['real_power'] < .1
+    df['true_zero'] = df['is_zero'].rolling(window = 5, center = True).apply(majority_true, raw = False).astype(bool)
+    true_zero_list = df['true_zero'].to_list()  
+    index = 0 
+    zero_gaps = []
+
+    while index < len(true_zero_list): 
+        if true_zero_list[index] == True:
+            start = index 
+
+            while index < len(true_zero_list) and true_zero_list[index] == True: 
+                index += 1 
+            
+            end = index - 1 
+            length = end - start + 1 
+            zero_gaps.append(length) 
+
+    return max(zero_gaps)
+
+
 def process_gap_id(real_power_list, gap_parameter): 
     gap_map = defaultdict(list)
 
@@ -79,12 +104,17 @@ def process_gap_id(real_power_list, gap_parameter):
 
 if __name__ == '__main__':
     real_power_df = pd.read_csv(file_realpower, index_col=0)
-    gap_parameter = 0
+    filter_zeros(real_power_df)
+    # gap_parameter = 0
 
-    # validate_csv_files()
+    # # validate_csv_files()
 
-    # Map, key contains length of the gap, value contains string that shows row numbers e.g (1245) or (1200-1222)
-    process_gap_id(real_power_df['real_power'].to_list(), gap_parameter)
+    # # Map, key contains length of the gap, value contains string that shows row numbers e.g (1245) or (1200-1222)
+    # process_gap_id(real_power_df['real_power'].to_list(), gap_parameter)
+
+    
+
+    
 
 
         
