@@ -22,3 +22,13 @@ POWER15_wide.csv
 POWER15_wide_filtered.csv
 POWER15_wide_new.csv
 .venv/*
+csv-plot-output/*
+compare-csv/*
+#Ignore the virtual environment for the project, which is located in the .venv directory
+#ignore all subdirectories and files within the site-packages directory of the virtual environment
+digital_privacy/lib/python3.12/site-packages/
+digital_privacy/lib/python3.12/site-packages/*
+
+#git rm -r --cached digital_privacy/lib/python3.12/site-packages/
+
+model_cache/
