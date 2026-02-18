@@ -1,6 +1,6 @@
 import pandas as pd
 import sys
-
+import traceback
 sys.path.append('/home/ubuntu/PETSAFE/setup/exports_imports/building_aggregation/processor')
 sys.path.append('/home/ubuntu/PETSAFE/setup/exports_imports/building_aggregation')
 
@@ -34,7 +34,7 @@ def majority_true(window):
 
 def filter_zeros(df):
     df['is_zero'] = df['real_power'] < .1
-    df['true_zero'] = df['is_zero'].rolling(window = 5, center = True).apply(majority_true, raw = False).astype(bool)
+    df['true_zero'] = df['is_zero'].rolling(window = 5, center = True, min_periods = 5).apply(majority_true, raw = False).astype(bool)
     true_zero_list = df['true_zero'].to_list()  
     index = 0 
     zero_gaps = []
@@ -51,8 +51,10 @@ def filter_zeros(df):
             length = end - start + 1 
             zero_gaps.append(length) 
             total_zero_gaps += length
+        else:
+            index += 1 
 
-    return max(zero_gaps, total_zero_gaps)
+    return zero_gaps, total_zero_gaps
 
 
 # Help process site ids for gaps, allowed gaps are configured in config.py file. 
@@ -214,34 +216,55 @@ def test_id(id):
 
         # Returns a map whose keys represent the length of the gap, and values are the row numbers
         pointid_gap_map = process_id_gaps(available_slots_copy['real_power'].to_list())
+        zero_gap_list, total_zero_gaps = filter_zeros(available_slots_copy)
+        
 
         if len(available_entries) != len(available_slots):
             #raw_records_df.to_csv('raw.csv')
             print(pointid_gap_map)
+            print(f'total zero list : {zero_gap_list}')
+            print(f'biggest gap : {max(zero_gap_list)}')
+            print(f'total zeros gaps : {total_zero_gaps}\n')
+
             if len(available_entries) + available_slots_na != len(available_slots):
                 pointid_gap_map = process_id_gaps(available_slots_copy['real_power'].to_list())
                 zero_gap_list, total_zero_gaps = filter_zeros(available_slots_copy)
+                print(f'total zero list : {zero_gap_list}')
+                print(f'total zeros gaps : {total_zero_gaps}\n')
 
-                available_entries.to_csv('available_entries.csv')
-                available_slots.to_csv('available_slots.csv')
-                all_time_entries_pd.to_csv('all_time_entries.csv')
-                naframe_df.to_csv('naframe.csv')
-                print('Paused')
+                # available_entries.to_csv('available_entries.csv')
+                # available_slots.to_csv('available_slots.csv')
+                # all_time_entries_pd.to_csv('all_time_entries.csv')
+                # naframe_df.to_csv('naframe.csv')
+                print('ERROR WE GET HERE')
         readings_per_day = 24 * 4 # 96 intervals in a day- 24 hours, 4 _pdintervals per hour
         max_readings_in_period = readings_per_day * int((dt.datetime.strptime(config.END_DATE, '%Y-%m-%d') \
                                                              - dt.datetime.strptime(config.START_DATE, '%Y-%m-%d')).days) + 1
         min_valid_results = floor(max_readings_in_period * config.REQUIRED_PORTION) # Number required to accept the site
         # Finally, validate that enough data exists in the site for usage
+        
 
         # if id == 25665:
         #     print(1)
 
         if existing_records >= min_valid_results: # ID is valid
-            return id,id, available_slots_na, pointid_gap_map
+            if max(zero_gap_list) <= 100 and total_zero_gaps <= 96:
+                print(zero_gap_list)
+                print('*' * 40 + '\n')
+                return id,id, available_slots_na, pointid_gap_map
+            else: 
+                return None
         else:
-            return None,id, available_slots_na, pointid_gap_map  # AKA: not enough data for that point in this time period
+            if max(zero_gap_list) <= 100 and total_zero_gaps <= 96:
+                print(zero_gap_list)
+                print('*' * 40 + '\n')
+                return None,id, available_slots_na, pointid_gap_map  # AKA: not enough data for that point in this time period
+            else:
+                return None 
     except Exception as ex:
         print(f"Error testing validity for id {id}:", ex)
+        traceback.print_exc()
+        print()
         return None,None,None
 # Get records for those IDs so we can test them
 def pickle_data(id):
@@ -273,7 +296,7 @@ def get_valid_ids(threshold, id_list):
     threshold = threshold / 100
     config.REQUIRED_PORTION = threshold
     try:
-        mp=False
+        mp=True
         if mp==True:
             with multiprocessing.Pool(processes=1) as pool:
                 results = pool.map(test_id, id_list)
@@ -349,11 +372,29 @@ def get_valid_id_counts(mode):
 
                 result = {} 
 
-                print(f'Threshold : {threshold} : {valid_ids}')
+                # print(f'Threshold : {threshold} : {valid_ids}')
                 
                 cleaned_map = {k : int(v) for k, v in id_count_map.items()}
                 sorted_map = sorted(cleaned_map.items(), key = lambda x : x[1], reverse = False)
                 top_100_map = dict(sorted_map[:100])
+
+                new_result = {}
+
+                for key,value in total_gap_map.items():
+                    flag = True 
+                    for length in value:
+                        if length != 4:
+                            flag = False
+                            break
+
+                    if flag:
+                        new_result[key] = value 
+
+                
+                print(f'Length of new result : {len(new_result)}')
+                print(new_result)
+                print()
+
 
                 for key in top_100_map.keys():
                     keep_flag = True
@@ -368,14 +409,14 @@ def get_valid_id_counts(mode):
                         result[key] = total_gap_map[key]                
 
                 print()
-                print(len(result))
+                print(f'Length of result : {result}')
                 for key,value in result.items():
                     print(key,value)
 
-                # gap_key_list = list(result.keys())
+                gap_key_list = list(new_result.keys())
 
-                # with open('valid-keys.pkl', 'wb') as file:
-                #     pickle.dump(gap_key_list, file)
+                with open('valid-keys.pkl', 'wb') as file:
+                    pickle.dump(gap_key_list, file)
 
                 # print(top_100_map)
                 filename = f'/home/ubuntu/PETSAFE/setup/exports_imports/building_aggregation/valid-outputs/{config.START_DATE}-{config.END_DATE}.json'
