@@ -5,6 +5,7 @@ from zoneinfo import ZoneInfo
 import pandas as pd
 from pathlib import Path
 import pickle
+import numpy as np
 
 gap_key_file = 'valid-keys.pkl'
 output_directory = 'interpolated-csv-files'
@@ -12,6 +13,32 @@ csv_compare = 'compare-csv'
 
 start = "2021-01-01"
 end = "2022-01-01"
+
+# def majority_true(window):
+#     return window.sum() > (len(window) // 2)
+
+# def filter_zeros(df):
+#     df['is_zero'] = df['real_power'] < .1
+#     df['true_zero'] = df['is_zero'].rolling(window = 5, center = True, min_periods = 5).apply(majority_true, raw = False).astype(bool)
+#     df.loc[df['true_zero'], 'real_power'] = np.nan
+#     print(df.info)
+#     return df
+
+def majority_true(window):
+    return window.sum() > (len(window) / 2)
+
+def filter_zeros(df):
+    df['is_zero'] = df['real_power'] < 0.1
+
+    rolling_result = df['is_zero'].rolling(window=5, center=True, min_periods=5).apply(
+        majority_true, raw=False
+    )
+
+    df['true_zero'] = rolling_result.fillna(False).astype(bool)
+    df.loc[df['true_zero'], 'real_power'] = np.nan
+    print(df.info())
+    return df
+
 
 def interpolate(df):
     df['pf'] = df['pf'].fillna(1.0)
@@ -30,7 +57,7 @@ def interpolate(df):
 
     df['timestamp_y'] = df['timestamp_y'].fillna(df['timestamp_x'])
     df['real_power'] = df['real_power'].interpolate(method = 'spline', order = 1)
-    return df
+    print(df.info())
 
 def replace_timezone(x):
     return x.replace(tzinfo=ZoneInfo("UTC"))
@@ -95,6 +122,11 @@ def process_pointid(point_id):
             pointid_gap_map = gbv.process_id_gaps(available_slots['real_power'].to_list())
             print(pointid_gap_map)
 
+            available_slots_copy = available_slots.copy()
+            cleaned_available_slots = filter_zeros(available_slots_copy)
+
+
+
             compare_csv_file = Path(f'{csv_compare}/{point_id}.csv')
 
             if compare_csv_file.exists():
@@ -105,10 +137,10 @@ def process_pointid(point_id):
 
             if not csv_file.exists():
                 print(f'Making csv file {point_id}')
-                edited_df = interpolate(available_slots)
-                pointid_gap_map = gbv.process_id_gaps(edited_df['real_power'].to_list())
+                # edited_df = interpolate(available_slots)
+                # pointid_gap_map = gbv.process_id_gaps(edited_df['real_power'].to_list())
                 print(pointid_gap_map)
-                edited_df.to_csv(f'{output_directory}/{point_id}.csv')
+                cleaned_available_slots.to_csv(f'{output_directory}/{point_id}.csv')
     except Exception as ex:
         print(f"Error mock-imputing for id {id}:", ex)
 
@@ -117,7 +149,6 @@ def main():
     with open(gap_key_file, 'rb') as file:
         gap_list = pickle.load(file)
     
-    print(len(gap_list))
 
     directory_path = Path(output_directory)
 
