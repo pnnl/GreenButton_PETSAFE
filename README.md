@@ -44,6 +44,67 @@ InfluxDB (v2 and v3. V3 used for faster imports but could be replaced; otherwise
 - scripts contains Python scripts used in the API (classes, repeated functions, etc.)
 - sql will be removed in the future as soon as it's certain it's no longer in use
 
+## LSTM-based Demand Imputation Tool (`clean_csv.py`)
+
+### Overview
+The demand imputation tool uses LSTM neural networks to fill missing values (gaps) in power consumption time-series data. It analyzes data characteristics around the gaps to select an appropriate imputation strategy for energy data, considering the range of variability in the areas near the gap (i.e., to match the underlying demand data features).
+The algorithm is divided into two phases. During the first phase, the algorithm is trained using a sliding window technique, where records from the current window are used to predict the next window. Training windows are only deployed where continuous records exist to learn "typical behavior". During the second phase, actual imputation occurs, filling in the blanks according to the trained model (or using linear interpolation when only a few missing points exist).
+
+### Input Requirements
+- **CSV files** containing time-series power data with:
+  - A timestamp column (`timestamp_x`) 
+  - A power measurement column (`real_power` or `power`)
+  - Missing values should be represented as NaN or null entries
+- Output files should be placed in the `interpolated-csv-files/` directory by default
+
+
+### How It Works
+The tool employs a three-tier imputation strategy:
+
+1. **Data Analysis**: Examines each gap's surrounding data to calculate:
+   - Coefficient of Variation (CV) - relative variability
+   - Spike ratio - percentage of outliers (>2σ from mean)
+   - Spike clusters - groups of consecutive outliers
+   - Volatility - average absolute change between points
+   - Sudden changes - frequency of extreme fluctuations
+
+2. **Model Selection** (automatic when `approach='auto'`):
+   - **Linear Interpolation**: Used to fill small gaps (≤4 points)
+   - **Residual Modeling**: Highly spiky AND volatile data (spike_ratio >10%, sudden_changes >30%)
+   - **Ensemble LSTM**: Data with multiple spike clusters (>3), uses three parallel networks at different time scales (10, 20, 40 steps)
+   - **Enhanced Single LSTM**: Smoother data or fallback, uses deep 128→96→64 unit network
+
+3. **Model Caching**: Trained models are cached to avoid retraining on identical data patterns, improving processing speed.
+
+### Usage
+Run the script directly to process all CSV files in the input directory:
+
+```bash
+python clean_csv.py
+```
+
+**Output**:
+- Imputed CSV files saved to `imputed-csv-files/`
+- Before/after visualization plots  are saved to `csv-plot-output/` (HTML)
+- Console output showing gap detection, method selection, and processing statistics
+
+### Key Features
+- **Reproducibility**: The LTSM training uses a fixed random seed (42), to ensure identical results across multiple runs
+- **Spike-aware loss function**: Custom loss function to ensure LTSM weights remain predictable
+- **Multi-scale temporal modeling**: Ensemble approach captures short, medium, and long-term patterns simultaneously
+- **Auto scaling**: The LTSM is able to scale to different demand scales. 
+- **Fallback mechanisms**: Automatically uses simpler methods when insufficient data is available
+
+### Configuration Parameters
+Key parameters in `impute_power_gaps()`:
+- `small_gap_threshold=4`: Maximum gap size for linear interpolation
+- `training_window=200`: Number of surrounding points used for training
+- `lstm_approach='auto'`: Algorithm selection ('auto', 'ensemble', 'residual', 'enhanced_single')
+- `show_comparison=True`: Display before/after comparison tables
+- `create_plots=True`: Generate HTML visualization plots
+
+
+
 ## Within /setup
 - exports-and-imports contains files used to create, export, and import sample building energy records.
 - sql contains SQL files used to set up the backend databases.
