@@ -95,7 +95,7 @@ def main():
                 else:
                     processed_chunk.to_csv(output, index = False, mode = 'a', header = False)
             
-            print(f'Finished processing file : {file.name}\n')
+            print(f'Finished processing file : {file.name}')
     except Exception as e: 
         print(f'Failed to process files : {e}')
 

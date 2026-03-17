@@ -44,9 +44,9 @@ def validate_csv_files():
             else:
                 invalid_id.append(point_id)
 
-        print(f'Finished processing point id: {point_id}\n')
+        print(f'Finished processing point id: {point_id}')
 
-    print(f'Valid ids: {valid_id}\n')
+    print(f'Valid ids: {valid_id}')
     print(f'Invalid ids: {invalid_id}')
 
 def majority_true(window):

@@ -212,7 +212,7 @@ def test_id(id):
         # real_power_array = available_slots_copy['real_power']
         # real_power_array.to_csv('real_power.csv')
 
-        # # print(f'After update, na count : {available_slots_na}\n')
+        # # print(f'After update, na count : {available_slots_na}')
 
         # Returns a map whose keys represent the length of the gap, and values are the row numbers
         pointid_gap_map = process_id_gaps(available_slots_copy['real_power'].to_list())
@@ -224,13 +224,13 @@ def test_id(id):
             print(pointid_gap_map)
             print(f'total zero list : {zero_gap_list}')
             print(f'biggest gap : {max(zero_gap_list)}')
-            print(f'total zeros gaps : {total_zero_gaps}\n')
+            print(f'total zeros gaps : {total_zero_gaps}')
 
             if len(available_entries) + available_slots_na != len(available_slots):
                 pointid_gap_map = process_id_gaps(available_slots_copy['real_power'].to_list())
                 zero_gap_list, total_zero_gaps = filter_zeros(available_slots_copy)
                 print(f'total zero list : {zero_gap_list}')
-                print(f'total zeros gaps : {total_zero_gaps}\n')
+                print(f'total zeros gaps : {total_zero_gaps}')
 
                 # available_entries.to_csv('available_entries.csv')
                 # available_slots.to_csv('available_slots.csv')

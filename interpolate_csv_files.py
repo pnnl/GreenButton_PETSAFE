@@ -131,7 +131,7 @@ def process_pointid(point_id):
 
             if compare_csv_file.exists():
                 print(f'Making compare csv file {point_id}')
-                available_slots.to_csv(f'{csv_compare}/{point_id}.csv\n')
+                available_slots.to_csv(f'{csv_compare}/{point_id}.csv')
 
             csv_file = Path(f'{output_directory}/{point_id}.csv')
 

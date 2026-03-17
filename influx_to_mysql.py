@@ -43,7 +43,7 @@ def build_sql():
             # Duration is in seconds: 900 seconds = 15 minutes
             # CPP = 0 means "not applicable"
             query = query + 'INSERT INTO interval_readings (id, cost, duration, start, value, interval_block_id, consumptionTier, tou, cpp) ' + \
-                f'VALUES ({row_id}, "", 900, {row_data["timestamp"]}, {row_data["value"]}, "", "", "", 0);\n'
+                f'VALUES ({row_id}, "", 900, {row_data["timestamp"]}, {row_data["value"]}, "", "", "", 0);'
             row_id += 1
     except KeyboardInterrupt:
         print("Stopping.")
