@@ -166,7 +166,18 @@ def populateAll():
 
 def populateAllV2():
     database = DATABASE
-    input_file='POWER15_wide_new.csv'
+    input_file='POWER15_wide_new.csv'  #this file must be procured from the NEEA data and placed in the same directory as this script. It is a wide-format version of the power data, with one row per timestamp and separate columns for each circuit's power measurements. This is a more efficient format for loading the data, but it requires some assumptions about the data structure (eg. that there are only two columns for mains measurements, "Mains" and "Mains with Solar", and that these are labeled as such in the points.csv file).
+    #ee_site_id,MIN_T_l,MAX_T_l,min_t,max_t,Central AC,Central Vacuum,Clothes Dryer,Clothes Washer,Dishwasher,Ducted Heatpump,Ductless Heatpump,Electric Baseboard Heaters,Electric Furnace,Electric Resistance Storage Water Heaters,ERV,EULR BOX,EVSE,Garbage Disposal,Gas Furnace (Component),Heat Pump Water Heater,Hot Tub,Ignitor,Instantaneous Water Heater (Elec),Instantaneous Water Heater (Gas),Mains,Mains With Solar,Microwave,Other,Other Large Load,Other With Solar,Other Zonal Heat,PTAC,PUMP,Refrigerator/Freezer,Room AC,Solar,Stove/Oven/Range,Sub Panel
+    #491,2019-07-31 17:00:00.000,2019-07-31 17:14:00.000,2019-08-01 00:00:00.000,2019-08-01 00:14:00.000,,,0.002,0.144,0,,0.184,0,,0,,,,0.01,,,0.001,,,,,-0.151,,0.419,,,,,,,,-1.531,0.003,
+    #491,2019-07-31 17:15:00.000,2019-07-31 17:29:00.000,2019-08-01 00:15:00.000,2019-08-01 00:29:00.000,,,0.002,0.275,0,,0.186,0,,0,,,,0.01,,,0.002,,,,,0.19,,0.312,,,,,,,,-1.421,0.004,
+    #491,2019-07-31 17:30:00.000,2019-07-31 17:44:00.000,2019-08-01 00:30:00.000,2019-08-01 00:44:00.000,,,0.001,0.1,0,,0.182,0,,1.277,,,,0.01,,,0.001,,,,,1.158,,0.357,,,,,,,,-1.301,0.003,
+    #491,2019-07-31 17:45:00.000,2019-07-31 17:59:00.000,2019-08-01 00:45:00.000,2019-08-01 00:59:00.000,,,0.002,0.158,0,,0.184,0,,0,,,,0.01,,,0.001,,,,,-0.024,,0.349,,,,,,,,-1.176,0.003,
+    #491,2019-07-31 18:00:00.000,2019-07-31 18:14:00.000,2019-08-01 01:00:00.000,2019-08-01 01:14:00.000,,,0.002,0.274,0,,0.18,0,,0,,,,0.01,,,0.002,,,,,0.318,,0.35,,,,,,,,-1.033,0.003,
+    #491,2019-07-31 18:15:00.000,2019-07-31 18:29:00.000,2019-08-01 01:15:00.000,2019-08-01 01:29:00.000,,,0.002,0.092,0,,0.177,0,,0,,,,0.01,,,0.001,,,,,1.331,,0.345,,,,,,,,-0.889,0.003,
+    #491,2019-07-31 18:30:00.000,2019-07-31 18:44:00.000,2019-08-01 01:30:00.000,2019-08-01 01:44:00.000,,,0.002,0.167,0,,0.177,0,,0,,,,0.01,,,0.001,,,,,0.596,,0.34,,,,,,,,-0.736,0.003,
+    #491,2019-07-31 18:45:00.000,2019-07-31 18:59:00.000,2019-08-01 01:45:00.000,2019-08-01 01:59:00.000,,,0.002,0.271,0,,0.128,0,,0,,,,0.01,,,0.002,,,,,0.657,,0.243,,,,,,,,-0.647,0.003,
+    #491,2019-07-31 19:00:00.000,2019-07-31 19:14:00.000,2019-08-01 02:00:00.000,2019-08-01 02:14:00.000,,,0.002,0.089,0,,0.012,0,,0,,,,0.01,,,0.001,,,,,0.606,,0.39,,,,,,,,-0.502,0.003,
+
     loadDataLabels(database)
     DBConn.create_POWERTABLE(database)
     # create a database connection
